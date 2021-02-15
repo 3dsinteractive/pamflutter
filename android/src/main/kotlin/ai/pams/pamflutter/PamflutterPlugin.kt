@@ -25,7 +25,9 @@ class PamflutterPlugin: FlutterPlugin, MethodCallHandler {
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
     if (call.method == "getPlatformVersion") {
       result.success("Android ${android.os.Build.VERSION.RELEASE}")
-    } else {
+    }else if (call.method == "getPlatform") {
+      result.success("android")
+    }else {
       result.notImplemented()
     }
   }

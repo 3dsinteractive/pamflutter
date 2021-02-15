@@ -12,4 +12,5 @@
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   [SwiftPamflutterPlugin registerWithRegistrar:registrar];
 }
+
 @end
