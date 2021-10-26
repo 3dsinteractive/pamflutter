@@ -63,13 +63,7 @@ public class SwiftPamflutterPlugin: NSObject, FlutterPlugin {
         let tokenParts = deviceToken.map { data -> String in
             return String(format: "%02.2hhx", data)
         }
-        
-        #if DEBUG
-        let token = "sandbox/\(tokenParts.joined())"
-        #else
         let token = tokenParts.joined()
-        #endif
-        
         channel?.invokeMethod("onToken", arguments: token)
     }
     

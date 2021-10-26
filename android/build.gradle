@@ -1,8 +1,8 @@
 group 'ai.pams.pamflutter'
-version '1.0-SNAPSHOT'
+version '1.0'
 
 buildscript {
-    ext.kotlin_version = '1.3.50'
+    ext.kotlin_version = '1.4.21'
     repositories {
         google()
         jcenter()
@@ -40,4 +40,5 @@ android {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation 'com.google.android.play:core:1.8.2'
 }
