@@ -9,7 +9,7 @@ class TrackerAPI {
 
   TrackerAPI(this.baseURL);
 
-  Future<PamResponse?> postTracker(Map<String, dynamic> body) async {
+  Future<PamResponse> postTracker(Map<String, dynamic> body) async {
     var uri = Uri.parse("$baseURL/trackers/events");
 
     try {
@@ -17,6 +17,7 @@ class TrackerAPI {
       var response = await http.post(uri, body: jsonbody);
 
       if (Pam.shared.isEnableLog) {
+        debugPrint("${DateTime.now()}");
         debugPrint("🦄🦄🦄🦄🦄 PAM TRACKING EVENT 🦄🦄🦄🦄🦄🦄\n\n");
         debugPrint(uri.toString());
         debugPrint("----- Payload -----");
@@ -28,17 +29,20 @@ class TrackerAPI {
         debugPrint("----- Response Body -----");
         debugPrint(response.body);
         debugPrint("\n\n🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄");
+        debugPrint("RES+ = ${response.body}");
       }
-
+     
       final pamResponse = PamResponse.parse(response.body);
-      debugPrint("RES+ = ${response.body}");
       return pamResponse;
     } catch (e) {
       if (Pam.shared.isEnableLog) {
         debugPrint("\n\n🦄🦄🦄🦄🦄 PAM TRACKING ERROR 🦄🦄🦄🦄🦄🦄");
         debugPrint(e.toString());
       }
-      return null;
+      var errorResponse = PamResponse();
+      errorResponse.error =
+          PamErrorResponse(code: "EXCEPTION", errorMessage: e.toString());
+      return errorResponse;
     }
   }
 }

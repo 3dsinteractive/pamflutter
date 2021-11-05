@@ -5,9 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:pamflutter/api/consent_api.dart';
 import 'package:pamflutter/response/allow_consent.dart';
 import 'package:pamflutter/response/consent_message.dart';
-import 'package:pamflutter/tracker_queue_manager.dart';
+import 'package:pamflutter/response/pam_response.dart';
 import 'preferences.dart';
-import './tracker_queue_manager.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:device_info/device_info.dart';
 import 'dart:io' show Platform;
@@ -16,6 +15,9 @@ import './api/tracker_api.dart';
 import 'package:flutter/services.dart';
 import 'package:pamflutter/api/push_notification_api.dart';
 import 'package:pamflutter/response/pam_push_message.dart';
+import 'package:queue/queue.dart';
+
+typedef TrackerCallBack = Function(PamResponse);
 
 class PamConfig {
   String pamServer, publicDBAlias, loginDBAlias, trackingConsentMessageID;
@@ -31,8 +33,29 @@ class SubmitConsentResult {
   SubmitConsentResult(this.result, this.consentID);
 }
 
+enum TrackingStatus {
+  /// The user has not yet received an authorization request dialog
+  notDetermined,
+
+  /// The device is restricted, tracking is disabled and the system can't show a request dialog
+  restricted,
+
+  /// The user denies authorization for tracking
+  denied,
+
+  /// The user authorizes access to tracking
+  authorized,
+
+  /// The platform is not iOS or the iOS version is below 14.0
+  notSupported,
+}
+
 class Pam {
   //--STATIC --
+  static var contactID = "";
+  static var databaseAlias = "";
+  static var customerID = "";
+
   static var shared = Pam();
   static const MethodChannel _channel = MethodChannel('ai.pams.flutter');
 
@@ -43,6 +66,36 @@ class Pam {
   static Future<void> initialize(PamConfig config) async {
     await shared.init(config, config.enableLog);
   }
+
+  //iOS App Tracking Transparency
+  static Future<TrackingStatus> get trackingAuthorizationStatus async {
+    if (Platform.isIOS) {
+      final int status =
+          (await _channel.invokeMethod<int>('getTrackingAuthorizationStatus'))!;
+      return TrackingStatus.values[status];
+    }
+    return TrackingStatus.notSupported;
+  }
+
+  static Future<TrackingStatus> requestTrackingAuthorization() async {
+    if (Platform.isIOS) {
+      final int status =
+          (await _channel.invokeMethod<int>('requestTrackingAuthorization'))!;
+      return TrackingStatus.values[status];
+    }
+    return TrackingStatus.notSupported;
+  }
+
+  static Future<String> getAdvertisingIdentifier() async {
+    if (Platform.isIOS) {
+      final String uuid =
+          (await _channel.invokeMethod<String>('getAdvertisingIdentifier'))!;
+      return uuid;
+    }
+    return "";
+  }
+
+  //iOS App Tracking Transparency
 
   static Future<List<PamPushMessage>?> loadPushNotificationsFromMobile(
       String mobileNumber) async {
@@ -63,21 +116,29 @@ class Pam {
   }
 
   static void track(String event,
-      {Map<String, dynamic>? payload, TrackerCallBack? trackerCallBack}) {
-    shared.trackEvent(event,
-        payload: payload, trackerCallBack: trackerCallBack);
+      {Map<String, dynamic>? payload, TrackerCallBack? callback}) {
+    unawaited(shared.queue
+        .add(() async => _track(event, payload: payload, callback: callback)));
   }
 
-  static void setPushNotificationToken(String deviceToken) {
-    shared.setDeviceToken(deviceToken);
+  static Future<void> _track(String event,
+      {Map<String, dynamic>? payload, TrackerCallBack? callback}) async {
+    final res = await shared.postTracker(event, payload);
+    callback?.call(res);
   }
 
-  static void userLogin(String custID, {Map<String, dynamic>? payload}) {
-    shared.trackUserLogin(custID, payload: payload);
+  static Future<PamResponse> setPushNotificationToken(
+      String deviceToken) async {
+    return await shared.setDeviceToken(deviceToken);
   }
 
-  static void userLogout({Map<String, dynamic>? payload}) {
-    shared.trackUserLogout(payload: payload);
+  static Future<PamResponse> userLogin(String custID,
+      {Map<String, dynamic>? payload}) async {
+    return await shared.trackUserLogin(custID, payload: payload);
+  }
+
+  static Future<void> userLogout({Map<String, dynamic>? payload}) async {
+    await shared.trackUserLogout(payload: payload);
   }
 
   static Future<ConsentMessage?> loadConsentMessage(
@@ -155,7 +216,8 @@ class Pam {
   var isEnableLog = false;
   var allowTracking = false;
   var pref = UserPreference();
-  var queue = TrackerQueueManger();
+  //var queue = TrackerQueueManger();
+  final queue = Queue(delay: const Duration(milliseconds: 1000));
   PamConfig? config;
 
   DateTime sessionExpire = DateTime(1983, 11, 14);
@@ -171,17 +233,16 @@ class Pam {
     trackerAPI = TrackerAPI(config.pamServer);
     this.config = config;
     isEnableLog = debug;
-    queue.onQueueStart = onNextQueue;
 
     var allow = await pref.getBool(SaveKey.allowTracking);
     if (allow != null) {
       allowTracking = allow;
     }
 
-    var custID = await pref.getString(SaveKey.customerID);
-    if (custID != null) {
-      Pam.userLogin(custID);
-    }
+    //var custID = await pref.getString(SaveKey.customerID);
+    // if (custID != null) {
+    //   Pam.userLogin(custID);
+    // }
 
     var token = await pref.getString(SaveKey.pushKey);
     if (token != null) {
@@ -189,23 +250,12 @@ class Pam {
     }
   }
 
-  void onNextQueue(TrackQueue item) {
-    postTracker(item.event, item.payload, item.trackerCallBack);
-  }
-
   Future<void> setAllowTracking(bool allow) async {
     allowTracking = true;
     await pref.saveBool(allow, SaveKey.allowTracking);
   }
 
-  void trackEvent(String event,
-      {Map<String, dynamic>? payload, TrackerCallBack? trackerCallBack}) {
-    var trackQueue =
-        TrackQueue(event, payload: payload, trackerCallBack: trackerCallBack);
-    queue.enqueue(trackQueue);
-  }
-
-  Future<void> trackUserLogin(String custID,
+  Future<PamResponse> trackUserLogin(String custID,
       {Map<String, dynamic>? payload}) async {
     var notiKey =
         Platform.isAndroid ? "android_notification" : "ios_notification";
@@ -215,29 +265,28 @@ class Pam {
     payload?.forEach((key, val) {
       defaultPayload[key] = val;
     });
-    //Delete Push Noti from anonymous
-    trackEvent("delete_media", payload: defaultPayload);
-    await pref.saveString(custID, SaveKey.customerID);
 
+    //Delete Push Noti from anonymous
+    await queue.add(() => postTracker("delete_media", defaultPayload));
+    await pref.saveString(custID, SaveKey.customerID);
     this.custID = custID;
+
     //Login
-    trackEvent("login",
-        payload: payload,
-        trackerCallBack: (res) => {
-              if (isNotEmpty(res.contactID))
-                {
-                  loginContact = res.contactID,
-                  pref.saveString(res.contactID!, SaveKey.loginContactID)
-                }
-            });
+    var response = await queue.add(() => postTracker("login", payload));
+    if (isNotEmpty(response.contactID)) {
+      loginContact = response.contactID;
+      pref.saveString(response.contactID!, SaveKey.loginContactID);
+    }
 
     var push = await getPushToken();
     if (push != null) {
       setDeviceToken(push);
     }
+
+    return response;
   }
 
-  void setDeviceToken(String deviceToken) {
+  Future<PamResponse> setDeviceToken(String deviceToken) async {
     var saveToken = deviceToken;
     var mediaKey = "";
     if (Platform.isIOS) {
@@ -248,12 +297,14 @@ class Pam {
     } else {
       mediaKey = "android_notification";
     }
-    track("save_push", payload: {mediaKey: saveToken});
-
+    var res =
+        await queue.add(() => postTracker("save_push", {mediaKey: saveToken}));
     pref.saveString(deviceToken, SaveKey.pushKey);
+
+    return res;
   }
 
-  void trackUserLogout({Map<String, dynamic>? payload}) {
+  Future<void> trackUserLogout({Map<String, dynamic>? payload}) async {
     var alias = (Platform.isIOS) ? "ios_notification" : "android_notification";
     Map<String, dynamic> defaultPayload = {
       "_delete_media": {alias: ""}
@@ -261,21 +312,20 @@ class Pam {
     payload?.forEach((key, val) {
       defaultPayload[key] = val;
     });
-    trackEvent("delete_media", payload: defaultPayload);
+    await queue.add(() => postTracker("delete_media", defaultPayload));
+    await queue.add(() => postTracker("logout", payload));
 
-    trackEvent("logout", payload: payload, trackerCallBack: (res) async {
-      custID = null;
-      loginContact = null;
-      await pref.remove(SaveKey.customerID);
-      await pref.remove(SaveKey.loginContactID);
-    });
+    custID = null;
+    loginContact = null;
+    await pref.remove(SaveKey.customerID);
+    await pref.remove(SaveKey.loginContactID);
 
-    if (pushToken != null) {
+    if (isNotEmpty(pushToken)) {
       defaultPayload = {alias: pushToken};
       payload?.forEach((key, val) {
         defaultPayload[key] = val;
       });
-      trackEvent("save_push", payload: defaultPayload);
+      await queue.add(() => setPushNotificationToken(pushToken ?? ''));
     }
   }
 
@@ -320,8 +370,9 @@ class Pam {
     }
     deviceUDID = await pref.getString(SaveKey.deviceUDID);
     if (deviceUDID == null) {
-      const uuid = Uuid();
-      deviceUDID = uuid.v1();
+      deviceUDID = await Pam.getAdvertisingIdentifier();
+      //const uuid = Uuid();
+      //deviceUDID = uuid.v1();
       if (isNotEmpty(deviceUDID)) {
         pref.saveString(deviceUDID!, SaveKey.deviceUDID);
       }
@@ -347,20 +398,24 @@ class Pam {
 
   Future<String?> getContactID() async {
     if (isNotEmpty(loginContact)) {
+      Pam.contactID = loginContact ?? '';
       return loginContact;
     }
 
     if (isNotEmpty(publicContact)) {
+      Pam.contactID = publicContact ?? '';
       return publicContact;
     }
 
     loginContact = await pref.getString(SaveKey.loginContactID);
     if (isNotEmpty(loginContact)) {
+      Pam.contactID = loginContact ?? '';
       return loginContact;
     }
 
     publicContact = await pref.getString(SaveKey.contactID);
     if (isNotEmpty(publicContact)) {
+      Pam.contactID = publicContact ?? '';
       return publicContact;
     }
 
@@ -376,7 +431,9 @@ class Pam {
       return custID;
     }
     custID = await pref.getString(SaveKey.customerID);
+
     if (isNotEmpty(custID)) {
+      Pam.customerID = custID ?? '';
       return custID;
     }
     return null;
@@ -384,8 +441,10 @@ class Pam {
 
   String getDatabaseAlias() {
     if (isUserLogin()) {
+      Pam.databaseAlias = config?.loginDBAlias ?? "";
       return config?.loginDBAlias ?? "";
     }
+    Pam.databaseAlias = config?.publicDBAlias ?? "";
     return config?.publicDBAlias ?? "";
   }
 
@@ -437,34 +496,35 @@ class Pam {
     return body;
   }
 
-  Future<void> postTracker(String? event, Map<String, dynamic>? payload,
-      TrackerCallBack? trackerCallBack) async {
+  Future<PamResponse> postTracker(
+      String? event, Map<String, dynamic>? payload) async {
     var body = await createTrackingBody(event, payload);
     var response = await trackerAPI?.postTracker(body);
 
-    if (response != null) {
+    if (response?.error == null) {
       if (isUserLogin()) {
-        if (isNotEmpty(response.contactID)) {
+        if (isNotEmpty(response?.contactID)) {
           if (isEnableLog) {
             debugPrint(
-                "PAM: Save Logged-in contact ID = ${response.contactID}");
+                "PAM: Save Logged-in contact ID = ${response?.contactID}");
           }
-          pref.saveString(response.contactID!, SaveKey.loginContactID);
-          loginContact = response.contactID;
+          pref.saveString(response?.contactID ?? '', SaveKey.loginContactID);
+          loginContact = response?.contactID;
         }
       } else {
-        if (isNotEmpty(response.contactID)) {
+        if (isNotEmpty(response?.contactID)) {
           if (isEnableLog) {
             debugPrint(
-                "PAM: Save Anonymous contact ID = ${response.contactID}");
+                "PAM: Save Anonymous contact ID = ${response?.contactID}");
           }
-          pref.saveString(response.contactID!, SaveKey.contactID);
-          publicContact = response.contactID;
+          pref.saveString(response?.contactID ?? '', SaveKey.contactID);
+          publicContact = response?.contactID;
         }
       }
-      trackerCallBack?.call(response);
     }
 
-    queue.next();
+    return response ??
+        PamResponse.createErrorResponse(
+            code: "EMPTY_RESPONSE", errorMessage: "PAM return empty response.");
   }
 }
