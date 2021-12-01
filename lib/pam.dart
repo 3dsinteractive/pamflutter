@@ -357,11 +357,15 @@ class Pam {
     final difference = now.difference(sessionExpire).inMinutes;
     if (difference >= 60) {
       sessionExpire = DateTime.now().add(const Duration(minutes: 60));
-      const uuid = Uuid();
-      sessionID = uuid.v1();
+      sessionID = genUUID();
       return sessionID;
     }
     return sessionID;
+  }
+
+  String genUUID() {
+    const uuid = Uuid();
+    return uuid.v1();
   }
 
   Future<String?> getDeviceUDID() async {
