@@ -86,13 +86,13 @@ class Pam {
     return TrackingStatus.notSupported;
   }
 
-  static Future<String> getAdvertisingIdentifier() async {
-    if (Platform.isIOS) {
-      final String uuid =
-          (await _channel.invokeMethod<String>('getAdvertisingIdentifier'))!;
-      return uuid;
+  static Future<String?> identifierForVendor() async {
+    final uuid =
+          await _channel.invokeMethod<String>('identifierForVendor');
+    if (uuid == "") {
+      return null;
     }
-    return "";
+    return uuid;
   }
 
   //iOS App Tracking Transparency
@@ -357,11 +357,15 @@ class Pam {
     final difference = now.difference(sessionExpire).inMinutes;
     if (difference >= 60) {
       sessionExpire = DateTime.now().add(const Duration(minutes: 60));
-      const uuid = Uuid();
-      sessionID = uuid.v1();
+      sessionID = genUUID();
       return sessionID;
     }
     return sessionID;
+  }
+
+  String genUUID() {
+    const uuid = Uuid();
+    return uuid.v1();
   }
 
   Future<String?> getDeviceUDID() async {
@@ -370,9 +374,7 @@ class Pam {
     }
     deviceUDID = await pref.getString(SaveKey.deviceUDID);
     if (deviceUDID == null) {
-      deviceUDID = await Pam.getAdvertisingIdentifier();
-      //const uuid = Uuid();
-      //deviceUDID = uuid.v1();
+      deviceUDID = await Pam.identifierForVendor();
       if (isNotEmpty(deviceUDID)) {
         pref.saveString(deviceUDID!, SaveKey.deviceUDID);
       }

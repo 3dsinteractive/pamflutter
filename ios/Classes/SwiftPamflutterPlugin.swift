@@ -31,8 +31,9 @@ public class SwiftPamflutterPlugin: NSObject, FlutterPlugin {
             else if (call.method == "requestTrackingAuthorization") {
                 self.requestTrackingAuthorization(result: result)
             }
-            else if (call.method == "getAdvertisingIdentifier") {
-                self.getAdvertisingIdentifier(result: result)
+            else if (call.method == "identifierForVendor") {
+                let uuid = self.identifierForVendor()
+                result(uuid)
             }else{
                 result(FlutterMethodNotImplemented)
             }
@@ -65,8 +66,9 @@ public class SwiftPamflutterPlugin: NSObject, FlutterPlugin {
         }
     }
 
-    private func getAdvertisingIdentifier(result: @escaping FlutterResult) {
-        result(String(ASIdentifierManager.shared().advertisingIdentifier.uuidString))
+    private func identifierForVendor()-> String {
+        let uuid = UIDevice.current.identifierForVendor?.uuidString ?? ""
+        return uuid
     }
     
     private func askNotificationPermission(){
@@ -105,8 +107,12 @@ public class SwiftPamflutterPlugin: NSObject, FlutterPlugin {
         let tokenParts = deviceToken.map { data -> String in
             return String(format: "%02.2hhx", data)
         }
+        
         let token = tokenParts.joined()
-        channel?.invokeMethod("onToken", arguments: token)
+       
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+         self.channel?.invokeMethod("onToken", arguments: token)
+        }
     }
     
 }
