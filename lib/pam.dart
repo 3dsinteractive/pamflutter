@@ -86,13 +86,13 @@ class Pam {
     return TrackingStatus.notSupported;
   }
 
-  static Future<String> getAdvertisingIdentifier() async {
-    if (Platform.isIOS) {
-      final String uuid =
-          (await _channel.invokeMethod<String>('getAdvertisingIdentifier'))!;
-      return uuid;
+  static Future<String?> identifierForVendor() async {
+    final uuid =
+          await _channel.invokeMethod<String>('identifierForVendor');
+    if (uuid == "") {
+      return null;
     }
-    return "";
+    return uuid;
   }
 
   //iOS App Tracking Transparency
@@ -374,9 +374,7 @@ class Pam {
     }
     deviceUDID = await pref.getString(SaveKey.deviceUDID);
     if (deviceUDID == null) {
-      deviceUDID = await Pam.getAdvertisingIdentifier();
-      //const uuid = Uuid();
-      //deviceUDID = uuid.v1();
+      deviceUDID = await Pam.identifierForVendor();
       if (isNotEmpty(deviceUDID)) {
         pref.saveString(deviceUDID!, SaveKey.deviceUDID);
       }

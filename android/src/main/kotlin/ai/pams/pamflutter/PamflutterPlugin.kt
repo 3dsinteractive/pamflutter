@@ -16,14 +16,35 @@ class PamflutterPlugin: FlutterPlugin, MethodCallHandler {
   /// This local reference serves to register the plugin with the Flutter Engine and unregister it
   /// when the Flutter Engine is detached from the Activity
   private lateinit var channel : MethodChannel
+  private var context: Context? = null
+  private var activity: Activity? = null
 
   override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, "ai.pams.flutter")
+    context = flutterPluginBinding.applicationContext
     channel.setMethodCallHandler(this)
   }
 
+  override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+    activity = binding.activity;
+  }
+
+  private fun identifierForVendor(): String{
+    if( context != null ){
+      var deviceID = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+      return deviceID
+    }
+    return ""
+  }
+
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
-    result.notImplemented()
+    when (call.method) {
+      "identifierForVendor"-> {
+        val uuid = identifierForVendor()
+        result.success(uuid)
+      }
+      else -> result.notImplemented()
+    }
   }
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
