@@ -3,7 +3,7 @@ import 'package:http/http.dart' show Response;
 import '../response/pam_push_message.dart';
 import '../pam.dart';
 import 'package:flutter/foundation.dart';
-import 'package:pamflutter/pam.dart';
+import 'package:pam_flutter/pam.dart';
 import 'dart:convert';
 
 class PamPushNotificationAPI {
