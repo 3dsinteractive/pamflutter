@@ -2,10 +2,10 @@ library pamflutter;
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:pamflutter/api/consent_api.dart';
-import 'package:pamflutter/response/allow_consent.dart';
-import 'package:pamflutter/response/consent_message.dart';
-import 'package:pamflutter/response/pam_response.dart';
+import 'package:pam_flutter/api/consent_api.dart';
+import 'package:pam_flutter/response/allow_consent.dart';
+import 'package:pam_flutter/response/consent_message.dart';
+import 'package:pam_flutter/response/pam_response.dart';
 import 'preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:device_info/device_info.dart';
@@ -13,8 +13,8 @@ import 'dart:io' show Platform;
 import 'package:uuid/uuid.dart';
 import './api/tracker_api.dart';
 import 'package:flutter/services.dart';
-import 'package:pamflutter/api/push_notification_api.dart';
-import 'package:pamflutter/response/pam_push_message.dart';
+import 'package:pam_flutter/api/push_notification_api.dart';
+import 'package:pam_flutter/response/pam_push_message.dart';
 import 'package:queue/queue.dart';
 
 typedef TrackerCallBack = Function(PamResponse);
