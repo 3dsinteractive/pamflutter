@@ -87,12 +87,13 @@ class Pam {
   }
 
   static Future<String?> identifierForVendor() async {
-    final uuid =
-          await _channel.invokeMethod<String>('identifierForVendor');
-    if (uuid == "") {
-      return null;
+    if (Platform.isIOS) {
+      return await _channel.invokeMethod<String>('identifierForVendor');
+    } else if (Platform.isAndroid) {
+      var androidInfo = await DeviceInfoPlugin().androidInfo;
+      return androidInfo.androidId;
     }
-    return uuid;
+    return "";
   }
 
   //iOS App Tracking Transparency
