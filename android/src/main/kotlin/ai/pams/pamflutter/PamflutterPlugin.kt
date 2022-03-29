@@ -1,13 +1,17 @@
 package ai.pams.pamflutter
 
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import androidx.annotation.NonNull
-
+import android.content.Context
+import android.app.Activity
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry.Registrar
+import android.provider.Settings
+import android.util.Log
 
 /** PamflutterPlugin */
 class PamflutterPlugin: FlutterPlugin, MethodCallHandler {
@@ -20,17 +24,19 @@ class PamflutterPlugin: FlutterPlugin, MethodCallHandler {
   private var activity: Activity? = null
 
   override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+    print(">> ATTACH TO ENGINE")
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, "ai.pams.flutter")
     context = flutterPluginBinding.applicationContext
     channel.setMethodCallHandler(this)
   }
 
-  override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+  fun onAttachedToActivity(binding: ActivityPluginBinding) {
+    Log.d("PAM", ">> ATTACH TO ACTIVITY")
     activity = binding.activity;
   }
 
   private fun identifierForVendor(): String{
-    if( context != null ){
+    context?.let{ context ->
       var deviceID = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
       return deviceID
     }
@@ -38,6 +44,7 @@ class PamflutterPlugin: FlutterPlugin, MethodCallHandler {
   }
 
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
+    Log.d("PAM", ">>> Call Method ${call.method}")
     when (call.method) {
       "identifierForVendor"-> {
         val uuid = identifierForVendor()
@@ -48,6 +55,7 @@ class PamflutterPlugin: FlutterPlugin, MethodCallHandler {
   }
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+    Log.d("PAM", ">> ADETACH FROM ENGINE")
     channel.setMethodCallHandler(null)
   }
 }
