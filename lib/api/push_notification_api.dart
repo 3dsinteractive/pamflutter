@@ -25,7 +25,7 @@ class PamPushNotificationAPI {
     var contact = Pam.shared.getContactID();
     try {
       var uri = Uri.parse(
-          "$baseURL/api/app-notifications/?_database=$db&_contact_id=$contact&sms=$mobileNumber");
+          "$baseURL/api/app-notifications?_database=$db&_contact_id=$contact&sms=$mobileNumber");
       response = await http.get(uri);
       if (Pam.shared.isEnableLog) {
         debugPrint("🦄🦄🦄🦄🦄 PAM LOAD PUSH NOTIFICATION 🦄🦄🦄🦄🦄🦄\n\n");
@@ -58,7 +58,7 @@ class PamPushNotificationAPI {
     var contact = Pam.shared.getContactID();
     try {
       var uri = Uri.parse(
-          "$baseURL/api/app-notifications/?_database=$db&_contact_id=$contact&email=$email");
+          "$baseURL/api/app-notifications?_database=$db&_contact_id=$contact&email=$email");
       response = await http.get(uri);
       if (Pam.shared.isEnableLog) {
         debugPrint("🦄🦄🦄🦄🦄 PAM LOAD PUSH NOTIFICATION 🦄🦄🦄🦄🦄🦄\n\n");

@@ -116,10 +116,29 @@ class Pam {
     return await pushAPI.loadPushNotificationsFromCustomerID(customer);
   }
 
-  static void track(String event,
-      {Map<String, dynamic>? payload, TrackerCallBack? callback}) {
-    unawaited(shared.queue
-        .add(() async => _track(event, payload: payload, callback: callback)));
+  static Future<void> track(String event,
+      {Map<String, dynamic>? payload, TrackerCallBack? callback}) async {
+    var contactID = await shared.getContactID();
+    if (event == "allow_consent" || event == "save_push") {
+      unawaited(shared.queue.add(
+          () async => _track(event, payload: payload, callback: callback)));
+      return;
+    } else if (contactID != "" && shared.allowTracking) {
+      unawaited(shared.queue.add(
+          () async => _track(event, payload: payload, callback: callback)));
+      return;
+    }
+
+    if (shared.isEnableLog) {
+      if (contactID == "") {
+        debugPrint(
+            "🤡 PAM : No Track Event $event with Payload $payload. Because of no contact id yet.");
+      }
+      if (!shared.allowTracking) {
+        debugPrint(
+            "🤡 PAM : No Track Event $event with Payload $payload. Because of usr not yet allow Preferences cookies.");
+      }
+    }
   }
 
   static Future<void> _track(String event,
@@ -502,6 +521,7 @@ class Pam {
   Future<PamResponse> postTracker(
       String? event, Map<String, dynamic>? payload) async {
     var body = await createTrackingBody(event, payload);
+
     var response = await trackerAPI?.postTracker(body);
 
     if (response?.error == null) {
