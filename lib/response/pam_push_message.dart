@@ -32,9 +32,6 @@ class PamPushMessage {
     Map<String, dynamic> map = jsonDecode(jsonStr);
     List<PamPushMessage> result = [];
 
-    print(">>MESSAGE");
-    print(jsonStr);
-
     var items = map["items"] as List<dynamic>;
 
     for (var element in items) {
@@ -48,9 +45,8 @@ class PamPushMessage {
       String? flex = json["flex"];
       String? url = json["url"];
 
-      var payloadJson = json["json_data"] as Map<String, dynamic>;
-      var pam = payloadJson["pam"] as Map<String, dynamic>;
-      String? popupType = pam["popupType"];
+      var payloadJson = json["json_data"]["pam"] as Map<String, dynamic>;
+      String? popupType = payloadJson["popupType"];
 
       var dateString = json["created_date"];
       DateTime date = DateTime.parse(dateString);
