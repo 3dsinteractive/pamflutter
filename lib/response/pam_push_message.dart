@@ -9,7 +9,7 @@ class PamPushMessage {
   String? flex = "";
   String? url;
   String? popupType;
-  bool isRead;
+  bool isOpen;
   DateTime date;
   Map<String, dynamic> data;
 
@@ -23,7 +23,7 @@ class PamPushMessage {
       required this.url,
       required this.popupType,
       required this.date,
-      required this.isRead,
+      required this.isOpen,
       required this.data});
 
   Future<void> trackRead() async {}
@@ -51,7 +51,7 @@ class PamPushMessage {
       var dateString = json["created_date"];
       DateTime date = DateTime.parse(dateString);
 
-      bool isRead = json["is_open"];
+      bool isOpen = json["is_open"];
 
       var item = PamPushMessage(
           deliverID: deliverID,
@@ -63,7 +63,7 @@ class PamPushMessage {
           url: url,
           popupType: popupType,
           date: date,
-          isRead: isRead,
+          isOpen: isOpen,
           data: payloadJson);
 
       result.add(item);
