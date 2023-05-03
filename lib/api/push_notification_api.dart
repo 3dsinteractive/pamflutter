@@ -10,7 +10,7 @@ class PamPushNotificationAPI {
 
   PamPushNotificationAPI(this.baseURL);
 
-  Future<List<PamPushMessage>?> read(String? pixel) async {
+  Future<void> read(String? pixel) async {
     if (pixel != null) {
       var uri = Uri.parse(pixel);
       await HttpClient.get(uri);

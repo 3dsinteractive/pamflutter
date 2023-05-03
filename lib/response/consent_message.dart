@@ -393,10 +393,6 @@ class ConsentMessage {
   }
 
   static LocalizeText? getText(Map<String, dynamic> json) {
-    if (json == null) {
-      return null;
-    }
-
     return LocalizeText(json["en"]?.toString(), json["th"]?.toString());
   }
 

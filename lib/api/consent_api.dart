@@ -1,4 +1,3 @@
-import 'package:http/http.dart' as http;
 import 'package:http/http.dart' show Response;
 import '../pam.dart';
 import '../response/consent_message.dart';
