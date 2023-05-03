@@ -1,8 +1,8 @@
-import 'package:http/http.dart' as http;
 import '../response/pam_response.dart';
 import '../pam.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import '../http/http_client.dart';
 
 class TrackerAPI {
   String baseURL;
@@ -14,7 +14,8 @@ class TrackerAPI {
 
     try {
       var jsonbody = json.encode(body);
-      var response = await http.post(uri, body: jsonbody);
+
+      var response = await HttpClient.post(uri, body: jsonbody);
 
       if (Pam.shared.isEnableLog) {
         debugPrint("${DateTime.now()}");
@@ -31,7 +32,7 @@ class TrackerAPI {
         debugPrint("\n\n🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄");
         debugPrint("RES+ = ${response.body}");
       }
-     
+
       final pamResponse = PamResponse.parse(response.body);
       return pamResponse;
     } catch (e) {

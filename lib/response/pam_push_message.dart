@@ -9,7 +9,7 @@ class PamPushMessage {
   String? flex = "";
   String? url;
   String? popupType;
-  bool isRead;
+  bool isOpen;
   DateTime date;
   Map<String, dynamic> data;
 
@@ -23,7 +23,7 @@ class PamPushMessage {
       required this.url,
       required this.popupType,
       required this.date,
-      required this.isRead,
+      required this.isOpen,
       required this.data});
 
   Future<void> trackRead() async {}
@@ -31,9 +31,6 @@ class PamPushMessage {
   static List<PamPushMessage> parse(String jsonStr) {
     Map<String, dynamic> map = jsonDecode(jsonStr);
     List<PamPushMessage> result = [];
-
-    print(">>MESSAGE");
-    print(jsonStr);
 
     var items = map["items"] as List<dynamic>;
 
@@ -48,14 +45,13 @@ class PamPushMessage {
       String? flex = json["flex"];
       String? url = json["url"];
 
-      var payloadJson = json["json_data"] as Map<String, dynamic>;
-      var pam = payloadJson["pam"] as Map<String, dynamic>;
-      String? popupType = pam["popupType"];
+      var payloadJson = json["json_data"]["pam"] as Map<String, dynamic>;
+      String? popupType = payloadJson["popupType"];
 
       var dateString = json["created_date"];
       DateTime date = DateTime.parse(dateString);
 
-      bool isRead = json["is_open"];
+      bool isOpen = json["is_open"];
 
       var item = PamPushMessage(
           deliverID: deliverID,
@@ -67,7 +63,7 @@ class PamPushMessage {
           url: url,
           popupType: popupType,
           date: date,
-          isRead: isRead,
+          isOpen: isOpen,
           data: payloadJson);
 
       result.add(item);
