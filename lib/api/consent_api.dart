@@ -1,10 +1,11 @@
-import 'package:http/http.dart' as http; 
-import 'package:http/http.dart' show Response; 
+import 'package:http/http.dart' as http;
+import 'package:http/http.dart' show Response;
 import '../pam.dart';
 import '../response/consent_message.dart';
 import 'package:flutter/foundation.dart';
 import '../response/allow_consent.dart';
 import 'dart:async';
+import '../http/http_client.dart';
 
 class ConsentAPI {
   String baseURL;
@@ -15,7 +16,7 @@ class ConsentAPI {
     Response? response;
     try {
       var uri = Uri.parse("$baseURL/consent-message/$id");
-      response = await http.get(uri);
+      response = await HttpClient.get(uri);
       if (Pam.shared.isEnableLog) {
         debugPrint("🦄🦄🦄🦄🦄 PAM LOAD CONSENT MESSAGE 🦄🦄🦄🦄🦄🦄\n\n");
         debugPrint(uri.toString());
@@ -33,10 +34,10 @@ class ConsentAPI {
       }
     }
 
-    if(response != null){
+    if (response != null) {
       return ConsentMessage.parse(response.body);
     }
-   
+
     return null;
   }
 

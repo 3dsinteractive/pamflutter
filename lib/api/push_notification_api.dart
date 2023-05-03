@@ -1,10 +1,9 @@
-import 'package:http/http.dart' as http;
-import 'package:http/http.dart' show Response;
+import '../http/http_client.dart';
 import '../response/pam_push_message.dart';
 import '../pam.dart';
 import 'package:flutter/foundation.dart';
-import 'package:pam_flutter/pam.dart';
 import 'dart:convert';
+import 'package:http/http.dart' show Response;
 
 class PamPushNotificationAPI {
   String baseURL;
@@ -14,7 +13,7 @@ class PamPushNotificationAPI {
   Future<List<PamPushMessage>?> read(String? pixel) async {
     if (pixel != null) {
       var uri = Uri.parse(pixel);
-      await http.get(uri);
+      await HttpClient.get(uri);
     }
   }
 
@@ -26,7 +25,8 @@ class PamPushNotificationAPI {
     try {
       var uri = Uri.parse(
           "$baseURL/api/app-notifications?_database=$db&_contact_id=$contact&sms=$mobileNumber");
-      response = await http.get(uri);
+      response = await HttpClient.get(uri);
+
       if (Pam.shared.isEnableLog) {
         debugPrint("🦄🦄🦄🦄🦄 PAM LOAD PUSH NOTIFICATION 🦄🦄🦄🦄🦄🦄\n\n");
         debugPrint(uri.toString());
@@ -59,7 +59,7 @@ class PamPushNotificationAPI {
     try {
       var uri = Uri.parse(
           "$baseURL/api/app-notifications?_database=$db&_contact_id=$contact&email=$email");
-      response = await http.get(uri);
+      response = await HttpClient.get(uri);
       if (Pam.shared.isEnableLog) {
         debugPrint("🦄🦄🦄🦄🦄 PAM LOAD PUSH NOTIFICATION 🦄🦄🦄🦄🦄🦄\n\n");
         debugPrint(uri.toString());
@@ -92,7 +92,7 @@ class PamPushNotificationAPI {
     try {
       var uri = Uri.parse(
           "$baseURL/api/app-notifications?_database=$db&_contact_id=$contact&customer=$customer");
-      response = await http.get(uri);
+      response = await HttpClient.get(uri);
       if (Pam.shared.isEnableLog) {
         debugPrint("🦄🦄🦄🦄🦄 PAM LOAD PUSH NOTIFICATION 🦄🦄🦄🦄🦄🦄\n\n");
         debugPrint(uri.toString());
