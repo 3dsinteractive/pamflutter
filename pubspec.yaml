@@ -1,6 +1,6 @@
 name: pam_flutter
 description: PAM SDK for flutter you may learn more about pam at https://pams.ai
-version: 2.0.5
+version: 2.0.6
 homepage: https://pams.ai
 repository: https://github.com/3dsinteractive/pamflutter
 

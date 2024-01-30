@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class PamPushMessage {
   String? deliverID = "";
@@ -26,7 +27,12 @@ class PamPushMessage {
       required this.isOpen,
       required this.data});
 
-  Future<void> trackRead() async {}
+  Future<void> trackRead() async {
+    if (pixel != null) {
+      final uri = Uri.parse(pixel ?? "");
+      await http.get(uri);
+    }
+  }
 
   static List<PamPushMessage> parse(String jsonStr) {
     Map<String, dynamic> map = jsonDecode(jsonStr);
