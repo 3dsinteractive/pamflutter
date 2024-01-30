@@ -8,7 +8,8 @@ import 'package:pam_flutter/response/consent_message.dart';
 import 'package:pam_flutter/response/pam_response.dart';
 import 'preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:device_info/device_info.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:android_id/android_id.dart';
 import 'dart:io' show Platform;
 import 'package:uuid/uuid.dart';
 import './api/tracker_api.dart';
@@ -90,8 +91,8 @@ class Pam {
     if (Platform.isIOS) {
       return await _channel.invokeMethod<String>('identifierForVendor');
     } else if (Platform.isAndroid) {
-      var androidInfo = await DeviceInfoPlugin().androidInfo;
-      return androidInfo.androidId;
+      const androidIdPlugin = AndroidId();
+      return await androidIdPlugin.getId();
     }
     return "";
   }
