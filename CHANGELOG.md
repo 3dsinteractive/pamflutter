@@ -1,3 +1,7 @@
+## 2.1.0
+
+Fixed many bugs, added new methods with an emphasis on making them easier to use.
+
 ## 2.0.5
 
 Update the dependencies
