@@ -24,14 +24,12 @@ class PamflutterPlugin: FlutterPlugin, MethodCallHandler {
   private var activity: Activity? = null
 
   override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-    print(">> ATTACH TO ENGINE")
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, "ai.pams.flutter")
     context = flutterPluginBinding.applicationContext
     channel.setMethodCallHandler(this)
   }
 
   fun onAttachedToActivity(binding: ActivityPluginBinding) {
-    Log.d("PAM", ">> ATTACH TO ACTIVITY")
     activity = binding.activity;
   }
 
@@ -43,8 +41,8 @@ class PamflutterPlugin: FlutterPlugin, MethodCallHandler {
     return ""
   }
 
+
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
-    Log.d("PAM", ">>> Call Method ${call.method}")
     when (call.method) {
       "identifierForVendor"-> {
         val uuid = identifierForVendor()
@@ -55,7 +53,6 @@ class PamflutterPlugin: FlutterPlugin, MethodCallHandler {
   }
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
-    Log.d("PAM", ">> ADETACH FROM ENGINE")
     channel.setMethodCallHandler(null)
   }
 }

@@ -1,4 +1,5 @@
 import 'package:http/http.dart' show Response;
+import 'package:pam_flutter/response/customer_consent_status.dart';
 import '../pam.dart';
 import '../response/consent_message.dart';
 import 'package:flutter/foundation.dart';
@@ -40,9 +41,38 @@ class ConsentAPI {
     return null;
   }
 
-  // Future<> loadConsentPermissions(String id) async {
+  Future<CustomerConsentStatus?> loadConsentStatus(
+      String contactId, String consentMessageIDs) async {
+    Response? response;
+    try {
+      var uri =
+          Uri.parse("$baseURL/contacts/$contactId/consents/$consentMessageIDs");
+      response = await HttpClient.get(uri);
+      debugPrint("DEBUG=${Pam.shared.isEnableLog}");
 
-  // }
+      if (Pam.shared.isEnableLog) {
+        debugPrint("🦄🦄🦄🦄🦄 PAM LOAD CONSENT STATUS 🦄🦄🦄🦄🦄🦄\n\n");
+        debugPrint(uri.toString());
+        debugPrint("consent_message_id: $consentMessageIDs");
+        debugPrint("🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥");
+        debugPrint("Status Code: ${response.statusCode}");
+        debugPrint("----- Response Body -----");
+        debugPrint(response.body);
+        debugPrint("\n\n🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄");
+      }
+    } catch (e) {
+      if (Pam.shared.isEnableLog) {
+        debugPrint("\n\n🦄🦄🦄🦄🦄 PAM LOAD CONSENT STATUS ERROR 🦄🦄🦄🦄🦄🦄");
+        debugPrint(e.toString());
+      }
+    }
+
+    if (response != null) {
+      return CustomerConsentStatus.parse(response.body);
+    }
+
+    return null;
+  }
 
   Future<AllowConsentResult?> submitConsent(
       ConsentMessage consentMessage) async {

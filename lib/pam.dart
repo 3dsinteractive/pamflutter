@@ -5,10 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:pam_flutter/api/consent_api.dart';
 import 'package:pam_flutter/response/allow_consent.dart';
 import 'package:pam_flutter/response/consent_message.dart';
+import 'package:pam_flutter/response/customer_consent_status.dart';
 import 'package:pam_flutter/response/pam_response.dart';
 import 'preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:device_info/device_info.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:android_id/android_id.dart';
 import 'dart:io' show Platform;
 import 'package:uuid/uuid.dart';
 import './api/tracker_api.dart';
@@ -59,15 +61,16 @@ class Pam {
   static var shared = Pam();
   static const MethodChannel _channel = MethodChannel('ai.pams.flutter');
 
-  static Future<String?> getCustID() async {
-    return await shared._getCustID();
-  }
+  static Future<CustomerConsentStatus> loadConsentStatus(
+          String consentMessageID) =>
+      shared._loadConsentStatus(consentMessageID);
 
-  static Future<void> initialize(PamConfig config) async {
-    await shared.init(config, config.enableLog);
-  }
+  static Future<String?> getCustID() => shared._getCustID();
 
-  //iOS App Tracking Transparency
+  static Future<void> initialize(PamConfig config) =>
+      shared.init(config, config.enableLog);
+
+  //iOS App Tracking Transparencyx
   static Future<TrackingStatus> get trackingAuthorizationStatus async {
     if (Platform.isIOS) {
       final int status =
@@ -90,10 +93,21 @@ class Pam {
     if (Platform.isIOS) {
       return await _channel.invokeMethod<String>('identifierForVendor');
     } else if (Platform.isAndroid) {
-      var androidInfo = await DeviceInfoPlugin().androidInfo;
-      return androidInfo.androidId;
+      const androidIdPlugin = AndroidId();
+      return await androidIdPlugin.getId();
     }
     return "";
+  }
+
+  static Future<SubmitConsentResult?> allowConsent(
+      String consentMessageId) async {
+    var consentMessage = await loadConsentMessage(consentMessageId);
+    consentMessage?.allowAll();
+    if (consentMessage != null) {
+      final result = await submitConsent(consentMessage);
+      return result;
+    }
+    return null;
   }
 
   //iOS App Tracking Transparency
@@ -116,35 +130,32 @@ class Pam {
     return await pushAPI.loadPushNotificationsFromCustomerID(customer);
   }
 
-  static Future<void> track(String event,
-      {Map<String, dynamic>? payload, TrackerCallBack? callback}) async {
-    var contactID = await shared.getContactID();
-    if (event == "allow_consent" || event == "save_push") {
-      unawaited(shared.queue.add(
-          () async => _track(event, payload: payload, callback: callback)));
-      return;
-    } else if (contactID != "" && shared.allowTracking) {
-      unawaited(shared.queue.add(
-          () async => _track(event, payload: payload, callback: callback)));
-      return;
-    }
+  static bool _isWhitelistEvent(String? event) {
+    return event == "allow_consent" || event == "save_push";
+  }
 
-    if (shared.isEnableLog) {
-      if (contactID == "") {
-        debugPrint(
-            "🤡 PAM : No Track Event $event with Payload $payload. Because of no contact id yet.");
-      }
-      if (!shared.allowTracking) {
+  static Future<PamResponse?> track(String event,
+      {Map<String, dynamic>? payload, TrackerCallBack? callback}) async {
+    var isAllowTracking = shared.allowTracking || _isWhitelistEvent(event);
+    if (isAllowTracking) {
+      return await shared.queue.add(() async {
+        var result = await _track(event, payload: payload, callback: callback);
+        return result;
+      });
+    } else {
+      if (shared.isEnableLog) {
         debugPrint(
             "🤡 PAM : No Track Event $event with Payload $payload. Because of usr not yet allow Preferences cookies.");
       }
     }
+    return null;
   }
 
-  static Future<void> _track(String event,
+  static Future<PamResponse> _track(String event,
       {Map<String, dynamic>? payload, TrackerCallBack? callback}) async {
     final res = await shared.postTracker(event, payload);
     callback?.call(res);
+    return res;
   }
 
   static Future<PamResponse> setPushNotificationToken(
@@ -186,34 +197,40 @@ class Pam {
       Map<String, ConsentMessage> consentMessages) async {
     var consentAPI = ConsentAPI(shared.config?.pamServer ?? "");
 
-    Map<String, AllowConsentResult> consentResult = {};
-    List<String> ids = [];
+    return shared.queue.add(() async {
+      Map<String, AllowConsentResult> consentResult = {};
+      List<String> ids = [];
 
-    await Future.wait(consentMessages.keys.map((aKey) async {
-      var item = consentMessages[aKey];
-      if (item != null) {
-        var result = await consentAPI.submitConsent(item);
-        if (result != null) {
-          consentResult = {item.id ?? "x": result};
-          ids.add(result.consentID ?? "");
+      await Future.wait(consentMessages.keys.map((aKey) async {
+        var item = consentMessages[aKey];
+        if (item != null) {
+          var result = await consentAPI.submitConsent(item);
+          shared._saveContactID(result?.consentID);
+          if (result != null) {
+            consentResult = {item.id ?? "x": result};
+            ids.add(result.consentID ?? "");
+          }
         }
-      }
-    }));
+      }));
 
-    return SubmitConsentResult(consentResult, ids.join(","));
+      return SubmitConsentResult(consentResult, ids.join(","));
+    });
   }
 
   static Future<SubmitConsentResult> submitConsent(
       ConsentMessage consentMessage) async {
-    var consentAPI = ConsentAPI(shared.config?.pamServer ?? "");
-    Map<String, AllowConsentResult> consentResult = {};
-    String ids = "";
-    var result = await consentAPI.submitConsent(consentMessage);
-    if (result != null) {
-      consentResult = {consentMessage.id ?? "x": result};
-      ids = result.consentID ?? "";
-    }
-    return SubmitConsentResult(consentResult, ids);
+    return shared.queue.add(() async {
+      var consentAPI = ConsentAPI(shared.config?.pamServer ?? "");
+      Map<String, AllowConsentResult> consentResult = {};
+      String ids = "";
+      var result = await consentAPI.submitConsent(consentMessage);
+      shared._saveContactID(result?.consentID);
+      if (result != null) {
+        consentResult = {consentMessage.id ?? "x": result};
+        ids = result.consentID ?? "";
+      }
+      return SubmitConsentResult(consentResult, ids);
+    });
   }
 
   static Future<dynamic> methodsHandler(MethodCall methodCall) async {
@@ -236,8 +253,12 @@ class Pam {
   var isEnableLog = false;
   var allowTracking = false;
   var pref = UserPreference();
-  //var queue = TrackerQueueManger();
-  final queue = Queue(delay: const Duration(milliseconds: 1000));
+
+  final queue = Queue(
+      parallel: 1,
+      delay: const Duration(milliseconds: 50),
+      timeout: const Duration(seconds: 5));
+
   PamConfig? config;
 
   DateTime sessionExpire = DateTime(1983, 11, 14);
@@ -259,15 +280,44 @@ class Pam {
       allowTracking = allow;
     }
 
-    //var custID = await pref.getString(SaveKey.customerID);
-    // if (custID != null) {
-    //   Pam.userLogin(custID);
-    // }
+    var status = await _loadConsentStatus(config.trackingConsentMessageID);
+    var isAllowPreferences =
+        status.trackingPermission?.preferencesCookies ?? false;
+
+    if (isAllowPreferences) {
+      allowTracking = true;
+      pref.saveBool(true, SaveKey.allowTracking);
+    } else {
+      pref.saveBool(false, SaveKey.allowTracking);
+    }
 
     var token = await pref.getString(SaveKey.pushKey);
     if (token != null) {
       Pam.setPushNotificationToken(token);
     }
+  }
+
+  Future<CustomerConsentStatus> _loadConsentStatus(
+      String consentMessageID) async {
+    var consentAPI = ConsentAPI(shared.config?.pamServer ?? "");
+    var contactID = await shared.getContactID() ?? '';
+    if (contactID != '') {
+      var result =
+          await consentAPI.loadConsentStatus(contactID, consentMessageID);
+      if (result != null) {
+        return result;
+      }
+    } else {
+      if (shared.isEnableLog) {
+        debugPrint("🦄🦄🦄🦄🦄 PAM LOAD CONSENT STATUS 🦄🦄🦄🦄🦄🦄\n\n");
+        debugPrint("Consent Message ID = $consentMessageID");
+        debugPrint(
+            "It's like it's the first time installing the app so there isn't any consent information yet.");
+      }
+    }
+    var status = CustomerConsentStatus();
+    status.needConsentReview = true;
+    return status;
   }
 
   Future<void> setAllowTracking(bool allow) async {
@@ -349,7 +399,7 @@ class Pam {
     }
   }
 
-  Future<String> getOSVersion() async {
+  Future<String> _getOSVersion() async {
     if (Platform.isAndroid) {
       var androidInfo = await DeviceInfoPlugin().androidInfo;
       var release = androidInfo.version.release;
@@ -363,8 +413,8 @@ class Pam {
     return '';
   }
 
-  Future<String> getPlatformName() async {
-    String osVersion = await getOSVersion();
+  Future<String> _getPlatformName() async {
+    String osVersion = await _getOSVersion();
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
     String appName = packageInfo.appName;
     String version = packageInfo.version;
@@ -388,7 +438,7 @@ class Pam {
     return uuid.v1();
   }
 
-  Future<String?> getDeviceUDID() async {
+  Future<String?> _getDeviceUDID() async {
     if (isNotEmpty(deviceUDID)) {
       return deviceUDID;
     }
@@ -472,7 +522,7 @@ class Pam {
 
   Future<Map<String, dynamic>> createTrackingBody(
       String? event, Map<String, dynamic>? payload) async {
-    var platformName = await getPlatformName();
+    var platformName = await _getPlatformName();
     var packageInfo = await PackageInfo.fromPlatform();
 
     Map<String, dynamic> body = {
@@ -482,7 +532,7 @@ class Pam {
     };
 
     var contactID = await getContactID();
-    var osVersion = await getOSVersion();
+    var osVersion = await _getOSVersion();
 
     if (isEnableLog) {
       debugPrint("GET contact ID = $contactID");
@@ -512,10 +562,35 @@ class Pam {
       formField["customer"] = await _getCustID();
     }
 
-    formField["uuid"] = await getDeviceUDID();
+    formField["uuid"] = await _getDeviceUDID();
 
     body["form_fields"] = formField;
     return body;
+  }
+
+  void _saveContactID(String? contactId) {
+    if (contactId?.isEmpty ?? true) {
+      return;
+    }
+    String cid = contactId ?? "";
+
+    if (isUserLogin()) {
+      if (isNotEmpty(contactId)) {
+        if (isEnableLog) {
+          debugPrint("PAM: Save Logged-in contact ID = $cid");
+        }
+        pref.saveString(cid, SaveKey.loginContactID);
+        loginContact = cid;
+      }
+    } else {
+      if (isNotEmpty(cid)) {
+        if (isEnableLog) {
+          debugPrint("PAM: Save Anonymous contact ID = $cid");
+        }
+        pref.saveString(cid, SaveKey.contactID);
+        publicContact = cid;
+      }
+    }
   }
 
   Future<PamResponse> postTracker(
@@ -525,25 +600,7 @@ class Pam {
     var response = await trackerAPI?.postTracker(body);
 
     if (response?.error == null) {
-      if (isUserLogin()) {
-        if (isNotEmpty(response?.contactID)) {
-          if (isEnableLog) {
-            debugPrint(
-                "PAM: Save Logged-in contact ID = ${response?.contactID}");
-          }
-          pref.saveString(response?.contactID ?? '', SaveKey.loginContactID);
-          loginContact = response?.contactID;
-        }
-      } else {
-        if (isNotEmpty(response?.contactID)) {
-          if (isEnableLog) {
-            debugPrint(
-                "PAM: Save Anonymous contact ID = ${response?.contactID}");
-          }
-          pref.saveString(response?.contactID ?? '', SaveKey.contactID);
-          publicContact = response?.contactID;
-        }
-      }
+      _saveContactID(response?.contactID);
     }
 
     return response ??
