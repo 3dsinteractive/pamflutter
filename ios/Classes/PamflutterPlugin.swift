@@ -3,11 +3,11 @@ import UIKit
 import AppTrackingTransparency
 import AdSupport
 
-public class SwiftPamflutterPlugin: NSObject, FlutterPlugin {
+public class PamflutterPlugin: NSObject, FlutterPlugin {
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "ai.pams.flutter", binaryMessenger: registrar.messenger())
-        let instance = SwiftPamflutterPlugin()
+        let instance = PamflutterPlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
         registrar.addApplicationDelegate(instance)
         instance.setMethodChannel(channel: channel)
