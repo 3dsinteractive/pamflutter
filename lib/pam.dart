@@ -205,7 +205,7 @@ class Pam {
         var item = consentMessages[aKey];
         if (item != null) {
           var result = await consentAPI.submitConsent(item);
-          shared._saveContactID(result?.consentID);
+          shared._saveContactID(result?.contactID);
           if (result != null) {
             consentResult = {item.id ?? "x": result};
             ids.add(result.consentID ?? "");
@@ -224,7 +224,7 @@ class Pam {
       Map<String, AllowConsentResult> consentResult = {};
       String ids = "";
       var result = await consentAPI.submitConsent(consentMessage);
-      shared._saveContactID(result?.consentID);
+      shared._saveContactID(result?.contactID);
       if (result != null) {
         consentResult = {consentMessage.id ?? "x": result};
         ids = result.consentID ?? "";
