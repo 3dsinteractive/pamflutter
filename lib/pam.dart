@@ -21,6 +21,11 @@ import 'package:queue/queue.dart';
 
 typedef TrackerCallBack = Function(PamResponse);
 
+class LoginOptions {
+  late String? alternateKey;
+  LoginOptions({this.alternateKey});
+}
+
 class PamConfig {
   String pamServer, publicDBAlias, loginDBAlias, trackingConsentMessageID;
   bool enableLog;
@@ -163,9 +168,20 @@ class Pam {
     return await shared.setDeviceToken(deviceToken);
   }
 
-  static Future<PamResponse> userLogin(String custID,
-      {Map<String, dynamic>? payload}) async {
-    return await shared.trackUserLogin(custID, payload: payload);
+  static Future<PamResponse> userLogin(String loginId,
+      [LoginOptions? options]) async {
+    Map<String, dynamic> payload = {};
+    if (options != null &&
+        options.alternateKey != null &&
+        options.alternateKey!.isNotEmpty) {
+      String key = options.alternateKey!;
+      payload["_key_name"] = options.alternateKey;
+      payload["_key_value"] = loginId;
+      payload[key] = loginId;
+      payload["_force_create"] = false;
+    }
+
+    return await shared.trackUserLogin(loginId, payload: payload);
   }
 
   static Future<void> userLogout({Map<String, dynamic>? payload}) async {
@@ -345,7 +361,9 @@ class Pam {
     var response = await queue.add(() => postTracker("login", payload));
     if (isNotEmpty(response.contactID)) {
       loginContact = response.contactID;
-      pref.saveString(response.contactID!, SaveKey.loginContactID);
+      if (loginContact != null && loginContact!.isNotEmpty) {
+        pref.saveString(response.contactID!, SaveKey.loginContactID);
+      }
     }
 
     var push = await getPushToken();
