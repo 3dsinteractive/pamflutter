@@ -1,3 +1,7 @@
+## 2.2.0
+
+Added the ability to log in with a secondary key.
+
 ## 2.1.0
 
 Fixed many bugs, added new methods with an emphasis on making them easier to use.
