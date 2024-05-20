@@ -1,3 +1,7 @@
+## 2.3.0
+
+Add utility function to handle push notifications
+
 ## 2.2.0
 
 Added the ability to log in with a secondary key.
