@@ -18,6 +18,8 @@ import 'package:flutter/services.dart';
 import 'package:pam_flutter/api/push_notification_api.dart';
 import 'package:pam_flutter/response/pam_push_message.dart';
 import 'package:queue/queue.dart';
+import 'dart:convert';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 typedef TrackerCallBack = Function(PamResponse);
 
@@ -102,6 +104,44 @@ class Pam {
       return await androidIdPlugin.getId();
     }
     return "";
+  }
+
+  static bool isPushNotiFromPam(RemoteMessage message) {
+    return message.data.containsKey('pam');
+  }
+
+  static PamPushMessage? convertToPamPushMessage(RemoteMessage message) {
+    if (isPushNotiFromPam(message)) {
+      var data = message.data;
+      final String pam = data["pam"];
+      Map<String, dynamic> payload = jsonDecode(pam);
+
+      final String flex = payload['flex'];
+      RegExp regExp = RegExp(r'src="(.*?)"');
+      String? match = regExp.firstMatch(flex)?.group(1);
+      String banner = match?.toString() ?? "";
+      String pixel = payload['pixel'] ?? "";
+      String popupType = payload['popup_type'] ?? "";
+      String url = payload['url'] ?? "";
+      String title = message.notification?.title ?? "";
+      String description = message.notification?.body ?? "";
+
+      var item = PamPushMessage(
+          deliverID: "",
+          pixel: pixel,
+          title: title,
+          description: description,
+          thumbnailUrl: banner,
+          flex: flex,
+          url: url,
+          popupType: popupType,
+          date: DateTime.now(),
+          isOpen: false,
+          data: payload);
+
+      return item;
+    }
+    return null;
   }
 
   static Future<SubmitConsentResult?> allowConsent(
@@ -355,11 +395,11 @@ class Pam {
     //Delete Push Noti from anonymous
     await queue.add(() => postTracker("delete_media", defaultPayload));
     await pref.saveString(custID, SaveKey.customerID);
-    this.custID = custID;
 
     //Login
     var response = await queue.add(() => postTracker("login", payload));
     if (isNotEmpty(response.contactID)) {
+      this.custID = custID;
       loginContact = response.contactID;
       if (loginContact != null && loginContact!.isNotEmpty) {
         pref.saveString(response.contactID!, SaveKey.loginContactID);
