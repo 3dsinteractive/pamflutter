@@ -17,21 +17,18 @@ class ConsentAPI {
     try {
       var uri = Uri.parse("$baseURL/consent-message/$id");
       response = await HttpClient.get(uri);
-      if (Pam.shared.isEnableLog) {
-        debugPrint("🦄🦄🦄🦄🦄 PAM LOAD CONSENT MESSAGE 🦄🦄🦄🦄🦄🦄\n\n");
-        debugPrint(uri.toString());
-        debugPrint("consent_message_id: $id");
-        debugPrint("🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥");
-        debugPrint("Status Code: ${response.statusCode}");
-        debugPrint("----- Response Body -----");
-        debugPrint(response.body);
-        debugPrint("\n\n🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄");
-      }
+
+      Pam.log([
+        "LOAD CONSENT MESSAGE",
+        uri.toString(),
+        "consent_message_id: $id",
+        "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
+        "Status Code: ${response.statusCode}",
+        "----- Response Body -----",
+        response.body
+      ]);
     } catch (e) {
-      if (Pam.shared.isEnableLog) {
-        debugPrint("\n\n🦄🦄🦄🦄🦄 PAM TRACKING ERROR 🦄🦄🦄🦄🦄🦄");
-        debugPrint(e.toString());
-      }
+      Pam.log(["TRACKING ERROR", e.toString()]);
     }
 
     if (response != null) {
@@ -48,23 +45,18 @@ class ConsentAPI {
       var uri =
           Uri.parse("$baseURL/contacts/$contactId/consents/$consentMessageIDs");
       response = await HttpClient.get(uri);
-      debugPrint("DEBUG=${Pam.shared.isEnableLog}");
 
-      if (Pam.shared.isEnableLog) {
-        debugPrint("🦄🦄🦄🦄🦄 PAM LOAD CONSENT STATUS 🦄🦄🦄🦄🦄🦄\n\n");
-        debugPrint(uri.toString());
-        debugPrint("consent_message_id: $consentMessageIDs");
-        debugPrint("🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥");
-        debugPrint("Status Code: ${response.statusCode}");
-        debugPrint("----- Response Body -----");
-        debugPrint(response.body);
-        debugPrint("\n\n🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄");
-      }
+      Pam.log([
+        "LOAD CONSENT STATUS",
+        uri.toString(),
+        "consent_message_id: $consentMessageIDs",
+        "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
+        "Status Code: ${response.statusCode}",
+        "----- Response Body -----",
+        response.body
+      ]);
     } catch (e) {
-      if (Pam.shared.isEnableLog) {
-        debugPrint("\n\n🦄🦄🦄🦄🦄 PAM LOAD CONSENT STATUS ERROR 🦄🦄🦄🦄🦄🦄");
-        debugPrint(e.toString());
-      }
+      Pam.log(["LOAD CONSENT STATUS ERROR", e.toString()]);
     }
 
     if (response != null) {
@@ -97,16 +89,13 @@ class ConsentAPI {
     var result = AllowConsentResult(
         response?.contactID, response?.database, response?.consentID);
 
-    if (Pam.shared.isEnableLog) {
-      debugPrint("🦄🦄🦄🦄🦄 PAM SUBMIT CONSENT 🦄🦄🦄🦄🦄🦄\n\n");
-      debugPrint("Type: ${consentMessage.type}, ID: ${consentMessage.id}");
-      for (var element in consentMessage.permission) {
-        debugPrint("✏️ ${element.name.key}=${element.allow}");
-      }
-      debugPrint("🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥");
-      debugPrint(response.toString());
-      debugPrint("\n\n🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄");
-    }
+    Pam.log([
+      "SUBMIT CONSENT",
+      "Type: ${consentMessage.type}, ID: ${consentMessage.id}",
+      ...consentMessage.permission.map((t) => "⦾${t.name.key}=${t.allow}"),
+      "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
+      response.toString()
+    ]);
 
     return result;
   }

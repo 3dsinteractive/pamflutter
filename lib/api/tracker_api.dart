@@ -1,7 +1,6 @@
 import '../response/pam_response.dart';
 import '../pam.dart';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import '../http/http_client.dart';
 
 class TrackerAPI {
@@ -9,7 +8,7 @@ class TrackerAPI {
 
   TrackerAPI(this.baseURL);
 
-  Future<PamResponse> postTracker(Map<String, dynamic> body) async {
+  Future<PamResponse?> postTracker(Map<String, dynamic> body) async {
     var uri = Uri.parse("$baseURL/trackers/events");
 
     try {
@@ -17,29 +16,28 @@ class TrackerAPI {
 
       var response = await HttpClient.post(uri, body: jsonbody);
 
-      if (Pam.shared.isEnableLog) {
-        debugPrint("${DateTime.now()}");
-        debugPrint("🦄🦄🦄🦄🦄 PAM TRACKING EVENT 🦄🦄🦄🦄🦄🦄\n\n");
-        debugPrint(uri.toString());
-        debugPrint("----- Payload -----");
-        const encoder = JsonEncoder.withIndent('  ');
-        var bodyLog = encoder.convert(body);
-        debugPrint(bodyLog);
-        debugPrint("🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥");
-        debugPrint("Status Code: ${response.statusCode}");
-        debugPrint("----- Response Body -----");
-        debugPrint(response.body);
-        debugPrint("\n\n🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄🦄");
-        debugPrint("RES+ = ${response.body}");
-      }
+      const encoder = JsonEncoder.withIndent('  ');
+      var bodyLog = encoder.convert(body);
+
+      Pam.log([
+        "${DateTime.now()}",
+        "🦄🦄🦄🦄🦄 PAM TRACKING EVENT 🦄🦄🦄🦄🦄🦄\n\n",
+        uri.toString(),
+        "----- Payload -----",
+        bodyLog,
+        "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
+        "Status Code: ${response.statusCode}",
+        "----- Response Body -----",
+        response.body,
+        "-------------",
+        "RES+ = ${response.body}"
+      ]);
 
       final pamResponse = PamResponse.parse(response.body);
       return pamResponse;
     } catch (e) {
-      if (Pam.shared.isEnableLog) {
-        debugPrint("\n\n🦄🦄🦄🦄🦄 PAM TRACKING ERROR 🦄🦄🦄🦄🦄🦄");
-        debugPrint(e.toString());
-      }
+      Pam.log(["TRACKING ERROR", e.toString()]);
+
       var errorResponse = PamResponse();
       errorResponse.error =
           PamErrorResponse(code: "EXCEPTION", errorMessage: e.toString());
