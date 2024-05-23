@@ -1,5 +1,6 @@
 import 'dart:convert';
 import './pam_response.dart' show PamErrorResponse;
+import "../pam.dart";
 
 class CustomerConsentStatus {
   String? consentId;
@@ -21,8 +22,15 @@ class CustomerConsentStatus {
     return map[key] ?? false;
   }
 
-  static CustomerConsentStatus parse(String jsonString) {
-    Map<String, dynamic> map = jsonDecode(jsonString);
+  static CustomerConsentStatus? parse(String jsonString) {
+    Map<String, dynamic> map;
+
+    try {
+      map = jsonDecode(jsonString);
+    } catch (e) {
+      Pam.log(["CustomerConsentStatus.parse Error", e.toString()]);
+      return null;
+    }
 
     var model = CustomerConsentStatus();
 

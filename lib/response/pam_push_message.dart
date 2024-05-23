@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import "../pam.dart";
 
 class PamPushMessage {
   String? deliverID = "";
@@ -35,7 +36,15 @@ class PamPushMessage {
   }
 
   static List<PamPushMessage> parse(String jsonStr) {
-    Map<String, dynamic> map = jsonDecode(jsonStr);
+    Map<String, dynamic> map;
+
+    try {
+      map = jsonDecode(jsonStr);
+    } catch (e) {
+      Pam.log(["Push Message Parse Error", e.toString()]);
+      return [];
+    }
+
     List<PamPushMessage> result = [];
 
     var items = map["items"] as List<dynamic>;

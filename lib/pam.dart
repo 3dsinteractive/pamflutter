@@ -77,6 +77,13 @@ class Pam {
   static Future<void> initialize(PamConfig config) =>
       shared.init(config, config.enableLog);
 
+  static void log(List<String> args) {
+    if (shared.isEnableLog) {
+      var spliter = "◦🦄◦🦄◦🦄◦PAM◦🦄◦🦄◦🦄◦";
+      debugPrint("\n$spliter\n\n${args.join("\n")}\n\n$spliter\n");
+    }
+  }
+
   //iOS App Tracking Transparencyx
   static Future<TrackingStatus> get trackingAuthorizationStatus async {
     if (Platform.isIOS) {
@@ -114,7 +121,14 @@ class Pam {
     if (isPushNotiFromPam(message)) {
       var data = message.data;
       final String pam = data["pam"];
-      Map<String, dynamic> payload = jsonDecode(pam);
+
+      Map<String, dynamic> payload;
+      try {
+        payload = jsonDecode(pam);
+      } catch (e) {
+        Pam.log([e.toString()]);
+        return null;
+      }
 
       final String flex = payload['flex'];
       RegExp regExp = RegExp(r'src="(.*?)"');
@@ -188,10 +202,9 @@ class Pam {
         return result;
       });
     } else {
-      if (shared.isEnableLog) {
-        debugPrint(
-            "🤡 PAM : No Track Event $event with Payload $payload. Because of usr not yet allow Preferences cookies.");
-      }
+      Pam.log([
+        "No Track Event $event with Payload $payload. Because of usr not yet allow Preferences cookies."
+      ]);
     }
     return null;
   }
@@ -364,12 +377,11 @@ class Pam {
         return result;
       }
     } else {
-      if (shared.isEnableLog) {
-        debugPrint("🦄🦄🦄🦄🦄 PAM LOAD CONSENT STATUS 🦄🦄🦄🦄🦄🦄\n\n");
-        debugPrint("Consent Message ID = $consentMessageID");
-        debugPrint(
-            "It's like it's the first time installing the app so there isn't any consent information yet.");
-      }
+      Pam.log([
+        "LOAD CONSENT STATUS",
+        "Consent Message ID = $consentMessageID",
+        "It's like it's the first time installing the app so there isn't any consent information yet."
+      ]);
     }
     var status = CustomerConsentStatus();
     status.needConsentReview = true;
@@ -592,9 +604,7 @@ class Pam {
     var contactID = await getContactID();
     var osVersion = await _getOSVersion();
 
-    if (isEnableLog) {
-      debugPrint("GET contact ID = $contactID");
-    }
+    Pam.log(["GET contact ID = $contactID"]);
 
     Map<String, dynamic> formField = {
       "os_version": osVersion,
@@ -634,17 +644,15 @@ class Pam {
 
     if (isUserLogin()) {
       if (isNotEmpty(contactId)) {
-        if (isEnableLog) {
-          debugPrint("PAM: Save Logged-in contact ID = $cid");
-        }
+        Pam.log(["Save Logged-in contact ID = $cid"]);
+
         pref.saveString(cid, SaveKey.loginContactID);
         loginContact = cid;
       }
     } else {
       if (isNotEmpty(cid)) {
-        if (isEnableLog) {
-          debugPrint("PAM: Save Anonymous contact ID = $cid");
-        }
+        Pam.log(["Save Anonymous contact ID = $cid"]);
+
         pref.saveString(cid, SaveKey.contactID);
         publicContact = cid;
       }

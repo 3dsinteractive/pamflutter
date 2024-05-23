@@ -1,5 +1,7 @@
 import 'dart:ui';
 import 'dart:convert';
+import '../pam.dart';
+import 'package:flutter/foundation.dart';
 
 extension HexColor on Color {
   /// String is in the format "aabbcc" or "ffaabbcc" with an optional leading "#".
@@ -444,8 +446,13 @@ class ConsentMessage {
         moreInfoButtonText);
   }
 
-  static ConsentMessage parse(String jsonStr) {
-    Map<String, dynamic> json = jsonDecode(jsonStr);
-    return ConsentMessage.fromJson(json);
+  static ConsentMessage? parse(String jsonStr) {
+    try {
+      Map<String, dynamic> json = jsonDecode(jsonStr);
+      return ConsentMessage.fromJson(json);
+    } catch (e) {
+      Pam.log(["ConsentMessage.parse Error", e.toString()]);
+      return null;
+    }
   }
 }
