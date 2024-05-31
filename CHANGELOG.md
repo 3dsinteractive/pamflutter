@@ -1,3 +1,7 @@
+## 2.3.2
+
+Convert timezone for push notification
+
 ## 2.3.1
 
 Fixed: pam_flutter will never crash when server response incorrect format

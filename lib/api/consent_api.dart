@@ -2,7 +2,6 @@ import 'package:http/http.dart' show Response;
 import 'package:pam_flutter/response/customer_consent_status.dart';
 import '../pam.dart';
 import '../response/consent_message.dart';
-import 'package:flutter/foundation.dart';
 import '../response/allow_consent.dart';
 import 'dart:async';
 import '../http/http_client.dart';
@@ -86,8 +85,12 @@ class ConsentAPI {
 
     var body = await Pam.shared.createTrackingBody("allow_consent", payload);
     var response = await Pam.shared.trackerAPI?.postTracker(body);
+    if (response == null) {
+      return null;
+    }
+
     var result = AllowConsentResult(
-        response?.contactID, response?.database, response?.consentID);
+        response.contactID, response.database, response.consentID);
 
     Pam.log([
       "SUBMIT CONSENT",

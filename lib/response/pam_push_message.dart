@@ -64,7 +64,7 @@ class PamPushMessage {
       String? popupType = payloadJson["popupType"];
 
       var dateString = json["created_date"];
-      DateTime date = DateTime.parse(dateString);
+      DateTime date = DateTime.parse(dateString + "Z");
 
       bool isOpen = json["is_open"];
 
