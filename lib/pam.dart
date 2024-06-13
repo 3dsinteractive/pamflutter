@@ -195,18 +195,18 @@ class Pam {
 
   static Future<PamResponse?> track(String event,
       {Map<String, dynamic>? payload, TrackerCallBack? callback}) async {
-    var isAllowTracking = shared.allowTracking || _isWhitelistEvent(event);
-    if (isAllowTracking) {
-      return await shared.queue.add(() async {
-        var result = await _track(event, payload: payload, callback: callback);
-        return result;
-      });
-    } else {
-      Pam.log([
-        "No Track Event $event with Payload $payload. Because of usr not yet allow Preferences cookies."
-      ]);
-    }
-    return null;
+    // var isAllowTracking = shared.allowTracking || _isWhitelistEvent(event);
+    // if (isAllowTracking) {
+    return await shared.queue.add(() async {
+      var result = await _track(event, payload: payload, callback: callback);
+      return result;
+    });
+    // } else {
+    //   Pam.log([
+    //     "No Track Event $event with Payload $payload. Because of usr not yet allow Preferences cookies."
+    //   ]);
+    // }
+    // return null;
   }
 
   static Future<PamResponse> _track(String event,
