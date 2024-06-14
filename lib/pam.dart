@@ -30,10 +30,16 @@ class LoginOptions {
 
 class PamConfig {
   String pamServer, publicDBAlias, loginDBAlias, trackingConsentMessageID;
-  bool enableLog;
+  bool enableLog, blockEventsIfNoConsent;
 
-  PamConfig(this.pamServer, this.publicDBAlias, this.loginDBAlias,
-      this.trackingConsentMessageID, this.enableLog);
+  PamConfig(
+    this.pamServer,
+    this.publicDBAlias,
+    this.loginDBAlias,
+    this.trackingConsentMessageID,
+    this.enableLog, {
+    this.blockEventsIfNoConsent = false,
+  });
 }
 
 class SubmitConsentResult {
@@ -195,18 +201,20 @@ class Pam {
 
   static Future<PamResponse?> track(String event,
       {Map<String, dynamic>? payload, TrackerCallBack? callback}) async {
-    // var isAllowTracking = shared.allowTracking || _isWhitelistEvent(event);
-    // if (isAllowTracking) {
+    if (Pam.shared.config?.blockEventsIfNoConsent == true) {
+      var isAllowTracking = shared.allowTracking || _isWhitelistEvent(event);
+      if (!isAllowTracking) {
+        Pam.log([
+          "No Track Event $event with Payload $payload. Because of usr not yet allow Preferences cookies."
+        ]);
+        return null;
+      }
+    }
+
     return await shared.queue.add(() async {
       var result = await _track(event, payload: payload, callback: callback);
       return result;
     });
-    // } else {
-    //   Pam.log([
-    //     "No Track Event $event with Payload $payload. Because of usr not yet allow Preferences cookies."
-    //   ]);
-    // }
-    // return null;
   }
 
   static Future<PamResponse> _track(String event,
