@@ -21,7 +21,7 @@ class PamPushNotificationAPI {
       String mobileNumber) async {
     Response? response;
     var db = Pam.shared.getDatabaseAlias();
-    var contact = Pam.shared.getContactID();
+    var contact = await Pam.shared.getContactID();
     Pam.log([
       "LOAD PUSH NOTIFICATION",
       "_database=$db&_contact_id=$contact&sms=$mobileNumber"
@@ -38,14 +38,14 @@ class PamPushNotificationAPI {
         "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
         "Status Code: ${response.statusCode}",
         "----- Response Body -----",
-        utf8.decode(response.bodyBytes),
+        response.body,
       ]);
     } catch (e) {
       Pam.log(["ERROR", e.toString()]);
     }
 
     if (response != null) {
-      return PamPushMessage.parse(utf8.decode(response.bodyBytes));
+      return PamPushMessage.parse(response.body);
     }
 
     return null;
@@ -55,7 +55,7 @@ class PamPushNotificationAPI {
       String email) async {
     Response? response;
     var db = Pam.shared.getDatabaseAlias();
-    var contact = Pam.shared.getContactID();
+    var contact = await Pam.shared.getContactID();
 
     Pam.log([
       "LOAD PUSH NOTIFICATION",
@@ -72,14 +72,14 @@ class PamPushNotificationAPI {
         "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
         "Status Code: ${response.statusCode}",
         "----- Response Body -----",
-        utf8.decode(response.bodyBytes)
+        response.body
       ]);
     } catch (e) {
       Pam.log(["ERROR", e.toString()]);
     }
 
     if (response != null) {
-      return PamPushMessage.parse(utf8.decode(response.bodyBytes));
+      return PamPushMessage.parse(response.body);
     }
 
     return null;
@@ -105,14 +105,14 @@ class PamPushNotificationAPI {
         "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
         "Status Code: ${response.statusCode}",
         "----- Response Body -----",
-        utf8.decode(response.bodyBytes),
+        response.body,
       ]);
     } catch (e) {
       Pam.log(["ERROR", e.toString()]);
     }
 
     if (response != null) {
-      return PamPushMessage.parse(utf8.decode(response.bodyBytes));
+      return PamPushMessage.parse(response.body);
     }
 
     return null;
