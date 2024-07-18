@@ -64,7 +64,8 @@ class PamPushMessage {
       String? popupType = payloadJson["popupType"];
 
       var dateString = json["created_date"];
-      DateTime date = DateTime.parse(dateString + "Z");
+      DateTime utcDateTime = DateTime.parse(dateString + "Z");
+      DateTime localDateTime = utcDateTime.toLocal();
 
       bool isOpen = json["is_open"];
 
@@ -77,7 +78,7 @@ class PamPushMessage {
           flex: flex,
           url: url,
           popupType: popupType,
-          date: date,
+          date: localDateTime,
           isOpen: isOpen,
           data: payloadJson);
 
