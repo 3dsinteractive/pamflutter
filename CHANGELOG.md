@@ -1,3 +1,11 @@
+# 2.3.5
+
+Fixed the time display to be correct.
+
+# 2.3.4
+
+Fixed: getContactID
+
 ## 2.3.2
 
 Convert timezone for push notification

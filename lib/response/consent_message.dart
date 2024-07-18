@@ -1,7 +1,6 @@
 import 'dart:ui';
 import 'dart:convert';
 import '../pam.dart';
-import 'package:flutter/foundation.dart';
 
 extension HexColor on Color {
   /// String is in the format "aabbcc" or "ffaabbcc" with an optional leading "#".

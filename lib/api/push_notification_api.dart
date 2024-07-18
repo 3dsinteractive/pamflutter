@@ -1,8 +1,6 @@
 import '../http/http_client.dart';
 import '../response/pam_push_message.dart';
 import '../pam.dart';
-import 'package:flutter/foundation.dart';
-import 'dart:convert';
 import 'package:http/http.dart' show Response;
 
 class PamPushNotificationAPI {
