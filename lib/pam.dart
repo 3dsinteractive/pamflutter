@@ -29,7 +29,11 @@ class LoginOptions {
 }
 
 class PamConfig {
-  String pamServer, publicDBAlias, loginDBAlias, trackingConsentMessageID;
+  String pamServer,
+      publicDBAlias,
+      loginDBAlias,
+      loginKey,
+      trackingConsentMessageID;
   bool enableLog, blockEventsIfNoConsent;
 
   PamConfig(
@@ -38,6 +42,7 @@ class PamConfig {
     this.loginDBAlias,
     this.trackingConsentMessageID,
     this.enableLog, {
+    this.loginKey = "",
     this.blockEventsIfNoConsent = false,
   });
 }
@@ -408,6 +413,13 @@ class Pam {
     Map<String, dynamic> defaultPayload = {
       "_delete_media": {notiKey: ""}
     };
+
+    if (config?.loginKey == "") {
+      payload?["customer"] = custID;
+    } else {
+      payload?[config?.loginKey ?? "customer"] = custID;
+    }
+
     payload?.forEach((key, val) {
       defaultPayload[key] = val;
     });
@@ -416,8 +428,12 @@ class Pam {
     await queue.add(() => postTracker("delete_media", defaultPayload));
     await pref.saveString(custID, SaveKey.customerID);
 
-    //Login
+    // Track Login To Public
     var response = await queue.add(() => postTracker("login", payload));
+
+    // Track Login To Login
+    this.custID = custID;
+    response = await queue.add(() => postTracker("login", payload));
     if (isNotEmpty(response.contactID)) {
       this.custID = custID;
       loginContact = response.contactID;
@@ -622,8 +638,17 @@ class Pam {
       "_database": getDatabaseAlias()
     };
 
-    if (isNotEmpty(contactID)) {
-      formField["_contact_id"] = contactID;
+    String loginKey = "customer";
+
+    if (config?.loginKey != "") {
+      loginKey = config?.loginKey ?? "customer";
+    }
+
+    if (payload?.containsKey(loginKey) == false &&
+        payload?.containsKey("_key_name") == false) {
+      if (isNotEmpty(contactID)) {
+        formField["_contact_id"] = contactID;
+      }
     }
 
     payload?.forEach((key, value) {
