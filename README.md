@@ -214,3 +214,68 @@ void trackEvent() {
 In this example, the eventName is set to "purchase," and the payload contains additional data related to the purchase event. You can customize the event name and payload based on the specific user activity you want to track.
 
 By calling Pam.track(), you send the event data to PAM for analytics.
+
+---
+
+---
+
+# App Attention
+
+## What is App Attention?
+
+App Attention is a comprehensive solution for integrating custom promotional popups into your mobile applications. This feature allows you to display banners, videos, and promotional messages directly within your app, helping to increase user engagement, highlight special offers, and drive traffic to specific URLs.
+
+Designed for flexibility, App Attention provides developers with the ability to customize popup behavior, such as displaying full-screen media or small promotional messages. It supports handling user interactions, such as opening external links or triggering custom app events, ensuring seamless integration into your app's user experience.
+
+## How to Use
+
+To integrate App Attention into your Flutter application, follow the steps below:
+
+### Display App Attention
+
+Call the `Pam.appAttention` method to display the App Attention popup. This function can be used to fetch and show banners, videos, or promotional messages based on the pageName you specify.
+
+Here’s an example of how to implement it in your app:
+
+```dart
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Display App Attention if it exists
+    Pam.appAttention(
+      context,
+      pageName: "home", // Specify the page name for dynamic banners
+      onBannerClick: (bannerData) {
+        // Handle banner click
+        print("CLICK LEARN MORE.");
+        print(bannerData.toString());
+
+        // Return true if you want to stop the default behavior (e.g., opening the URL)
+        // Return false to allow the default behavior (open URL in browser)
+        return false;
+      },
+    );
+
+    return MaterialApp(
+      title: 'Flutter Demo',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+      ),
+      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+    );
+  }
+}
+```
+
+## Explanation
+
+- context: The BuildContext of the current widget tree.
+
+- pageName: A string that specifies the current page name, allowing dynamic banners tailored to specific app pages.
+
+- onBannerClick: A callback function triggered when the user interacts with the banner. It receives bannerData as a parameter, which contains details about the clicked banner. The callback can:
+  - Return `true` to stop the default behavior (e.g., open a custom page in your app).
+  - Return `false` to proceed with the default behavior (e.g., open the provided URL in the browser).
