@@ -203,8 +203,8 @@ import 'package:pam_flutter/pam.dart';
 void trackEvent() {
   var eventName = "purchase";
   var payload = {
-    "product_name": "pizza", 
-    "size": "big", 
+    "product_name": "pizza",
+    "size": "big",
     "price": 300
   };
   Pam.track(eventName, payload: payload);

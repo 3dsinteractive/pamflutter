@@ -16,6 +16,8 @@ class HttpClient {
     } else if (Platform.isIOS) {
       newHeader["platform"] = "ios";
     }
+    newHeader["Content-Type"] = "application/json";
+
     return newHeader;
   }
 
@@ -27,6 +29,7 @@ class HttpClient {
   static Future<Response> post(Uri url,
       {Map<String, String>? headers, Object? body, Encoding? encoding}) async {
     var newHeader = _defaultHeaders(headers);
-    return http.post(url, body: body, encoding: encoding, headers: newHeader);
+    return http.post(url,
+        body: jsonEncode(body), encoding: encoding, headers: newHeader);
   }
 }

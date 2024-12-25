@@ -1,118 +1,101 @@
+import AppTrackingTransparency
 import Flutter
 import UIKit
-import AppTrackingTransparency
-import AdSupport
 
-public class PamflutterPlugin: NSObject, FlutterPlugin {
-    
-    public static func register(with registrar: FlutterPluginRegistrar) {
-        let channel = FlutterMethodChannel(name: "ai.pams.flutter", binaryMessenger: registrar.messenger())
-        let instance = PamflutterPlugin()
-        registrar.addMethodCallDelegate(instance, channel: channel)
-        registrar.addApplicationDelegate(instance)
-        instance.setMethodChannel(channel: channel)
-    }
-    
-    var channel:FlutterMethodChannel?
-    var application: UIApplication?
-    
-    public func setMethodChannel(channel: FlutterMethodChannel){
-        self.channel = channel
-        channel.setMethodCallHandler { call, result in
-            if call.method == "askNotificationPermission" {
-                self.askNotificationPermission()
-            }else if call.method == "getPlatformVersion" {
-              result("iOS " + UIDevice.current.systemVersion)
-            }else if(call.method == "getPlatform"){
-              result("iOS")
-            }else if (call.method == "getTrackingAuthorizationStatus") {
-                self.getTrackingAuthorizationStatus(result: result)
-            }
-            else if (call.method == "requestTrackingAuthorization") {
-                self.requestTrackingAuthorization(result: result)
-            }
-            else if (call.method == "identifierForVendor") {
-                let uuid = self.identifierForVendor()
-                result(uuid)
-            }else{
-                result(FlutterMethodNotImplemented)
-            }
-        }
-    }
+public class PamFlutterPlugin: NSObject, FlutterPlugin {
+  public static func register(with registrar: FlutterPluginRegistrar) {
+    let channel = FlutterMethodChannel(name: "pam_flutter", binaryMessenger: registrar.messenger())
+    let instance = PamFlutterPlugin()
+    registrar.addMethodCallDelegate(instance, channel: channel)
+  }
 
-    private func getTrackingAuthorizationStatus(result: @escaping FlutterResult) {
-        if #available(iOS 14, *) {
-            result(Int(ATTrackingManager.trackingAuthorizationStatus.rawValue))
-        } else {
-            // return notSupported
-            result(Int(4))
-        }
+  public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    switch call.method {
+    case "getPlatformVersion":
+      result("iOS " + UIDevice.current.systemVersion)
+    case "askNotificationPermission":
+      self.askNotificationPermission()
+    case "getPlatform":
+      result("iOS")
+    case "getTrackingAuthorizationStatus":
+      self.getTrackingAuthorizationStatus(result: result)
+    case "requestTrackingAuthorization":
+      self.requestTrackingAuthorization(result: result)
+    case "identifierForVendor":
+      let uuid = self.identifierForVendor()
+      result(uuid)
+    case "appAttentionPopup":
+      self.showNativePopup(call.arguments as? [String: Any], result: result)
+    default:
+      result(FlutterMethodNotImplemented)
+    }
+  }
+
+  private func showNativePopup(_ popup: [String: Any]?, result: @escaping FlutterResult) {
+    guard let popup = popup else { return }
+
+    DispatchQueue.main.async {
+      let popupVC = PopupViewController()
+      popupVC.result = result
+      popupVC.popupData = popup
+      popupVC.modalPresentationStyle = .overFullScreen  // ให้แสดงแบบเต็มจอ
+      UIApplication.shared.keyWindow?.rootViewController?.present(
+        popupVC, animated: false, completion: nil)
     }
 
-    /*
-        case notDetermined = 0
-        case restricted = 1
-        case denied = 2
-        case authorized = 3
-    */
-    private func requestTrackingAuthorization(result: @escaping FlutterResult) {
-        if #available(iOS 14, *) {
-            ATTrackingManager.requestTrackingAuthorization(completionHandler: { status in
-                result(Int(status.rawValue))
-            })
-        } else {
-            // return notSupported
-            result(Int(4))
-        }
-    }
+  }
 
-    private func identifierForVendor()-> String {
-        let uuid = UIDevice.current.identifierForVendor?.uuidString ?? ""
-        return uuid
+  private func identifierForVendor() -> String {
+    let uuid = UIDevice.current.identifierForVendor?.uuidString ?? ""
+    return uuid
+  }
+
+  private func requestTrackingAuthorization(result: @escaping FlutterResult) {
+    if #available(iOS 14, *) {
+      ATTrackingManager.requestTrackingAuthorization { status in
+        result(Int(status.rawValue))
+      }
+    } else {
+      result(Int(4))  // ค่า 4 หมายถึง 'notSupported'
     }
-    
-    private func askNotificationPermission(){
-        if #available(iOS 10.0, *) {
-            let center = UNUserNotificationCenter.current()
-            if #available(iOS 12.0, *) {
-                center.requestAuthorization(options: [.alert, .sound, .badge, .provisional]) {granted, _ in
-                    if granted {
-                        DispatchQueue.main.async {
-                            self.registerForRemoteNotifications()
-                        }
-                    }
-                }
-            } else {
-                center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
-                    if granted {
-                        DispatchQueue.main.async {
-                            self.registerForRemoteNotifications()
-                        }
-                    }
-                }
+  }
+
+  private func registerForRemoteNotifications() {
+    DispatchQueue.main.async {
+      UIApplication.shared.registerForRemoteNotifications()
+    }
+  }
+
+  private func askNotificationPermission() {
+    if #available(iOS 10.0, *) {
+      let center = UNUserNotificationCenter.current()
+      if #available(iOS 12.0, *) {
+        center.requestAuthorization(options: [.alert, .sound, .badge, .provisional]) { granted, _ in
+          if granted {
+            DispatchQueue.main.async {
+              self.registerForRemoteNotifications()
             }
+          }
         }
-    }
-    
-    private func registerForRemoteNotifications(){
-        self.application?.registerForRemoteNotifications()
-    }
-    
-    public func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [AnyHashable : Any] = [:]) -> Bool {
-        self.application = application
-        return true
-    }
-    
-    public func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        let tokenParts = deviceToken.map { data -> String in
-            return String(format: "%02.2hhx", data)
+      } else {
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+          if granted {
+            DispatchQueue.main.async {
+              self.registerForRemoteNotifications()
+            }
+          }
         }
-        
-        let token = tokenParts.joined()
-       
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-         self.channel?.invokeMethod("onToken", arguments: token)
-        }
+      }
     }
-    
+  }
+
+  private func getTrackingAuthorizationStatus(result: @escaping FlutterResult) {
+    if #available(iOS 14, *) {
+      result(Int(ATTrackingManager.trackingAuthorizationStatus.rawValue))
+    } else {
+      // return notSupported
+      result(Int(4))
+    }
+  }
+
 }

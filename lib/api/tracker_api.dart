@@ -12,9 +12,7 @@ class TrackerAPI {
     var uri = Uri.parse("$baseURL/trackers/events");
 
     try {
-      var jsonbody = json.encode(body);
-
-      var response = await HttpClient.post(uri, body: jsonbody);
+      var response = await HttpClient.post(uri, body: body);
 
       const encoder = JsonEncoder.withIndent('  ');
       var bodyLog = encoder.convert(body);
