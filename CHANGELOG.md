@@ -1,3 +1,7 @@
+# 2.4.0
+
+    Added App Attention that allows creating a Banner from CMS to display on any page of the app.
+
 # 2.3.5
 
 Fixed the time display to be correct.

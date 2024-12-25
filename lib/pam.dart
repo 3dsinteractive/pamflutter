@@ -1,12 +1,19 @@
 library pamflutter;
 
+import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:pam_flutter/api/consent_api.dart';
-import 'package:pam_flutter/response/allow_consent.dart';
-import 'package:pam_flutter/response/consent_message.dart';
-import 'package:pam_flutter/response/customer_consent_status.dart';
-import 'package:pam_flutter/response/pam_response.dart';
+import 'package:flutter/widgets.dart';
+
+import './api/consent_api.dart';
+import './api/crm_api.dart';
+import './response/allow_consent.dart';
+import './response/consent_message.dart';
+import './response/customer_consent_status.dart';
+import './response/pam_response.dart';
+import './api/push_notification_api.dart';
+import './response/pam_push_message.dart';
+
 import 'preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -15,11 +22,11 @@ import 'dart:io' show Platform;
 import 'package:uuid/uuid.dart';
 import './api/tracker_api.dart';
 import 'package:flutter/services.dart';
-import 'package:pam_flutter/api/push_notification_api.dart';
-import 'package:pam_flutter/response/pam_push_message.dart';
 import 'package:queue/queue.dart';
 import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'pam_flutter_platform_interface.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 typedef TrackerCallBack = Function(PamResponse);
 
@@ -77,7 +84,6 @@ class Pam {
   static var customerID = "";
 
   static var shared = Pam();
-  static const MethodChannel _channel = MethodChannel('ai.pams.flutter');
 
   static Future<CustomerConsentStatus> loadConsentStatus(
           String consentMessageID) =>
@@ -95,11 +101,15 @@ class Pam {
     }
   }
 
+  static Future<String?> getPlatformVersion() {
+    return PamFlutterPlatform.instance.getPlatformVersion();
+  }
+
   //iOS App Tracking Transparencyx
   static Future<TrackingStatus> get trackingAuthorizationStatus async {
     if (Platform.isIOS) {
       final int status =
-          (await _channel.invokeMethod<int>('getTrackingAuthorizationStatus'))!;
+          await PamFlutterPlatform.instance.getTrackingAuthorizationStatus();
       return TrackingStatus.values[status];
     }
     return TrackingStatus.notSupported;
@@ -108,7 +118,7 @@ class Pam {
   static Future<TrackingStatus> requestTrackingAuthorization() async {
     if (Platform.isIOS) {
       final int status =
-          (await _channel.invokeMethod<int>('requestTrackingAuthorization'))!;
+          await PamFlutterPlatform.instance.requestTrackingAuthorization();
       return TrackingStatus.values[status];
     }
     return TrackingStatus.notSupported;
@@ -116,7 +126,7 @@ class Pam {
 
   static Future<String?> identifierForVendor() async {
     if (Platform.isIOS) {
-      return await _channel.invokeMethod<String>('identifierForVendor');
+      return await PamFlutterPlatform.instance.identifierForVendor();
     } else if (Platform.isAndroid) {
       const androidIdPlugin = AndroidId();
       return await androidIdPlugin.getId();
@@ -315,21 +325,39 @@ class Pam {
     });
   }
 
-  static Future<dynamic> methodsHandler(MethodCall methodCall) async {
-    switch (methodCall.method) {
-      case 'onToken':
-        var token = methodCall.arguments;
-        Pam.setPushNotificationToken(token);
-        Pam.shared._onToken?.call(token);
-        return '';
-      default:
-        return '';
-    }
-  }
-
   static void onToken(Function(String)? onToken) {
     Pam.shared._onToken = onToken;
   }
+
+  static void appAttention(BuildContext context,
+      {String pageName = "",
+      bool Function(Map<String, dynamic>? bannerData)? onBannerClick}) async {
+    var api = CRMAPI(shared.config?.pamServer ?? "");
+    var attention = await api.getAppAttention(pageName);
+
+    if (attention != null && attention != "{}") {
+      Map<String, dynamic> json = jsonDecode(attention);
+      var result = await PamFlutterPlatform.instance.appAttentionPopup(json);
+      if (result != null) {
+        // คลิก Banner
+        if (onBannerClick == null || !onBannerClick(result)) {
+          // Default Behavior: เปิด URL
+          final url = result["url"] as String?;
+          if (url != null) {
+            // await launchUrl(Uri.parse(url));
+            final Uri uri = Uri.parse(url);
+
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            } else {
+              print('Could not launch $url');
+            }
+          }
+        }
+      }
+    }
+  }
+
   //--STATIC --
 
   var isEnableLog = false;
@@ -351,8 +379,22 @@ class Pam {
 
   Function(String)? _onToken;
 
+  static Future<dynamic> methodsHandler(MethodCall methodCall) async {
+    switch (methodCall.method) {
+      case 'onToken':
+        var token = methodCall.arguments;
+        Pam.setPushNotificationToken(token);
+        Pam.shared._onToken?.call(token);
+        return '';
+      default:
+        return '';
+    }
+  }
+
   Future<void> init(PamConfig config, bool debug) async {
-    _channel.setMethodCallHandler(Pam.methodsHandler);
+    WidgetsFlutterBinding.ensureInitialized();
+    PamFlutterPlatform.instance.setOnPlatformCallback(methodsHandler);
+
     trackerAPI = TrackerAPI(config.pamServer);
     this.config = config;
     isEnableLog = debug;
