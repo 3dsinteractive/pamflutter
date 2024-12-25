@@ -1,5 +1,5 @@
 name: pam_flutter
-description: "A new Flutter plugin project."
+description: "A Flutter plugin for integrating mobile Flutter app with PAM Real CDP."
 version: 2.4.0
 homepage:
 
