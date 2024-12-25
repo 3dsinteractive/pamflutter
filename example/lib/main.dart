@@ -15,7 +15,16 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Display App Attention if exist
-    Pam.appAttention(context, pageName: "home-video");
+
+    Pam.appAttention(
+      context,
+      pageName: "home-video",
+      onBannerClick: (bannerData) {
+        print("CLICK LEARN MORE.");
+        print(bannerData.toString());
+        return false;
+      },
+    );
 
     return MaterialApp(
       title: 'Flutter Demo',
