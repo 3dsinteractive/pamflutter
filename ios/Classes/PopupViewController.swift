@@ -24,6 +24,12 @@ public class PopupViewController: UIViewController {
         let image = popup["image"] as? String
         let video = popup["video"] as? String
         let size = popup["size"] as? String
+        let trackingPixelUrl = popup["tracking_pixel_url"] as? String
+
+        // ส่ง Tracking Pixel ไปยัง Server
+        if let url = URL(string: trackingPixelUrl ?? "") {
+            URLSession.shared.dataTask(with: url).resume()
+        }
 
         // พื้นหลังสีดำโปร่งแสง
         view.backgroundColor = UIColor.black.withAlphaComponent(0.7)
@@ -226,7 +232,6 @@ public class PopupViewController: UIViewController {
     }
 
     @objc private func learnMore() {
-        print("CLICK result", result)
         result?(popupData)
         dismiss(animated: true)
     }

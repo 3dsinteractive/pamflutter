@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-
+import './pam.dart';
 import 'pam_flutter_platform_interface.dart';
 
 /// An implementation of [PamFlutterPlatform] that uses method channels.
@@ -41,8 +41,7 @@ class MethodChannelPamFlutter extends PamFlutterPlatform {
     final result = await methodChannel.invokeMethod<Map<dynamic, dynamic>?>(
         'appAttentionPopup', params);
 
-    print("RESULT----");
-    print(result);
+    Pam.log(["RESULT----", result.toString()]);
 
     final Map<String, dynamic>? bannerData = result?.map(
       (key, value) => MapEntry(
