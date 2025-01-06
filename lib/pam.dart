@@ -338,6 +338,7 @@ class Pam {
     if (attention != null && attention != "{}") {
       Map<String, dynamic> json = jsonDecode(attention);
       var result = await PamFlutterPlatform.instance.appAttentionPopup(json);
+
       if (result != null) {
         // คลิก Banner
         if (onBannerClick == null || !onBannerClick(result)) {
@@ -350,7 +351,7 @@ class Pam {
             if (await canLaunchUrl(uri)) {
               await launchUrl(uri, mode: LaunchMode.externalApplication);
             } else {
-              print('Could not launch $url');
+              Pam.log(["Could not launch $url"]);
             }
           }
         }

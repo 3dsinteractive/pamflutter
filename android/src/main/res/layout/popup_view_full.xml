@@ -7,7 +7,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:background="#B3000000"> <!-- พื้นหลังโปร่งแสง -->
 
-
+    
     <ImageView
         android:id="@+id/imageView"
         android:layout_width="0dp"

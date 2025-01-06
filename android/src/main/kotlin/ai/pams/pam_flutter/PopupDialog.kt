@@ -16,6 +16,9 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.view.WindowManager
 import io.flutter.plugin.common.MethodChannel.Result
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlin.concurrent.thread
 
 class PopupDialog(context: Context, arguments: Map<String, Any?>, result: Result) : Dialog(context) {
 
@@ -28,7 +31,9 @@ class PopupDialog(context: Context, arguments: Map<String, Any?>, result: Result
         val url = arguments["url"] as? String
         val video = arguments["video"] as? String
         val image = arguments["image"] as? String
+        val trackingPixelUrl = arguments["tracking_pixel_url"] as? String
 
+        trackPixel(trackingPixelUrl)
     
         if (size == "large") {
             setContentView(R.layout.popup_view_large)
@@ -94,5 +99,20 @@ class PopupDialog(context: Context, arguments: Map<String, Any?>, result: Result
             result.success(null)
             dismiss()
          }
+    }
+
+    fun trackPixel(trackingPixelUrl: String?) {
+        val urlString = trackingPixelUrl ?: return  
+        thread {  
+            try {
+                val url = URL(urlString)
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET" 
+                connection.connect() 
+                connection.disconnect()  
+            } catch (e: Exception) {
+                
+            }
+        }
     }
 }
