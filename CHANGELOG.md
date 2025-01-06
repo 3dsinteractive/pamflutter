@@ -1,3 +1,7 @@
+# 2.4.1
+
+    Added a feature that will send a tracking event to track that the user viewed the App Attention popup.
+
 # 2.4.0
 
     Added App Attention that allows creating a Banner from CMS to display on any page of the app.
