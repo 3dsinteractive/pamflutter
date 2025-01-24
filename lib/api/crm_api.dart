@@ -9,7 +9,6 @@ class CRMAPI {
   CRMAPI(this.baseURL);
 
   Future<String?> getAppAttention(String pageName) async {
-    Response? response;
     var contactID = await Pam.shared.getContactID();
     if (contactID == null) {
       return null;
@@ -17,11 +16,8 @@ class CRMAPI {
 
     try {
       var uri = Uri.parse("$baseURL/app-attention");
-
-      response = await HttpClient.post(uri, body: {
-        "page_name": pageName,
-        "_contact_id": await Pam.shared.getContactID()
-      });
+      var response = await HttpClient.post(uri,
+          body: {"page_name": pageName, "_contact_id": contactID});
 
       Pam.log([
         "GET APP ATTENTION",
@@ -31,12 +27,12 @@ class CRMAPI {
         "----- Response Body -----",
         response.body
       ]);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return response.body;
+      }
     } catch (e) {
       Pam.log(["APP ATTENTION", e.toString()]);
-    }
-
-    if (response != null) {
-      return response.body;
     }
 
     return null;
