@@ -163,7 +163,7 @@ public class PopupViewController: UIViewController {
             closeButton.setImage(icon, for: .normal)
         } else {
             // ใช้ภาพที่กำหนดเองสำหรับ iOS ต่ำกว่า 13
-            let icon = UIImage(named: "ic_close")  // ไฟล์ภาพใน Assets.xcassets
+            let icon = UIImage(named: "pam_ic_close_ios")  // ไฟล์ภาพใน Assets.xcassets
             closeButton.setImage(icon, for: .normal)
         }
 
