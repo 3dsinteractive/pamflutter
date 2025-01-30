@@ -1,4 +1,4 @@
-library pamflutter;
+library pam_flutter;
 
 import 'package:shared_preferences/shared_preferences.dart';
 

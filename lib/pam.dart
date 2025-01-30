@@ -1,4 +1,4 @@
-library pamflutter;
+library pam_flutter;
 
 import 'package:flutter/material.dart';
 import 'dart:async';
