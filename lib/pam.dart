@@ -335,26 +335,33 @@ class Pam {
     var api = CRMAPI(shared.config?.pamServer ?? "");
     var attention = await api.getAppAttention(pageName);
 
-    if (attention != null && attention != "{}") {
-      Map<String, dynamic> json = jsonDecode(attention);
-      var result = await PamFlutterPlatform.instance.appAttentionPopup(json);
+    if (attention != null && attention.isNotEmpty) {
+      try {
+        Map<String, dynamic> json = jsonDecode(attention);
+        if (json.isNotEmpty) {
+          var result =
+              await PamFlutterPlatform.instance.appAttentionPopup(json);
 
-      if (result != null) {
-        // คลิก Banner
-        if (onBannerClick == null || !onBannerClick(result)) {
-          // Default Behavior: เปิด URL
-          final url = result["url"] as String?;
-          if (url != null) {
-            // await launchUrl(Uri.parse(url));
-            final Uri uri = Uri.parse(url);
+          if (result != null) {
+            // คลิก Banner
+            if (onBannerClick == null || !onBannerClick(result)) {
+              // Default Behavior: เปิด URL
+              final url = result["url"] as String?;
+              if (url != null) {
+                // await launchUrl(Uri.parse(url));
+                final Uri uri = Uri.parse(url);
 
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            } else {
-              Pam.log(["Could not launch $url"]);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } else {
+                  Pam.log(["Could not launch $url"]);
+                }
+              }
             }
           }
         }
+      } catch (e) {
+        Pam.log(["App Attention Error: ${e.toString()}"]);
       }
     }
   }
