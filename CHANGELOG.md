@@ -1,3 +1,7 @@
+# 2.4.2
+
+    Fixed, Web attention will work properly.
+
 # 2.4.1
 
     Added a feature that will send a tracking event to track that the user viewed the App Attention popup.
