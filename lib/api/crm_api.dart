@@ -1,4 +1,3 @@
-import 'package:http/http.dart' show Response;
 import '../pam.dart';
 import 'dart:async';
 import '../http/http_client.dart';

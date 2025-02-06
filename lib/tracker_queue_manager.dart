@@ -1,4 +1,4 @@
-library pamflutter;
+library;
 
 import './response/pam_response.dart';
 

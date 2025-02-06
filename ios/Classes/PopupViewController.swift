@@ -159,12 +159,12 @@ public class PopupViewController: UIViewController {
         //let icon = UIImage(systemName: "xmark")  // ไอคอน "X"
 
         if #available(iOS 13.0, *) {
-            let icon = UIImage(systemName: "xmark")  // ใช้ SF Symbol ใน iOS 13.0 หรือใหม่กว่า
+            let icon = UIImage(systemName: "xmark")  // ใช้ SF Symbol บน iOS 13+
             closeButton.setImage(icon, for: .normal)
         } else {
-            // ใช้ภาพที่กำหนดเองสำหรับ iOS ต่ำกว่า 13
-            let icon = UIImage(named: "ic_close")  // ไฟล์ภาพใน Assets.xcassets
-            closeButton.setImage(icon, for: .normal)
+            // ใช้ตัวอักษร ✖️ แทนรูปภาพ
+            closeButton.setTitle("✖️", for: .normal)
+            closeButton.setTitleColor(.black, for: .normal) // เปลี่ยนสีให้ตรงกับ UI
         }
 
         closeButton.tintColor = .black  // สีของไอคอน

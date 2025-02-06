@@ -1,3 +1,11 @@
+# 2.4.5
+
+    Fixed Empty web attention
+
+# 2.4.4
+
+    Fixed deprecated code.
+
 # 2.4.2
 
     Fixed, Web attention will work properly.

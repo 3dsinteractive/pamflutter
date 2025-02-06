@@ -1,6 +1,6 @@
 name: pam_flutter
 description: "A Flutter plugin for integrating mobile Flutter app with PAM Real CDP. learn more about pam at https://pams.ai"
-version: 2.4.3
+version: 2.4.5
 homepage: https://pams.ai
 repository: https://github.com/3dsinteractive/pamflutter
 
