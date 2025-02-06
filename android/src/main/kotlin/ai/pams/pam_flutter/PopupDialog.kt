@@ -102,17 +102,22 @@ class PopupDialog(context: Context, arguments: Map<String, Any?>, result: Result
     }
 
     fun trackPixel(trackingPixelUrl: String?) {
-        val urlString = trackingPixelUrl ?: return  
-        thread {  
+        val urlString = trackingPixelUrl ?: return
+    
+        thread {
+            var connection: HttpURLConnection? = null
             try {
                 val url = URL(urlString)
-                val connection = url.openConnection() as HttpURLConnection
-                connection.requestMethod = "GET" 
-                connection.connect() 
-                connection.disconnect()  
+                connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connect()
             } catch (e: Exception) {
                 
+            } finally {
+                connection?.disconnect()
             }
         }
     }
+
+
 }
