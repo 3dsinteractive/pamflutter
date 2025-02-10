@@ -115,4 +115,33 @@ class PamPushNotificationAPI {
 
     return null;
   }
+
+  Future<List<PamPushMessage>?> loadPushNotifications() async {
+    Response? response;
+    var db = Pam.shared.getDatabaseAlias();
+    var contact = await Pam.shared.getContactID();
+    Pam.log(["LOAD PUSH NOTIFICATION", "_database=$db&_contact_id=$contact"]);
+    try {
+      var uri = Uri.parse(
+          "$baseURL/api/app-notifications?_database=$db&_contact_id=$contact");
+      response = await HttpClient.get(uri);
+      Pam.log([
+        "LOAD PUSH NOTIFICATION",
+        uri.toString(),
+        "contact id = $contact",
+        "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
+        "Status Code: ${response.statusCode}",
+        "----- Response Body -----",
+        response.body,
+      ]);
+    } catch (e) {
+      Pam.log(["ERROR", e.toString()]);
+    }
+
+    if (response != null) {
+      return PamPushMessage.parse(response.body);
+    }
+
+    return null;
+  }
 }

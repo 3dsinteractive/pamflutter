@@ -210,6 +210,11 @@ class Pam {
     return await pushAPI.loadPushNotificationsFromCustomerID(customer);
   }
 
+  static Future<List<PamPushMessage>?> loadPushNotifications() async {
+    var pushAPI = PamPushNotificationAPI(shared.config?.pamServer ?? "");
+    return await pushAPI.loadPushNotifications();
+  }
+
   static bool _isWhitelistEvent(String? event) {
     return event == "allow_consent" || event == "save_push";
   }
