@@ -32,7 +32,7 @@ class PopupDialog(context: Context, arguments: Map<String, Any?>, result: Result
         val video = arguments["video"] as? String
         val image = arguments["image"] as? String
         val trackingPixelUrl = arguments["tracking_pixel_url"] as? String
-
+        
         trackPixel(trackingPixelUrl)
     
         if (size == "large") {
@@ -103,21 +103,30 @@ class PopupDialog(context: Context, arguments: Map<String, Any?>, result: Result
 
     fun trackPixel(trackingPixelUrl: String?) {
         val urlString = trackingPixelUrl ?: return
-    
         thread {
             var connection: HttpURLConnection? = null
             try {
                 val url = URL(urlString)
                 connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
-                connection.connect()
-            } catch (e: Exception) {
+                connection.connectTimeout = 10000 // Optional: set a timeout
+                connection.readTimeout = 10000
                 
+                connection.connect()
+                
+                // Force the network request to complete by reading the response code
+                val responseCode = connection.responseCode
+                
+                // Optionally, read the input stream to ensure the request is fully processed
+                connection.inputStream.bufferedReader().use { it.readText() }
+            } catch (e: Exception) {
+                e.printStackTrace()  // Log the exception so you know if something goes wrong
             } finally {
                 connection?.disconnect()
             }
         }
     }
+    
 
 
 }
