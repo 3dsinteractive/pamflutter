@@ -1,3 +1,7 @@
+# 2.4.6
+
+    Fixed Android Pixel tracking function
+
 # 2.4.5
 
     Fixed Empty web attention
