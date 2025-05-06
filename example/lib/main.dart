@@ -71,13 +71,24 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            ElevatedButton(
+            TextButton(
+              style: ButtonStyle(
+                foregroundColor: MaterialStateProperty.all<Color>(Colors.blue),
+              ),
               onPressed: () {
-                // เมื่อคลิกปุ่มให้แสดงข้อความใน console
-                _allowConsent();
+                Pam.allowConsent("2VNmHzWrxPYJj0zDiM1cQGeW2S5")
               },
-              child: Text('Click Me'),
+              child: Text('Allow Consent'),
             ),
+            TextButton(
+              style: ButtonStyle(
+                foregroundColor: MaterialStateProperty.all<Color>(Colors.blue),
+              ),
+              onPressed: () {
+                Pam.appAttention(conetxt, pageName: "home");
+              },
+              child: Text('Attention'),
+            )
           ],
         ),
       ),
