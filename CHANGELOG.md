@@ -1,3 +1,7 @@
+# 2.4.10
+
+    change getDatabaseAlias() to async
+
 # 2.4.9
 
     PAM will print stacktrace when exception happen
