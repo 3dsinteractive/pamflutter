@@ -18,7 +18,7 @@ class PamPushNotificationAPI {
   Future<List<PamPushMessage>?> loadPushNotificationsFromMobile(
       String mobileNumber) async {
     Response? response;
-    var db = Pam.shared.getDatabaseAlias();
+    var db = await Pam.shared.getDatabaseAlias();
     var contact = await Pam.shared.getContactID();
     Pam.log([
       "LOAD PUSH NOTIFICATION",
@@ -52,7 +52,7 @@ class PamPushNotificationAPI {
   Future<List<PamPushMessage>?> loadPushNotificationsFromEmail(
       String email) async {
     Response? response;
-    var db = Pam.shared.getDatabaseAlias();
+    var db = await Pam.shared.getDatabaseAlias();
     var contact = await Pam.shared.getContactID();
 
     Pam.log([
@@ -86,7 +86,7 @@ class PamPushNotificationAPI {
   Future<List<PamPushMessage>?> loadPushNotificationsFromCustomerID(
       String customer) async {
     Response? response;
-    var db = Pam.shared.getDatabaseAlias();
+    var db = await Pam.shared.getDatabaseAlias();
     var contact = await Pam.shared.getContactID();
     Pam.log([
       "LOAD PUSH NOTIFICATION",
@@ -118,7 +118,7 @@ class PamPushNotificationAPI {
 
   Future<List<PamPushMessage>?> loadPushNotifications() async {
     Response? response;
-    var db = Pam.shared.getDatabaseAlias();
+    var db = await Pam.shared.getDatabaseAlias();
     var contact = await Pam.shared.getContactID();
     Pam.log(["LOAD PUSH NOTIFICATION", "_database=$db&_contact_id=$contact"]);
     try {
