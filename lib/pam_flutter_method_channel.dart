@@ -41,7 +41,7 @@ class MethodChannelPamFlutter extends PamFlutterPlatform {
     final result = await methodChannel.invokeMethod<Map<dynamic, dynamic>?>(
         'appAttentionPopup', params);
 
-    Pam.log(["RESULT----", result.toString()]);
+    Pam.log(["RESULT----", result]);
 
     final Map<String, dynamic>? bannerData = result?.map(
       (key, value) => MapEntry(

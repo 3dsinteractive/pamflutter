@@ -40,8 +40,8 @@ class PamPushMessage {
 
     try {
       map = jsonDecode(jsonStr);
-    } catch (e) {
-      Pam.log(["Push Message Parse Error", e.toString()]);
+    } catch (e, stackTrace) {
+      Pam.log(["Push Message Parse Error", stackTrace, e]);
       return [];
     }
 

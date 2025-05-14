@@ -20,7 +20,7 @@ class TrackerAPI {
       Pam.log([
         "${DateTime.now()}",
         "🦄🦄🦄🦄🦄 PAM TRACKING EVENT 🦄🦄🦄🦄🦄🦄\n\n",
-        uri.toString(),
+        uri,
         "----- Payload -----",
         bodyLog,
         "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
@@ -33,8 +33,8 @@ class TrackerAPI {
 
       final pamResponse = PamResponse.parse(response.body);
       return pamResponse;
-    } catch (e) {
-      Pam.log(["TRACKING ERROR", e.toString()]);
+    } catch (e, stackTrace) {
+      Pam.log(["TRACKING ERROR", stackTrace, e]);
 
       var errorResponse = PamResponse();
       errorResponse.error =
