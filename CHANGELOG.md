@@ -1,3 +1,7 @@
+# 2.4.9
+
+    PAM will print stacktrace when exception happen
+
 # 2.4.6
 
     Fixed Android Pixel tracking function
