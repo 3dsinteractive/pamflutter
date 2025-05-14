@@ -12,7 +12,7 @@ class MockPamFlutterPlatform
   Future<String?> getPlatformVersion() => Future.value('42');
 
   @override
-  Future<void> appAttentionPopup(Map<String, dynamic> params) {
+  Future<Map<String, dynamic>?> appAttentionPopup(Map<String, dynamic> params) {
     // TODO: implement appAttentionPopup
     throw UnimplementedError();
   }

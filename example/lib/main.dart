@@ -20,8 +20,8 @@ class MyApp extends StatelessWidget {
       context,
       pageName: "home-video",
       onBannerClick: (bannerData) {
-        print("CLICK LEARN MORE.");
-        print(bannerData.toString());
+        debugPrint("CLICK LEARN MORE.");
+        debugPrint(bannerData.toString());
         return false;
       },
     );
@@ -47,7 +47,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  void _allowConsent() async {
+  void allowConsent() async {
     var trackingConsentMessageID =
         Pam.shared.config?.trackingConsentMessageID ?? "";
 
@@ -73,19 +73,19 @@ class _MyHomePageState extends State<MyHomePage> {
           children: <Widget>[
             TextButton(
               style: ButtonStyle(
-                foregroundColor: MaterialStateProperty.all<Color>(Colors.blue),
+                foregroundColor: WidgetStateProperty.all<Color>(Colors.blue),
               ),
               onPressed: () {
-                Pam.allowConsent("2VNmHzWrxPYJj0zDiM1cQGeW2S5")
+                Pam.allowConsent("2VNmHzWrxPYJj0zDiM1cQGeW2S5");
               },
               child: Text('Allow Consent'),
             ),
             TextButton(
               style: ButtonStyle(
-                foregroundColor: MaterialStateProperty.all<Color>(Colors.blue),
+                foregroundColor: WidgetStateProperty.all<Color>(Colors.blue),
               ),
               onPressed: () {
-                Pam.appAttention(conetxt, pageName: "home");
+                Pam.appAttention(context, pageName: "home");
               },
               child: Text('Attention'),
             )
