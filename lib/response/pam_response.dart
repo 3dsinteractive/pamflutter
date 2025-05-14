@@ -21,8 +21,8 @@ class PamResponse {
     Map<String, dynamic> map;
     try {
       map = jsonDecode(jsonString);
-    } catch (e) {
-      Pam.log(["PamResponse parse Error", e.toString()]);
+    } catch (e, stackTrace) {
+      Pam.log(["PamResponse parse Error", stackTrace, e]);
       return null;
     }
 

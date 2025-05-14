@@ -94,11 +94,15 @@ class Pam {
   static Future<void> initialize(PamConfig config) =>
       shared.init(config, config.enableLog);
 
-  static void log(List<String> args) {
-    if (shared.isEnableLog) {
-      var spliter = "◦🦄◦🦄◦🦄◦PAM◦🦄◦🦄◦🦄◦";
-      debugPrint("\n$spliter\n\n${args.join("\n")}\n\n$spliter\n");
-    }
+  static void log(List<Object?> args) {
+    if (!shared.isEnableLog) return;
+
+    const spliter = "◦🦄◦🦄◦🦄◦PAM◦🦄◦🦄◦🦄◦";
+
+    final stringList = args.map((e) => e?.toString() ?? "<null>");
+    final content = stringList.join("\n");
+
+    debugPrint("\n$spliter\n\n$content\n\n$spliter\n");
   }
 
   static Future<String?> getPlatformVersion() {
@@ -147,7 +151,7 @@ class Pam {
       try {
         payload = jsonDecode(pam);
       } catch (e) {
-        Pam.log([e.toString()]);
+        Pam.log([e]);
         return null;
       }
 
@@ -643,8 +647,9 @@ class Pam {
     return null;
   }
 
-  bool isUserLogin() {
-    return isNotEmpty(custID);
+  Future<bool> isUserLogin() async {
+    var ncustID = await _getCustID();
+    return isNotEmpty(ncustID);
   }
 
   Future<String?> _getCustID() async {
@@ -660,8 +665,8 @@ class Pam {
     return null;
   }
 
-  String getDatabaseAlias() {
-    if (isUserLogin()) {
+  Future<String> getDatabaseAlias() async {
+    if (await isUserLogin()) {
       Pam.databaseAlias = config?.loginDBAlias ?? "";
       return config?.loginDBAlias ?? "";
     }
@@ -690,7 +695,7 @@ class Pam {
       "app_version": packageInfo.version,
       "_session_id": getSessionID(),
       "_consent_message_id": config?.trackingConsentMessageID,
-      "_database": getDatabaseAlias()
+      "_database": await getDatabaseAlias()
     };
 
     String loginKey = "customer";
@@ -714,7 +719,7 @@ class Pam {
       }
     });
 
-    if (isUserLogin()) {
+    if (await isUserLogin()) {
       formField["customer"] = await _getCustID();
     }
 
@@ -724,13 +729,13 @@ class Pam {
     return body;
   }
 
-  void _saveContactID(String? contactId) {
+  void _saveContactID(String? contactId) async {
     if (contactId?.isEmpty ?? true) {
       return;
     }
     String cid = contactId ?? "";
 
-    if (isUserLogin()) {
+    if (await isUserLogin()) {
       if (isNotEmpty(contactId)) {
         Pam.log(["Save Logged-in contact ID = $cid"]);
 

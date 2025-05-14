@@ -20,7 +20,7 @@ class CRMAPI {
 
       Pam.log([
         "GET APP ATTENTION",
-        uri.toString(),
+        uri,
         "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
         "Status Code: ${response.statusCode}",
         "----- Response Body -----",
@@ -30,8 +30,8 @@ class CRMAPI {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return response.body;
       }
-    } catch (e) {
-      Pam.log(["APP ATTENTION", e.toString()]);
+    } catch (e, stackTrace) {
+      Pam.log(["APP ATTENTION", stackTrace, e]);
     }
 
     return null;

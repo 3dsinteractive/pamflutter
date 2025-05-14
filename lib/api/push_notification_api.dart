@@ -31,15 +31,15 @@ class PamPushNotificationAPI {
 
       Pam.log([
         "LOAD PUSH NOTIFICATION",
-        uri.toString(),
+        uri,
         "mobile number = $mobileNumber",
         "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
         "Status Code: ${response.statusCode}",
         "----- Response Body -----",
         response.body,
       ]);
-    } catch (e) {
-      Pam.log(["ERROR", e.toString()]);
+    } catch (e, stackTrace) {
+      Pam.log(["ERROR", stackTrace, e]);
     }
 
     if (response != null) {
@@ -65,15 +65,15 @@ class PamPushNotificationAPI {
       response = await HttpClient.get(uri);
       Pam.log([
         "LOAD PUSH NOTIFICATION",
-        uri.toString(),
+        uri,
         "email = $email",
         "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
         "Status Code: ${response.statusCode}",
         "----- Response Body -----",
         response.body
       ]);
-    } catch (e) {
-      Pam.log(["ERROR", e.toString()]);
+    } catch (e, stackTrace) {
+      Pam.log(["ERROR", stackTrace, e]);
     }
 
     if (response != null) {
@@ -98,15 +98,15 @@ class PamPushNotificationAPI {
       response = await HttpClient.get(uri);
       Pam.log([
         "LOAD PUSH NOTIFICATION",
-        uri.toString(),
+        uri,
         "customer id = $customer",
         "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
         "Status Code: ${response.statusCode}",
         "----- Response Body -----",
         response.body,
       ]);
-    } catch (e) {
-      Pam.log(["ERROR", e.toString()]);
+    } catch (e, stackTrace) {
+      Pam.log(["ERROR", stackTrace, e]);
     }
 
     if (response != null) {
@@ -127,15 +127,15 @@ class PamPushNotificationAPI {
       response = await HttpClient.get(uri);
       Pam.log([
         "LOAD PUSH NOTIFICATION",
-        uri.toString(),
+        uri,
         "contact id = $contact",
         "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
         "Status Code: ${response.statusCode}",
         "----- Response Body -----",
         response.body,
       ]);
-    } catch (e) {
-      Pam.log(["ERROR", e.toString()]);
+    } catch (e, stackTrace) {
+      Pam.log(["ERROR", stackTrace, e]);
     }
 
     if (response != null) {

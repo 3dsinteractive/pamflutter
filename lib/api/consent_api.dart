@@ -19,15 +19,15 @@ class ConsentAPI {
 
       Pam.log([
         "LOAD CONSENT MESSAGE",
-        uri.toString(),
+        uri,
         "consent_message_id: $id",
         "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
         "Status Code: ${response.statusCode}",
         "----- Response Body -----",
         response.body
       ]);
-    } catch (e) {
-      Pam.log(["TRACKING ERROR", e.toString()]);
+    } catch (e, stackTrace) {
+      Pam.log(["TRACKING ERROR", stackTrace, e]);
     }
 
     if (response != null) {
@@ -47,15 +47,15 @@ class ConsentAPI {
 
       Pam.log([
         "LOAD CONSENT STATUS",
-        uri.toString(),
+        uri,
         "consent_message_id: $consentMessageIDs",
         "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
         "Status Code: ${response.statusCode}",
         "----- Response Body -----",
         response.body
       ]);
-    } catch (e) {
-      Pam.log(["LOAD CONSENT STATUS ERROR", e.toString()]);
+    } catch (e, stackTrace) {
+      Pam.log(["LOAD CONSENT STATUS ERROR", stackTrace, e]);
     }
 
     if (response != null) {
@@ -97,7 +97,7 @@ class ConsentAPI {
       "Type: ${consentMessage.type}, ID: ${consentMessage.id}",
       ...consentMessage.permission.map((t) => "⦾${t.name.key}=${t.allow}"),
       "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
-      response.toString()
+      response
     ]);
 
     return result;
