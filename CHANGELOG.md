@@ -1,3 +1,7 @@
+# 2.4.11
+
+    use device_info_plus version '>=10.0.1 <12.0.0'
+
 # 2.4.10
 
     change getDatabaseAlias() to async
