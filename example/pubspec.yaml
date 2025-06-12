@@ -1,8 +1,8 @@
 name: pam_flutter_example
-description: "Demonstrates how to use the pam_flutter plugin."
+description: 'Demonstrates how to use the pam_flutter plugin.'
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: "none" # Remove this line if you wish to publish to pub.dev
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 environment:
   sdk: ^3.6.0
@@ -16,7 +16,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  device_info_plus: '^10.0.1'
   pam_flutter:
     # When depending on this package from a real application you should use:
     #   pam_flutter: ^x.y.z
