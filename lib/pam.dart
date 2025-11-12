@@ -482,13 +482,16 @@ class Pam {
     payload?.forEach((key, val) {
       defaultPayload[key] = val;
     });
+    
+    if(!await isUserLogin()){
+      //Delete Push Noti from anonymous
+      await queue.add(() => postTracker("delete_media", defaultPayload));
 
-    //Delete Push Noti from anonymous
-    await queue.add(() => postTracker("delete_media", defaultPayload));
+      // Track Login To Public
+      var response = await queue.add(() => postTracker("login", payload));
+    }
+
     await pref.saveString(custID, SaveKey.customerID);
-
-    // Track Login To Public
-    var response = await queue.add(() => postTracker("login", payload));
 
     // Track Login To Login
     this.custID = custID;
@@ -535,8 +538,11 @@ class Pam {
     payload?.forEach((key, val) {
       defaultPayload[key] = val;
     });
-    await queue.add(() => postTracker("delete_media", defaultPayload));
-    await queue.add(() => postTracker("logout", payload));
+
+    if(await isUserLogin()){
+      await queue.add(() => postTracker("delete_media", defaultPayload));
+      await queue.add(() => postTracker("logout", payload));
+    }
 
     custID = null;
     loginContact = null;
