@@ -488,14 +488,15 @@ class Pam {
       await queue.add(() => postTracker("delete_media", defaultPayload));
 
       // Track Login To Public
-      var response = await queue.add(() => postTracker("login", payload));
+      //var response = 
+      await queue.add(() => postTracker("login", payload));
     }
 
     await pref.saveString(custID, SaveKey.customerID);
 
     // Track Login To Login
     this.custID = custID;
-    response = await queue.add(() => postTracker("login", payload));
+    var response = await queue.add(() => postTracker("login", payload));
     if (isNotEmpty(response.contactID)) {
       this.custID = custID;
       loginContact = response.contactID;
