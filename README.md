@@ -1,8 +1,30 @@
-# Add pam_flutter to Your Project
+# PAM Flutter SDK
 
-To integrate `pam_flutter` into your Flutter project, follow these steps:
+A Flutter plugin for integrating PAM (Personalized Advertising Management) into your mobile applications.
 
-## Step 1: Add pam_flutter to Your Project
+## Table of Contents
+
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Initialization](#initialization)
+- [Core Features](#core-features)
+  - [Consent Management](#consent-management)
+  - [Push Notifications](#push-notifications)
+  - [User Tracking](#user-tracking)
+  - [App Attention](#app-attention)
+- [API Reference](#api-reference)
+- [Examples](#examples)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+
+## Installation
+
+### Prerequisites
+
+- Flutter SDK version 3.3.0 or later
+- Dart SDK version 3.6.0 or later
+
+### Adding pam_flutter to Your Project
 
 Open a terminal and run the following command to add `pam_flutter` to your Flutter project:
 
@@ -10,10 +32,9 @@ Open a terminal and run the following command to add `pam_flutter` to your Flutt
 dart pub add pam_flutter
 ```
 
-## Step 2: Configure the Library
+## Configuration
 
-- 2.1 Create `lib/pam_config.dart` in Your Project.
-- 2.2 Add the Following Code to `lib/pam_config.dart`
+Create `lib/pam_config.dart` in your project and add the following code:
 
 ```dart
 import 'package:pam_flutter/pam.dart';
@@ -26,7 +47,7 @@ class PamConfigProvider {
     const loginDBAlias = "[PAM-LOGIN-DB-FROM-PAM-CMS]";
     const trackingConsentMessageID = "[CONSENT-MESSAGE-ID-FROM-PAM-CMS]";
 
-    const debugMode = true; // Enabled log
+    const debugMode = true; // Enable logs
 
     return PamConfig(endpoint, publicDBAlias, loginDBAlias,
         trackingConsentMessageID, debugMode);
@@ -34,9 +55,9 @@ class PamConfigProvider {
 }
 ```
 
-## Step 3: Initialize the pam_flutter Library
+## Initialization
 
-In your main.dart file, add the following code to the main() function to initialize the PAM library:
+In your `main.dart` file, add the following code to the `main()` function to initialize the PAM library:
 
 ```dart
 import 'package:flutter/material.dart';
@@ -52,11 +73,13 @@ void main() async {
 }
 ```
 
-## Step 4: Submit User Consent for PDPA/GDPR Compliance
+## Core Features
+
+### Consent Management
 
 To handle user consent in compliance with PDPA or GDPR laws, you can use the following example code in your application:
 
-### 4.1 Tracking Consent
+#### Tracking Consent
 
 Tracking Consent allows users to grant permission for tracking events or user behavior. Use the following example code to implement tracking consent in your application:
 
@@ -78,7 +101,7 @@ Future<SubmitConsentResult?> allowTrackingConsent() async {
 
 > Reminder: Replace [YOUR-TRACKING-CONSENT-MSG-ID] with your actual tracking consent message ID from your PAM CMS.
 
-### 4.2 Contacting Consent
+#### Contacting Consent
 
 Contacting Consent allows users to grant permission for communication for marketing purposes. Use the following example code to implement contacting consent in your application:
 
@@ -101,7 +124,9 @@ Future<SubmitConsentResult?> allowContactingConsent() async {
 
 > Reminder: Replace [YOUR-CONTACTING-CONSENT-MSG-ID] with your actual contacting consent message ID from your PAM CMS.
 
-## Step 5: Save Push Notification Token to PAM
+### Push Notifications
+
+#### Saving Push Notification Token
 
 If your application uses push notifications, it's essential to save the device's push notification token to PAM. Follow these steps to ensure proper integration:
 
@@ -119,7 +144,48 @@ Pam.setPushNotificationToken(deviceToken);
 
 By saving the push notification token to PAM, you enable the system to deliver personalized notifications to users.
 
-## Step 6: Signal User Login to PAM
+#### Loading Notification History and Tracking Read Status
+
+To load the notification history sent from the PAM system, follow these steps. Please note that the inbox data retrieved is only the raw data, and you'll need to implement the UI to display it.
+
+##### Load Inbox Data by Email
+
+```dart
+import 'package:pam_flutter/pam.dart';
+
+// Load inbox data using the user's email
+var userInbox = await Pam.loadPushNotificationsFromEmail("[USER-EMAIL]");
+```
+
+##### Load Inbox Data by Mobile Number
+
+```dart
+import 'package:pam_flutter/pam.dart';
+
+// Load inbox data using the user's mobile number
+var userInbox = await Pam.loadPushNotificationsFromMobile("[USER-MOBILE]");
+```
+
+> Reminder: Replace [USER-EMAIL] or [USER-MOBILE] with the actual user's email or mobile number to retrieve their respective inbox.
+
+The userInbox variable will contain an array of messages sent from the PAM system.
+
+##### Track Read Status
+
+```dart
+import 'package:pam_flutter/pam.dart';
+
+// Track read status for the first message in the inbox
+userInbox?[0].trackRead();
+```
+
+> By calling trackRead(), you can keep track of whether the user has opened or read the specific message.
+
+> Note: Implement the UI to display the inbox messages as needed.
+
+### User Tracking
+
+#### Signaling User Login
 
 When a user logs into your application, it's important to signal this event to PAM. This helps in associating user activities with their identity for better analytics. Follow these steps to signal user login:
 
@@ -137,7 +203,7 @@ Pam.userLogin(userIdentity);
 
 By signaling user login to PAM, you ensure that user activities are tracked and associated with their identity for comprehensive analytics.
 
-## Step 7: Signal User Logout to PAM
+#### Signaling User Logout
 
 When a user logs out of your application, it's important to signal this event to PAM. This helps in managing user sessions and ensures accurate analytics. Follow these steps to signal user logout:
 
@@ -150,50 +216,11 @@ Pam.userLogout();
 
 By signaling user logout to PAM, you contribute to the accurate tracking of user activities and ensure that the analytics reflect the user's session status.
 
-## Step 8: Load Notification History and Track Read Status
-
-To load the notification history sent from the PAM system, follow these steps. Please note that the inbox data retrieved is only the raw data, and you'll need to implement the UI to display it.
-
-### 8.1 Load Inbox Data by Email
-
-```dart
-import 'package:pam_flutter/pam.dart';
-
-// Load inbox data using the user's email
-var userInbox = await Pam.loadPushNotificationsFromEmail("[USER-EMAIL]");
-```
-
-### 8.2 Load Inbox Data by Mobile Number
-
-```dart
-import 'package:pam_flutter/pam.dart';
-
-// Load inbox data using the user's mobile number
-var userInbox = await Pam.loadPushNotificationsFromMobile("[USER-MOBILE]");
-```
-
-> Reminder: Replace [USER-EMAIL] or [USER-MOBILE] with the actual user's email or mobile number to retrieve their respective inbox.
-
-The userInbox variable will contain an array of messages sent from the PAM system.
-
-### 8.3 Track Read Status
-
-```dart
-import 'package:pam_flutter/pam.dart';
-
-// Track read status for the first message in the inbox
-userInbox?[0].trackRead();
-```
-
-> By calling trackRead(), you can keep track of whether the user has opened or read the specific message.
-
-> Note: Implement the UI to display the inbox messages as needed.
-
-## Step 9: Track User Events
+#### Tracking User Events
 
 To track user events and activities, follow these steps:
 
-### 9.1 Send Event with Payload
+##### Send Event with Payload
 
 Use the following example code to send an event with a payload:
 
@@ -215,23 +242,17 @@ In this example, the eventName is set to "purchase," and the payload contains ad
 
 By calling Pam.track(), you send the event data to PAM for analytics.
 
----
-
----
-
-# App Attention
-
-## What is App Attention?
+### App Attention
 
 App Attention is a comprehensive solution for integrating custom promotional popups into your mobile applications. This feature allows you to display banners, videos, and promotional messages directly within your app, helping to increase user engagement, highlight special offers, and drive traffic to specific URLs.
 
 Designed for flexibility, App Attention provides developers with the ability to customize popup behavior, such as displaying full-screen media or small promotional messages. It supports handling user interactions, such as opening external links or triggering custom app events, ensuring seamless integration into your app's user experience.
 
-## How to Use
+#### How to Use
 
 To integrate App Attention into your Flutter application, follow the steps below:
 
-### Display App Attention
+##### Display App Attention
 
 Call the `Pam.appAttention` method to display the App Attention popup. This function can be used to fetch and show banners, videos, or promotional messages based on the pageName you specify.
 
@@ -270,12 +291,30 @@ class MyApp extends StatelessWidget {
 }
 ```
 
-## Explanation
+##### Explanation
 
-- context: The BuildContext of the current widget tree.
-
-- pageName: A string that specifies the current page name, allowing dynamic banners tailored to specific app pages.
-
-- onBannerClick: A callback function triggered when the user interacts with the banner. It receives bannerData as a parameter, which contains details about the clicked banner. The callback can:
+- `context`: The BuildContext of the current widget tree.
+- `pageName`: A string that specifies the current page name, allowing dynamic banners tailored to specific app pages.
+- `onBannerClick`: A callback function triggered when the user interacts with the banner. It receives `bannerData` as a parameter, which contains details about the clicked banner. The callback can:
   - Return `true` to stop the default behavior (e.g., open a custom page in your app).
   - Return `false` to proceed with the default behavior (e.g., open the provided URL in the browser).
+
+## API Reference
+
+For detailed API documentation, please refer to the source code and inline comments in the `lib/` directory.
+
+## Examples
+
+Check the `example/` directory for a complete sample application demonstrating the usage of pam_flutter.
+
+## Troubleshooting
+
+- **Configuration Issues**: Ensure all values in `pam_config.dart` are correct, including endpoint, database aliases, and consent message IDs.
+- **Debugging**: Set `debugMode = true` to enable logs in the console for debugging.
+- **Network and Permissions**: Check internet connection and required permissions (e.g., for push notifications on iOS/Android).
+- **PAM CMS Verification**: Verify that keys, IDs, and settings in PAM CMS match your config.
+- **Error Checking**: Look for error messages in the console or logs for more details.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
