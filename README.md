@@ -144,6 +144,36 @@ Pam.setPushNotificationToken(deviceToken);
 
 By saving the push notification token to PAM, you enable the system to deliver personalized notifications to users.
 
+#### Handling Push Notifications
+
+Since Flutter focuses on working with push notifications through Firebase, you can integrate PAM push notifications as follows:
+
+```dart
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:pam_flutter/pam.dart';
+
+// In your Firebase messaging handler
+FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+  // Check if the push notification is from PAM
+  if (Pam.isPushNotiFromPam(message.data)) {
+    // Convert to PAM push message
+    var pamMessage = Pam.convertToPamPushMessage(message.data);
+    if (pamMessage != null) {
+      // Handle the PAM push message
+      // For example, show a custom notification or perform actions
+      print('Received PAM push: ${pamMessage.title}');
+
+      // Optionally track that the message was read
+      pamMessage.trackRead();
+    }
+  } else {
+    // Handle non-PAM notifications
+  }
+});
+```
+
+This allows you to check if an incoming push notification is from PAM and convert it to a `PamPushMessage` for further processing.
+
 #### Loading Notification History and Tracking Read Status
 
 To load the notification history sent from the PAM system, follow these steps. Please note that the inbox data retrieved is only the raw data, and you'll need to implement the UI to display it.
