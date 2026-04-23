@@ -149,6 +149,7 @@ By saving the push notification token to PAM, you enable the system to deliver p
 Since Flutter focuses on working with push notifications through Firebase, you can integrate PAM push notifications as follows:
 
 ```dart
+import 'package:flutter/material.dart'; // Required for Navigator example
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:pam_flutter/pam.dart';
 
@@ -156,6 +157,9 @@ import 'package:pam_flutter/pam.dart';
 FirebaseMessaging.onMessage.listen((RemoteMessage message) {
   // Check if the push notification is from PAM
   if (Pam.isPushNotiFromPam(message.data)) {
+    // Note: Forcing navigation from foreground notifications is generally not recommended
+    // as it can disrupt the user's current activity. This example only logs and tracks.
+
     // Convert to PAM push message
     var pamMessage = Pam.convertToPamPushMessage(message.data);
     if (pamMessage != null) {
@@ -173,6 +177,69 @@ FirebaseMessaging.onMessage.listen((RemoteMessage message) {
 ```
 
 This allows you to check if an incoming push notification is from PAM and convert it to a `PamPushMessage` for further processing.
+
+#### Handling Notification Taps
+
+When a user taps a notification in the system notification center, the app's behavior depends on its current state.
+
+**1. App Launched from Terminated State (Cold Start)**
+
+If the app is completely closed, use `getInitialMessage()` to check if it was opened via a notification.
+
+```dart
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:pam_flutter/pam.dart';
+
+void setupInteractedMessage() async {
+  // Get any messages which caused the application to open from a terminated state.
+  RemoteMessage? initialMessage =
+      await FirebaseMessaging.instance.getInitialMessage();
+
+  if (initialMessage != null) {
+    _handleMessage(initialMessage);
+  }
+
+  // Also handle messages when the app is in the background but still running.
+  FirebaseMessaging.onMessageOpenedApp.listen(_handleMessage);
+}
+
+void _handleMessage(RemoteMessage message) {
+  if (Pam.isPushNotiFromPam(message.data)) {
+    var pamMessage = Pam.convertToPamPushMessage(message.data);
+    if (pamMessage != null) {
+      // Track that the user clicked and opened the app from this notification
+      pamMessage.trackRead();
+
+      // Navigate to the specific screen based on pamMessage data
+      // Navigator.pushNamed(context, '/detail', arguments: pamMessage);
+    }
+  }
+}
+```
+
+**2. App Resumed from Background State**
+
+If the app is running in the background, `FirebaseMessaging.onMessageOpenedApp` will trigger a stream event when the notification is tapped.
+
+```dart
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:pam_flutter/pam.dart';
+
+@override
+void initState() {
+  super.initState();
+
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    if (Pam.isPushNotiFromPam(message.data)) {
+      var pamMessage = Pam.convertToPamPushMessage(message.data);
+      pamMessage?.trackRead();
+
+      // Example: Navigate to a specific page
+      // print("User tapped notification: ${pamMessage?.title}");
+    }
+  });
+}
+```
 
 #### Loading Notification History and Tracking Read Status
 
