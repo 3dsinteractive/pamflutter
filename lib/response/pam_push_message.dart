@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import "../pam.dart";
+import 'dart:async';
 
 class PamPushMessage {
   String? deliverID = "";
@@ -15,6 +16,9 @@ class PamPushMessage {
   DateTime date;
   Map<String, dynamic> data;
 
+  String? clickTrackingUrl = "";
+  String? redirectId = "";
+
   PamPushMessage(
       {required this.deliverID,
       required this.pixel,
@@ -26,13 +30,29 @@ class PamPushMessage {
       required this.popupType,
       required this.date,
       required this.isOpen,
-      required this.data});
+      required this.data,
+      required this.clickTrackingUrl,
+      required this.redirectId});
 
-  Future<void> trackRead() async {
-    if (pixel != null) {
-      final uri = Uri.parse(pixel ?? "");
-      await http.get(uri);
+  Future<void> fireAndForget(String? url) async {
+    if (url == null) {
+      return;
     }
+    try {
+      final uri = Uri.parse(url);
+      await http.get(uri).timeout(const Duration(seconds: 3));
+      Pam.log(['Track sent successfully: $url']);
+    } catch (e) {
+      Pam.log(['Track failed: $e']);
+    }
+  }
+
+  void trackRead() {
+    unawaited(fireAndForget(pixel));
+  }
+
+  void trackPushUrlClick() {
+    unawaited(fireAndForget(clickTrackingUrl));
   }
 
   static List<PamPushMessage> parse(String jsonStr) {
@@ -69,6 +89,9 @@ class PamPushMessage {
 
       bool isOpen = json["is_open"];
 
+      String? clickTrackingUrl = json["click_tracking_url"];
+      String? redirectId = json["redirect_id"];
+
       var item = PamPushMessage(
           deliverID: deliverID,
           pixel: pixel,
@@ -80,7 +103,9 @@ class PamPushMessage {
           popupType: popupType,
           date: localDateTime,
           isOpen: isOpen,
-          data: payloadJson);
+          data: payloadJson,
+          clickTrackingUrl: clickTrackingUrl,
+          redirectId: redirectId);
 
       result.add(item);
     }

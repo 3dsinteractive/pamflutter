@@ -165,6 +165,9 @@ class Pam {
       String title = message.notification?.title ?? "";
       String description = message.notification?.body ?? "";
 
+      String? clickTrackingUrl = payload["click_tracking_url"];
+      String? redirectId = payload["redirect_id"];
+
       var item = PamPushMessage(
           deliverID: "",
           pixel: pixel,
@@ -176,7 +179,9 @@ class Pam {
           popupType: popupType,
           date: DateTime.now(),
           isOpen: false,
-          data: payload);
+          data: payload,
+          clickTrackingUrl: clickTrackingUrl,
+          redirectId: redirectId);
 
       return item;
     }
@@ -482,13 +487,13 @@ class Pam {
     payload?.forEach((key, val) {
       defaultPayload[key] = val;
     });
-    
-    if(!await isUserLogin()){
+
+    if (!await isUserLogin()) {
       //Delete Push Noti from anonymous
       await queue.add(() => postTracker("delete_media", defaultPayload));
 
       // Track Login To Public
-      //var response = 
+      //var response =
       await queue.add(() => postTracker("login", payload));
     }
 
@@ -540,7 +545,7 @@ class Pam {
       defaultPayload[key] = val;
     });
 
-    if(await isUserLogin()){
+    if (await isUserLogin()) {
       await queue.add(() => postTracker("delete_media", defaultPayload));
       await queue.add(() => postTracker("logout", payload));
     }

@@ -1,3 +1,7 @@
+# 2.4.13
+
+    add click url tracking for push notifications `message.trackPushUrlClick()`
+
 # 2.4.12
 
     Media will not be deleted when the app attempts to re-login.
