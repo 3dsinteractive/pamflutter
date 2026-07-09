@@ -1,3 +1,8 @@
+# 2.4.14
+
+    Store string preferences in secure storage instead of plain text SharedPreferences.
+    Migrate legacy plain text string preferences so existing users keep their saved IDs and tokens after upgrading.
+
 # 2.4.13
 
     add click url tracking for push notifications `message.trackPushUrlClick()`

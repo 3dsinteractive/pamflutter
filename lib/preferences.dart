@@ -1,5 +1,6 @@
 library;
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum SaveKey {
@@ -12,6 +13,8 @@ enum SaveKey {
 }
 
 class UserPreference {
+  static const _secureStorage = FlutterSecureStorage();
+
   String getKeyName(SaveKey key) {
     switch (key) {
       case SaveKey.customerID:
@@ -37,8 +40,10 @@ class UserPreference {
 
   Future<void> saveString(String value, SaveKey key) async {
     String keyName = getKeyName(key);
+    await _secureStorage.write(key: keyName, value: value);
+
     var pref = await SharedPreferences.getInstance();
-    await pref.setString(keyName, value);
+    await pref.remove(keyName);
   }
 
   Future<bool?> getBool(SaveKey key) async {
@@ -49,13 +54,39 @@ class UserPreference {
 
   Future<String?> getString(SaveKey key) async {
     String keyName = getKeyName(key);
-    var prefs = await SharedPreferences.getInstance();
-    return prefs.getString(keyName);
+    var secureValue = await _secureStorage.read(key: keyName);
+    if (secureValue != null) {
+      return secureValue;
+    }
+
+    return _readLegacySharedPreferencesStringAndMigrate(keyName);
   }
 
   Future<void> remove(SaveKey key) async {
     String keyName = getKeyName(key);
+    await _secureStorage.delete(key: keyName);
+
     var pref = await SharedPreferences.getInstance();
     await pref.remove(keyName);
+  }
+
+  Future<String?> _readLegacySharedPreferencesStringAndMigrate(
+    String keyName,
+  ) async {
+    var prefs = await SharedPreferences.getInstance();
+    var legacyValue = prefs.getString(keyName);
+    if (legacyValue == null) {
+      return null;
+    }
+
+    // Backward compatibility:
+    // Versions before secure storage saved string preferences as plain text in
+    // SharedPreferences. Read the old value once, copy it into secure storage,
+    // then remove the legacy entry so existing users keep their IDs/tokens
+    // after upgrading.
+    await _secureStorage.write(key: keyName, value: legacyValue);
+    await prefs.remove(keyName);
+
+    return legacyValue;
   }
 }
