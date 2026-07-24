@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'dart:io';
 
 class HttpClient {
+  static const Duration requestTimeout = Duration(seconds: 5);
+
   static Map<String, String> _defaultHeaders(Map<String, String>? headers) {
     Map<String, String> newHeader;
     if (headers != null) {
@@ -21,15 +23,21 @@ class HttpClient {
     return newHeader;
   }
 
-  static Future<Response> get(Uri url, {Map<String, String>? headers}) async {
+  static Future<Response> get(Uri url,
+      {Map<String, String>? headers, Duration? timeout}) async {
     var newHeader = _defaultHeaders(headers);
-    return http.get(url, headers: newHeader);
+    return http.get(url, headers: newHeader).timeout(timeout ?? requestTimeout);
   }
 
   static Future<Response> post(Uri url,
-      {Map<String, String>? headers, Object? body, Encoding? encoding}) async {
+      {Map<String, String>? headers,
+      Object? body,
+      Encoding? encoding,
+      Duration? timeout}) async {
     var newHeader = _defaultHeaders(headers);
-    return http.post(url,
-        body: jsonEncode(body), encoding: encoding, headers: newHeader);
+    return http
+        .post(url,
+            body: jsonEncode(body), encoding: encoding, headers: newHeader)
+        .timeout(timeout ?? requestTimeout);
   }
 }
