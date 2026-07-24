@@ -1,3 +1,10 @@
+# 3.0.1
+
+    Support the mobile tracking response contract with error_code/error and _database fields.
+    Pause normal tracking for one hour when PAM reports authorization, contact, or consent readiness errors.
+    Allow login, register, logout, save_push, test, and allow_consent events to pass while tracking is paused.
+    Unpause normal tracking after successful recovery events such as allow_consent or login.
+
 # 3.0.0
 
     Breaking: configure a fixed primary or secondary identity matcher in PamConfig.
