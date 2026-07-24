@@ -83,11 +83,7 @@ class ConsentAPI {
       }
     }
 
-    var body = await Pam.shared.createTrackingBody("allow_consent", payload);
-    var response = await Pam.shared.trackerAPI?.postTracker(body);
-    if (response == null) {
-      return null;
-    }
+    var response = await Pam.shared.postTracker("allow_consent", payload);
 
     var result = AllowConsentResult(
         response.contactID, response.database, response.consentID);

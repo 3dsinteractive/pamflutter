@@ -1,6 +1,6 @@
 name: pam_flutter
 description: 'A Flutter plugin for integrating mobile Flutter app with PAM Real CDP. learn more about pam at https://pams.ai'
-version: 2.4.12
+version: 2.4.15
 homepage: https://pams.ai
 repository: https://github.com/3dsinteractive/pamflutter
 
@@ -14,6 +14,7 @@ dependencies:
   firebase_messaging: ^15.1.6
   flutter:
     sdk: flutter
+  flutter_secure_storage: ^10.3.1
   http: ^1.2.2
   package_info_plus: ^8.1.2
   plugin_platform_interface: ^2.0.2

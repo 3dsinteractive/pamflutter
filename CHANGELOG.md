@@ -1,3 +1,23 @@
+# 2.4.15
+
+    Preserve the existing public API while making tracking and identity transitions safer.
+    Route each event with an immutable database and contact destination.
+    Serialize login, logout, account switching, and tracking operations in an in-memory queue.
+    Delete push notification media from the previous contact before login or logout.
+    Prevent push tokens from being rebound when identity transition requests fail.
+    Add a five-second HTTP timeout and allow queued events to continue after timeout or error.
+    Run consent synchronization in the background so initialize() does not wait for the server.
+    Stop automatically sending a persisted push token during initialize().
+
+# 2.4.14
+
+    Store string preferences in secure storage instead of plain text SharedPreferences.
+    Migrate legacy plain text string preferences so existing users keep their saved IDs and tokens after upgrading.
+
+# 2.4.13
+
+    add click url tracking for push notifications `message.trackPushUrlClick()`
+
 # 2.4.12
 
     Media will not be deleted when the app attempts to re-login.

@@ -5,14 +5,16 @@ import '../http/http_client.dart';
 
 class TrackerAPI {
   String baseURL;
+  final Duration? requestTimeout;
 
-  TrackerAPI(this.baseURL);
+  TrackerAPI(this.baseURL, {this.requestTimeout});
 
   Future<PamResponse?> postTracker(Map<String, dynamic> body) async {
     var uri = Uri.parse("$baseURL/trackers/events");
 
     try {
-      var response = await HttpClient.post(uri, body: body);
+      var response =
+          await HttpClient.post(uri, body: body, timeout: requestTimeout);
 
       const encoder = JsonEncoder.withIndent('  ');
       var bodyLog = encoder.convert(body);
