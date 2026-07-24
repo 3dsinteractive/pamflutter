@@ -10,7 +10,15 @@ class PamConfigProvider {
 
     const debugMode = true; // Enabled log
 
-    return PamConfig(endpoint, publicDBAlias, loginDBAlias,
-        trackingConsentMessageID, debugMode);
+    return PamConfig(
+      endpoint,
+      publicDBAlias,
+      loginDBAlias,
+      trackingConsentMessageID,
+      debugMode,
+      identityMatcher: PamIdentityMatcher.primary(
+        PamPrimaryIdentityKey.customer,
+      ),
+    );
   }
 }

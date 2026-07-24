@@ -1,3 +1,22 @@
+# 3.0.0
+
+    Breaking: configure a fixed primary or secondary identity matcher in PamConfig.
+    Breaking: remove LoginOptions and per-call alternate-key selection from userLogin().
+    Breaking: PamUserState.identified() now accepts only the identity value.
+    Breaking: rename mismatch identities to oldIdentity and newIdentity.
+    Build primary and secondary CDP identity payloads from the immutable configuration.
+    Cancel active HTTP clients on timeout so later identity operations cannot overtake them.
+    Prevent local storage errors from skipping remote logout media cleanup.
+    Do not re-register a saved push token on the anonymous contact after logout.
+    Fix setAllowTracking(false) leaving tracking enabled in memory.
+    Stop automatically registering tokens received by the optional platform callback.
+    Remove the firebase_messaging dependency; push helpers now accept the PAM data map directly.
+    Add a complete 2.x to 3.0 migration guide.
+    Run consent synchronization in the background so initialize() does not wait for the server.
+    Stop automatically sending a persisted push token during initialize().
+    Add an optional identity provider that cross-checks app and SDK identity before tracking.
+    Drop mismatched events and report each identity mismatch state once through a global handler.
+
 # 2.4.15
 
     Preserve the existing public API while making tracking and identity transitions safer.
@@ -6,8 +25,6 @@
     Delete push notification media from the previous contact before login or logout.
     Prevent push tokens from being rebound when identity transition requests fail.
     Add a five-second HTTP timeout and allow queued events to continue after timeout or error.
-    Run consent synchronization in the background so initialize() does not wait for the server.
-    Stop automatically sending a persisted push token during initialize().
 
 # 2.4.14
 

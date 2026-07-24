@@ -24,24 +24,85 @@ import './api/tracker_api.dart';
 import 'package:flutter/services.dart';
 import 'package:queue/queue.dart';
 import 'dart:convert';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'pam_flutter_platform_interface.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 typedef TrackerCallBack = Function(PamResponse);
+typedef PamIdentityProvider = PamUserState Function();
+typedef PamIdentityMismatchHandler = FutureOr<void> Function(
+    PamIdentityMismatch mismatch);
 
-class LoginOptions {
-  late String? alternateKey;
-  LoginOptions({this.alternateKey});
+class PamUserIdentity {
+  final String value;
+
+  const PamUserIdentity(this.value);
+}
+
+enum PamUserStateType { unknown, anonymous, identified }
+
+class PamUserState {
+  final PamUserStateType type;
+  final PamUserIdentity? identity;
+
+  const PamUserState._(this.type, this.identity);
+
+  const PamUserState.unknown() : this._(PamUserStateType.unknown, null);
+
+  const PamUserState.anonymous() : this._(PamUserStateType.anonymous, null);
+
+  PamUserState.identified(String value)
+      : this._(PamUserStateType.identified, PamUserIdentity(value));
+}
+
+enum PamIdentityMismatchType {
+  loginRequired,
+  logoutRequired,
+  accountSwitchRequired,
+}
+
+class PamIdentityMismatch {
+  final PamIdentityMismatchType type;
+  final PamUserIdentity? oldIdentity;
+  final PamUserIdentity? newIdentity;
+  final String event;
+
+  const PamIdentityMismatch({
+    required this.type,
+    required this.oldIdentity,
+    required this.newIdentity,
+    required this.event,
+  });
+}
+
+enum PamPrimaryIdentityKey { customer, email, sms }
+
+enum PamIdentityMatcherType { primary, secondary }
+
+class PamIdentityMatcher {
+  final PamIdentityMatcherType type;
+  final String key;
+
+  PamIdentityMatcher.primary(PamPrimaryIdentityKey key)
+      : type = PamIdentityMatcherType.primary,
+        key = key.name;
+
+  PamIdentityMatcher.secondary(String key)
+      : type = PamIdentityMatcherType.secondary,
+        key = key {
+    if (key.isEmpty) {
+      throw ArgumentError.value(key, "key", "Secondary key cannot be empty.");
+    }
+  }
+
+  bool get isSecondary => type == PamIdentityMatcherType.secondary;
 }
 
 class PamConfig {
-  String pamServer,
-      publicDBAlias,
-      loginDBAlias,
-      loginKey,
-      trackingConsentMessageID;
+  String pamServer, publicDBAlias, loginDBAlias, trackingConsentMessageID;
   bool enableLog, blockEventsIfNoConsent;
+  final PamIdentityMatcher identityMatcher;
+  PamIdentityProvider? identityProvider;
+  PamIdentityMismatchHandler? onIdentityMismatch;
 
   PamConfig(
     this.pamServer,
@@ -49,8 +110,10 @@ class PamConfig {
     this.loginDBAlias,
     this.trackingConsentMessageID,
     this.enableLog, {
-    this.loginKey = "",
+    required this.identityMatcher,
     this.blockEventsIfNoConsent = false,
+    this.identityProvider,
+    this.onIdentityMismatch,
   });
 }
 
@@ -156,13 +219,12 @@ class Pam {
     return "";
   }
 
-  static bool isPushNotiFromPam(RemoteMessage message) {
-    return message.data.containsKey('pam');
+  static bool isPushNotiFromPam(Map<String, dynamic> data) {
+    return data.containsKey('pam');
   }
 
-  static PamPushMessage? convertToPamPushMessage(RemoteMessage message) {
-    if (isPushNotiFromPam(message)) {
-      var data = message.data;
+  static PamPushMessage? convertToPamPushMessage(Map<String, dynamic> data) {
+    if (isPushNotiFromPam(data)) {
       final String pam = data["pam"];
 
       Map<String, dynamic> payload;
@@ -180,17 +242,14 @@ class Pam {
       String pixel = payload['pixel'] ?? "";
       String popupType = payload['popup_type'] ?? "";
       String url = payload['url'] ?? "";
-      String title = message.notification?.title ?? "";
-      String description = message.notification?.body ?? "";
-
       String? clickTrackingUrl = payload["click_tracking_url"];
       String? redirectId = payload["redirect_id"];
 
       var item = PamPushMessage(
           deliverID: "",
           pixel: pixel,
-          title: title,
-          description: description,
+          title: "",
+          description: "",
           thumbnailUrl: banner,
           flex: flex,
           url: url,
@@ -266,6 +325,12 @@ class Pam {
 
   static Future<PamResponse> _track(String event,
       {Map<String, dynamic>? payload, TrackerCallBack? callback}) async {
+    final identityError = await shared._validateIdentityForTrack(event);
+    if (identityError != null) {
+      callback?.call(identityError);
+      return identityError;
+    }
+
     final res = await shared.postTracker(event, payload);
     callback?.call(res);
     return res;
@@ -276,20 +341,8 @@ class Pam {
     return await shared.setDeviceToken(deviceToken);
   }
 
-  static Future<PamResponse> userLogin(String loginId,
-      [LoginOptions? options]) async {
-    Map<String, dynamic> payload = {};
-    if (options != null &&
-        options.alternateKey != null &&
-        options.alternateKey!.isNotEmpty) {
-      String key = options.alternateKey!;
-      payload["_key_name"] = options.alternateKey;
-      payload["_key_value"] = loginId;
-      payload[key] = loginId;
-      payload["_force_create"] = false;
-    }
-
-    return await shared.trackUserLogin(loginId, payload: payload);
+  static Future<PamResponse> userLogin(String loginId) async {
+    return await shared.trackUserLogin(loginId);
   }
 
   static Future<void> userLogout({Map<String, dynamic>? payload}) async {
@@ -409,6 +462,8 @@ class Pam {
   DateTime sessionExpire = DateTime(1983, 11, 14);
   String sessionID = "";
   String? publicContact, loginContact, deviceUDID, custID, pushToken;
+  String? _lastIdentityMismatchFingerprint;
+  DateTime? _identityMismatchRetryAfter;
   int _sessionVersion = 0;
 
   TrackerAPI? trackerAPI;
@@ -419,7 +474,6 @@ class Pam {
     switch (methodCall.method) {
       case 'onToken':
         var token = methodCall.arguments;
-        Pam.setPushNotificationToken(token);
         Pam.shared._onToken?.call(token);
         return '';
       default:
@@ -488,26 +542,50 @@ class Pam {
   }
 
   Future<void> setAllowTracking(bool allow) async {
-    allowTracking = true;
+    allowTracking = allow;
     await pref.saveBool(allow, SaveKey.allowTracking);
   }
 
-  Future<PamResponse> trackUserLogin(String custID,
-      {Map<String, dynamic>? payload}) async {
+  Future<void> _saveStringPreferenceSafely(
+      String value, SaveKey key, String label) async {
+    try {
+      await pref.saveString(value, key);
+    } catch (error, stackTrace) {
+      Pam.log([label, stackTrace, error]);
+    }
+  }
+
+  Future<void> _removePreferenceSafely(SaveKey key, String label) async {
+    try {
+      await pref.remove(key);
+    } catch (error, stackTrace) {
+      Pam.log([label, stackTrace, error]);
+    }
+  }
+
+  Map<String, dynamic> _createIdentityPayload(String identityValue) {
+    final matcher = config!.identityMatcher;
+    if (!matcher.isSecondary) {
+      return {matcher.key: identityValue};
+    }
+
+    return {
+      "_key_name": matcher.key,
+      "_key_value": identityValue,
+      matcher.key: identityValue,
+      "_force_create": false,
+    };
+  }
+
+  Future<PamResponse> trackUserLogin(String custID) async {
     return await queue.add(() async {
       try {
-        var loginPayload = Map<String, dynamic>.from(payload ?? {});
+        final loginPayload = _createIdentityPayload(custID);
         var notiKey =
             Platform.isAndroid ? "android_notification" : "ios_notification";
         var deletePayload = <String, dynamic>{
           "_delete_media": {notiKey: ""}
         };
-
-        if (config?.loginKey == "") {
-          loginPayload["customer"] = custID;
-        } else {
-          loginPayload[config?.loginKey ?? "customer"] = custID;
-        }
 
         final previousDestination = await _createTrackingDestination();
         final deleteResponse = await _postTrackerTo(
@@ -547,15 +625,20 @@ class Pam {
 
   Future<void> _activateCustomer(String customerID) async {
     final previousCustomerID = custID;
-    if (isNotEmpty(previousCustomerID) && previousCustomerID != customerID) {
+    final identityChanged =
+        isNotEmpty(previousCustomerID) && previousCustomerID != customerID;
+    if (identityChanged) {
       loginContact = null;
-      await pref.remove(SaveKey.loginContactID);
+      await _removePreferenceSafely(
+          SaveKey.loginContactID, "REMOVE LOGIN CONTACT ID ERROR");
     }
 
     custID = customerID;
     Pam.customerID = customerID;
+    _resetIdentityMismatch();
     _sessionVersion++;
-    await pref.saveString(customerID, SaveKey.customerID);
+    await _saveStringPreferenceSafely(
+        customerID, SaveKey.customerID, "SAVE CUSTOMER ID ERROR");
   }
 
   Future<PamResponse> setDeviceToken(String deviceToken) async {
@@ -613,9 +696,12 @@ class Pam {
         custID = null;
         loginContact = null;
         Pam.customerID = "";
+        _resetIdentityMismatch();
         _sessionVersion++;
-        await pref.remove(SaveKey.customerID);
-        await pref.remove(SaveKey.loginContactID);
+        await _removePreferenceSafely(
+            SaveKey.customerID, "REMOVE CUSTOMER ID ERROR");
+        await _removePreferenceSafely(
+            SaveKey.loginContactID, "REMOVE LOGIN CONTACT ID ERROR");
 
         final deleteResponse = await _postTrackerTo(
             "delete_media", deletePayload, previousDestination);
@@ -625,11 +711,6 @@ class Pam {
 
         if (wasLoggedIn) {
           await _postTrackerTo("logout", payload, previousDestination);
-        }
-
-        final savedPushToken = await getPushToken();
-        if (savedPushToken != null) {
-          await _setDeviceToken(savedPushToken);
         }
       } catch (error, stackTrace) {
         _createInternalErrorResponse("USER LOGOUT ERROR", error, stackTrace);
@@ -730,6 +811,124 @@ class Pam {
     return null;
   }
 
+  Future<PamUserIdentity?> _getSdkIdentity() async {
+    final customer = await _getCustID();
+    if (!isNotEmpty(customer)) {
+      return null;
+    }
+
+    return PamUserIdentity(customer!);
+  }
+
+  Future<PamResponse?> _validateIdentityForTrack(String event) async {
+    final provider = config?.identityProvider;
+    if (provider == null) {
+      return null;
+    }
+
+    late PamUserState appState;
+    try {
+      appState = provider();
+    } catch (error, stackTrace) {
+      Pam.log(["IDENTITY PROVIDER ERROR", stackTrace, error]);
+      return PamResponse.createErrorResponse(
+          code: "IDENTITY_PROVIDER_ERROR", errorMessage: error.toString());
+    }
+
+    if (appState.type == PamUserStateType.unknown) {
+      return null;
+    }
+
+    final newIdentity = appState.identity;
+    if (appState.type == PamUserStateType.identified &&
+        (newIdentity == null || newIdentity.value.isEmpty)) {
+      return PamResponse.createErrorResponse(
+          code: "IDENTITY_PROVIDER_ERROR",
+          errorMessage:
+              "The identity provider returned an invalid identified state.");
+    }
+
+    final oldIdentity = await _getSdkIdentity();
+    final isMatch = _isSameIdentity(oldIdentity, newIdentity);
+    if (isMatch) {
+      _resetIdentityMismatch();
+      return null;
+    }
+
+    final mismatchType = oldIdentity == null
+        ? PamIdentityMismatchType.loginRequired
+        : newIdentity == null
+            ? PamIdentityMismatchType.logoutRequired
+            : PamIdentityMismatchType.accountSwitchRequired;
+    final mismatch = PamIdentityMismatch(
+      type: mismatchType,
+      oldIdentity: oldIdentity,
+      newIdentity: newIdentity,
+      event: event,
+    );
+    final fingerprint = jsonEncode({
+      "type": mismatchType.name,
+      "old_value": oldIdentity?.value,
+      "new_value": newIdentity?.value,
+    });
+
+    final canRetryNotification = _identityMismatchRetryAfter != null &&
+        !DateTime.now().isBefore(_identityMismatchRetryAfter!);
+    if (_lastIdentityMismatchFingerprint != fingerprint ||
+        canRetryNotification) {
+      _lastIdentityMismatchFingerprint = fingerprint;
+      _identityMismatchRetryAfter = null;
+      Pam.log([
+        "IDENTITY STATE MISMATCH",
+        "Type = ${mismatchType.name}",
+        "Identity matcher = ${config?.identityMatcher.type.name}/${config?.identityMatcher.key}",
+        "Old identity = ${oldIdentity?.value}",
+        "New identity = ${newIdentity?.value}",
+        "Event $event was dropped."
+      ]);
+      _notifyIdentityMismatch(mismatch, fingerprint);
+    }
+
+    return PamResponse.createErrorResponse(
+      code: "IDENTITY_STATE_MISMATCH",
+      errorMessage:
+          "The app identity does not match the current PAM SDK identity.",
+    );
+  }
+
+  bool _isSameIdentity(
+      PamUserIdentity? oldIdentity, PamUserIdentity? newIdentity) {
+    if (oldIdentity == null || newIdentity == null) {
+      return oldIdentity == null && newIdentity == null;
+    }
+    return oldIdentity.value == newIdentity.value;
+  }
+
+  void _resetIdentityMismatch() {
+    _identityMismatchRetryAfter = null;
+    _lastIdentityMismatchFingerprint = null;
+  }
+
+  void _notifyIdentityMismatch(
+      PamIdentityMismatch mismatch, String fingerprint) {
+    final handler = config?.onIdentityMismatch;
+    if (handler == null) {
+      return;
+    }
+
+    unawaited(Future<void>.microtask(() async {
+      try {
+        await handler(mismatch);
+      } catch (error, stackTrace) {
+        Pam.log(["IDENTITY MISMATCH HANDLER ERROR", stackTrace, error]);
+        if (_lastIdentityMismatchFingerprint == fingerprint) {
+          _identityMismatchRetryAfter =
+              DateTime.now().add(const Duration(seconds: 30));
+        }
+      }
+    }));
+  }
+
   Future<String> getDatabaseAlias() async {
     final destination = await _createTrackingDestination();
     Pam.databaseAlias = destination.databaseAlias;
@@ -792,14 +991,10 @@ class Pam {
       "_database": destination.databaseAlias
     };
 
-    String loginKey = "customer";
-
-    if (config?.loginKey != "") {
-      loginKey = config?.loginKey ?? "customer";
-    }
-
-    final payloadHasIdentity = payload?.containsKey(loginKey) == true ||
-        payload?.containsKey("_key_name") == true;
+    final identityMatcher = config!.identityMatcher;
+    final payloadHasIdentity =
+        payload?.containsKey(identityMatcher.key) == true ||
+            payload?.containsKey("_key_name") == true;
     final mustAddressExistingContact = event == "delete_media";
     if ((!payloadHasIdentity || mustAddressExistingContact) &&
         isNotEmpty(destination.contactID)) {
@@ -815,7 +1010,7 @@ class Pam {
     });
 
     if (isNotEmpty(destination.customerID)) {
-      formField["customer"] = destination.customerID;
+      formField.addAll(_createIdentityPayload(destination.customerID!));
     }
 
     formField["uuid"] = await _getDeviceUDID();
@@ -843,18 +1038,20 @@ class Pam {
       }
 
       Pam.log(["Save Logged-in contact ID = $cid"]);
-      await pref.saveString(cid, SaveKey.loginContactID);
       loginContact = cid;
       Pam.contactID = cid;
+      await _saveStringPreferenceSafely(
+          cid, SaveKey.loginContactID, "SAVE LOGIN CONTACT ID ERROR");
       return;
     }
 
     Pam.log(["Save Anonymous contact ID = $cid"]);
-    await pref.saveString(cid, SaveKey.contactID);
     publicContact = cid;
     if (destination.sessionVersion == _sessionVersion) {
       Pam.contactID = cid;
     }
+    await _saveStringPreferenceSafely(
+        cid, SaveKey.contactID, "SAVE PUBLIC CONTACT ID ERROR");
   }
 
   Future<PamResponse> postTracker(

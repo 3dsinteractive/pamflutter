@@ -5,6 +5,7 @@ A Flutter plugin for integrating PAM (Personalized Advertising Management) into 
 ## Table of Contents
 
 - [Installation](#installation)
+- [Migrating from 2.x](#migrating-from-2x)
 - [Configuration](#configuration)
 - [Initialization](#initialization)
 - [Core Features](#core-features)
@@ -32,6 +33,12 @@ Open a terminal and run the following command to add `pam_flutter` to your Flutt
 dart pub add pam_flutter
 ```
 
+## Migrating from 2.x
+
+Version 3 contains breaking identity and push-helper API changes. Follow the
+[2.x to 3.0 migration guide](MIGRATE.md) before upgrading an existing
+application.
+
 ## Configuration
 
 Create `lib/pam_config.dart` in your project and add the following code:
@@ -49,8 +56,16 @@ class PamConfigProvider {
 
     const debugMode = true; // Enable logs
 
-    return PamConfig(endpoint, publicDBAlias, loginDBAlias,
-        trackingConsentMessageID, debugMode);
+    return PamConfig(
+      endpoint,
+      publicDBAlias,
+      loginDBAlias,
+      trackingConsentMessageID,
+      debugMode,
+      identityMatcher: PamIdentityMatcher.primary(
+        PamPrimaryIdentityKey.customer,
+      ),
+    );
   }
 }
 ```
@@ -146,7 +161,8 @@ By saving the push notification token to PAM, you enable the system to deliver p
 
 #### Handling Push Notifications
 
-Since Flutter focuses on working with push notifications through Firebase, you can integrate PAM push notifications as follows:
+The PAM SDK does not depend on Firebase. If your application uses Firebase
+Messaging, pass only its data map to the PAM helpers:
 
 ```dart
 import 'package:flutter/material.dart'; // Required for Navigator example
@@ -165,7 +181,7 @@ FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     if (pamMessage != null) {
       // Handle the PAM push message
       // For example, show a custom notification or perform actions
-      print('Received PAM push: ${pamMessage.title}');
+      print('Received PAM push: ${pamMessage.data}');
 
       // Optionally track that the message was read
       pamMessage.trackRead();
@@ -176,7 +192,8 @@ FirebaseMessaging.onMessage.listen((RemoteMessage message) {
 });
 ```
 
-This allows you to check if an incoming push notification is from PAM and convert it to a `PamPushMessage` for further processing.
+The Firebase types remain entirely in the application. PAM receives only
+`Map<String, dynamic>` through `message.data`.
 
 #### Handling Notification Taps
 
@@ -312,6 +329,104 @@ Pam.userLogout();
 ```
 
 By signaling user logout to PAM, you contribute to the accurate tracking of user activities and ensure that the analytics reflect the user's session status.
+
+`Pam.userLogout()` removes the notification token from the logged-in contact
+and does not attach the saved token to the anonymous contact. A token previously
+provided by the application remains available for the next explicit
+`Pam.userLogin()` transition; the SDK never obtains a token by itself.
+
+#### Optional Identity Cross-Check
+
+You can provide the application's current authentication state as an optional
+safety check. `Pam.userLogin()` and `Pam.userLogout()` remain the explicit
+triggers that change the SDK session.
+
+```dart
+final config = PamConfig(
+  endpoint,
+  publicDBAlias,
+  loginDBAlias,
+  trackingConsentMessageID,
+  enableLog,
+  identityMatcher: PamIdentityMatcher.primary(
+    PamPrimaryIdentityKey.sms,
+  ),
+  identityProvider: () {
+    final user = authRepository.currentUser;
+    if (user == null) {
+      return const PamUserState.anonymous();
+    }
+
+    return PamUserState.identified(user.mobile);
+  },
+  onIdentityMismatch: (mismatch) {
+    final identity = mismatch.newIdentity;
+    if (identity == null) {
+      Pam.userLogout();
+    } else {
+      Pam.userLogin(identity.value);
+    }
+  },
+);
+```
+
+The identity matcher is fixed for the lifetime of the SDK configuration. Use
+one of the CDP primary keys:
+
+```dart
+identityMatcher: PamIdentityMatcher.primary(
+  PamPrimaryIdentityKey.customer,
+)
+
+identityMatcher: PamIdentityMatcher.primary(
+  PamPrimaryIdentityKey.email,
+)
+
+identityMatcher: PamIdentityMatcher.primary(
+  PamPrimaryIdentityKey.sms,
+)
+```
+
+If your CDP is configured with a secondary matching key, configure it once:
+
+```dart
+identityMatcher: PamIdentityMatcher.secondary("line")
+```
+
+`Pam.userLogin()` accepts only the identity value. The SDK constructs the
+correct primary or secondary identity payload from `identityMatcher`.
+
+The identity provider must synchronously read cached application state. Return
+`PamUserState.unknown()` while authentication state is still loading. When the
+app and SDK identities do not match, the current tracking event is dropped and
+the global mismatch handler is notified once for that mismatch state.
+
+#### Migrating Identity Configuration from 2.x
+
+Version 3 configures the CDP identity matcher once in `PamConfig`.
+
+```dart
+// 2.x
+Pam.userLogin(
+  lineId,
+  LoginOptions(alternateKey: "line"),
+);
+
+// 3.x
+final config = PamConfig(
+  endpoint,
+  publicDBAlias,
+  loginDBAlias,
+  trackingConsentMessageID,
+  enableLog,
+  identityMatcher: PamIdentityMatcher.secondary("line"),
+);
+
+Pam.userLogin(lineId);
+```
+
+`LoginOptions` and per-call alternate-key selection were removed in version
+3.0.0.
 
 #### Tracking User Events
 
