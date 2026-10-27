@@ -65,6 +65,28 @@ class _DelayedFailureTrackerAPI extends TrackerAPI {
   }
 }
 
+class _ContactNotFoundTrackerAPI extends TrackerAPI {
+  final List<Map<String, dynamic>> requests = [];
+
+  _ContactNotFoundTrackerAPI() : super('https://example.invalid');
+
+  @override
+  Future<PamResponse?> postTracker(Map<String, dynamic> body) async {
+    requests.add(body);
+    if (requests.length == 1) {
+      return PamResponse.createErrorResponse(
+        code: 'CONTACT_NOT_FOUND',
+        errorMessage: 'Contact not found',
+      );
+    }
+
+    final fields = body['form_fields'] as Map<String, dynamic>;
+    return PamResponse()
+      ..database = fields['_database'] as String
+      ..contactID = 'recovered-contact';
+  }
+}
+
 class _ThrowingRemovePreference extends UserPreference {
   @override
   Future<void> remove(SaveKey key) {
@@ -290,6 +312,68 @@ void main() {
     expect(results[1]?.error, isNull);
     expect(results[1]?.contactID, 'public-contact-2');
     expect(delayedTracker.requestCount, 2);
+  });
+
+  test('new response contract parses error_code and _database', () {
+    final response = PamResponse.parse(jsonEncode({
+      'contact_id': '',
+      '_database': '',
+      'error': 'Contact not found',
+      'error_code': 'CONTACT_NOT_FOUND',
+    }));
+
+    expect(response?.error?.code, 'CONTACT_NOT_FOUND');
+    expect(response?.error?.errorMessage, 'Contact not found');
+    expect(response?.database, '');
+    expect(response?.contactID, '');
+  });
+
+  test('contact-not-found response pauses normal tracking temporarily',
+      () async {
+    final contactNotFoundTracker = _ContactNotFoundTrackerAPI();
+    pam.trackerAPI = contactNotFoundTracker;
+
+    final firstResponse = await Pam.track('open_home');
+    final secondResponse = await Pam.track('purchase');
+
+    expect(firstResponse?.error?.code, 'CONTACT_NOT_FOUND');
+    expect(secondResponse?.error?.code, 'TRACKING_PAUSED');
+    expect(
+      contactNotFoundTracker.requests.map((body) => body['event']),
+      ['open_home'],
+    );
+  });
+
+  test('whitelisted events can pass while normal tracking is paused', () async {
+    final contactNotFoundTracker = _ContactNotFoundTrackerAPI();
+    pam.trackerAPI = contactNotFoundTracker;
+
+    await Pam.track('open_home');
+    final testResponse = await Pam.track('test');
+    final normalResponse = await Pam.track('purchase');
+
+    expect(testResponse?.error, isNull);
+    expect(normalResponse?.error?.code, 'TRACKING_PAUSED');
+    expect(
+      contactNotFoundTracker.requests.map((body) => body['event']),
+      ['open_home', 'test'],
+    );
+  });
+
+  test('successful consent event unpauses normal tracking', () async {
+    final contactNotFoundTracker = _ContactNotFoundTrackerAPI();
+    pam.trackerAPI = contactNotFoundTracker;
+
+    await Pam.track('open_home');
+    final consentResponse = await Pam.track('allow_consent');
+    final normalResponse = await Pam.track('purchase');
+
+    expect(consentResponse?.error, isNull);
+    expect(normalResponse?.error, isNull);
+    expect(
+      contactNotFoundTracker.requests.map((body) => body['event']),
+      ['open_home', 'allow_consent', 'purchase'],
+    );
   });
 
   test('login fails fast after delete_media fails but commits local routing',

@@ -302,7 +302,13 @@ class Pam {
   }
 
   static bool _isWhitelistEvent(String? event) {
-    return event == "allow_consent" || event == "save_push";
+    return event == "login" ||
+        event == "register" ||
+        event == "register_success" ||
+        event == "logout" ||
+        event == "save_push" ||
+        event == "test" ||
+        event == "allow_consent";
   }
 
   static Future<PamResponse?> track(String event,
@@ -325,6 +331,12 @@ class Pam {
 
   static Future<PamResponse> _track(String event,
       {Map<String, dynamic>? payload, TrackerCallBack? callback}) async {
+    final pauseError = shared._createPausedTrackingResponse(event);
+    if (pauseError != null) {
+      callback?.call(pauseError);
+      return pauseError;
+    }
+
     final identityError = await shared._validateIdentityForTrack(event);
     if (identityError != null) {
       callback?.call(identityError);
@@ -463,8 +475,13 @@ class Pam {
   String sessionID = "";
   String? publicContact, loginContact, deviceUDID, custID, pushToken;
   String? _lastIdentityMismatchFingerprint;
+  String? _trackingPauseReasonCode;
   DateTime? _identityMismatchRetryAfter;
+  DateTime? _trackingPausedUntil;
   int _sessionVersion = 0;
+
+  @visibleForTesting
+  Duration trackingPauseDuration = const Duration(hours: 1);
 
   TrackerAPI? trackerAPI;
 
@@ -909,6 +926,76 @@ class Pam {
     _lastIdentityMismatchFingerprint = null;
   }
 
+  PamResponse? _createPausedTrackingResponse(String? event) {
+    if (_isWhitelistEvent(event) || _trackingPausedUntil == null) {
+      return null;
+    }
+
+    final now = DateTime.now();
+    if (!now.isBefore(_trackingPausedUntil!)) {
+      _clearTrackingPause();
+      return null;
+    }
+
+    Pam.log([
+      "TRACKING PAUSED",
+      "Event $event was dropped.",
+      "Reason = $_trackingPauseReasonCode",
+      "Retry after = $_trackingPausedUntil"
+    ]);
+    return PamResponse.createErrorResponse(
+      code: "TRACKING_PAUSED",
+      errorMessage:
+          "Tracking is paused until $_trackingPausedUntil because PAM returned $_trackingPauseReasonCode.",
+    );
+  }
+
+  void _applyTrackingResponsePolicy(String? event, PamResponse response) {
+    final errorCode = response.error?.code;
+    if (errorCode == null) {
+      if (_shouldClearTrackingPauseAfterSuccess(event)) {
+        _clearTrackingPause();
+      }
+      return;
+    }
+
+    if (!_shouldPauseTrackingForErrorCode(errorCode)) {
+      return;
+    }
+
+    _trackingPauseReasonCode = errorCode;
+    _trackingPausedUntil = DateTime.now().add(trackingPauseDuration);
+    Pam.log([
+      "TRACKING PAUSE STARTED",
+      "Event = $event",
+      "Reason = $errorCode",
+      "Retry after = $_trackingPausedUntil"
+    ]);
+  }
+
+  bool _shouldPauseTrackingForErrorCode(String code) {
+    return code == "UNAUTHORIZED" ||
+        code == "CONTACT_NOT_FOUND" ||
+        code == "CONSENT_MESSAGE_ID_IS_REQUIRED" ||
+        code == "NEED_CONSENT_REVIEW" ||
+        code == "TRACKING_IS_NOT_ALLOWED" ||
+        code == "INVALID_EVENT";
+  }
+
+  bool _shouldClearTrackingPauseAfterSuccess(String? event) {
+    return !_isWhitelistEvent(event) ||
+        event == "login" ||
+        event == "register" ||
+        event == "register_success" ||
+        event == "save_push" ||
+        event == "allow_consent";
+  }
+
+  void _clearTrackingPause() {
+    _trackingPausedUntil = null;
+    _trackingPauseReasonCode = null;
+  }
+
   void _notifyIdentityMismatch(
       PamIdentityMismatch mismatch, String fingerprint) {
     final handler = config?.onIdentityMismatch;
@@ -1071,15 +1158,18 @@ class Pam {
           await _createTrackingBodyForDestination(event, payload, destination);
 
       var response = await trackerAPI?.postTracker(body);
-
-      if (response?.error == null) {
-        await _saveContactID(response?.contactID, destination);
-      }
-
-      return response ??
+      final effectiveResponse = response ??
           PamResponse.createErrorResponse(
               code: "EMPTY_RESPONSE",
               errorMessage: "PAM return empty response.");
+
+      _applyTrackingResponsePolicy(event, effectiveResponse);
+
+      if (effectiveResponse.error == null) {
+        await _saveContactID(effectiveResponse.contactID, destination);
+      }
+
+      return effectiveResponse;
     } catch (error, stackTrace) {
       Pam.log(["TRACKING ERROR", stackTrace, error]);
       return PamResponse.createErrorResponse(
