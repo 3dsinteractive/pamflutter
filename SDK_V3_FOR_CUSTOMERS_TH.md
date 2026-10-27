@@ -1,4 +1,4 @@
-# ทำไมจึงแนะนำให้เปลี่ยนจาก PAM Flutter SDK v2 เป็น v3
+# สิ่งที่เปลี่ยนแปลงใน PAM Flutter SDK v3
 
 PAM Flutter SDK v3 ช่วยให้แอปส่งข้อมูลไปยัง CDP โดยระบุตัวตนผู้ใช้ได้ชัดเจนขึ้น จัดการ push notification ได้ยืดหยุ่นขึ้น และส่ง event ได้เป็นลำดับมากขึ้น โดยเฉพาะช่วงที่มีการเข้าสู่ระบบ สลับบัญชี หรือออกจากระบบ
 
@@ -15,6 +15,16 @@ PAM Flutter SDK v3 ช่วยให้แอปส่งข้อมูลไ�
 ตัวอย่างเช่น ผู้ใช้ A กดออกจากระบบ แล้วผู้ใช้ B เข้าสู่ระบบทันที SDK จะจัดลำดับคำขอที่เกี่ยวข้องและใช้ปลายทางตามสถานะของแต่ละคำขอ แนวทางนี้ช่วยลดความเสี่ยงที่กิจกรรมของ B จะไปอยู่ใน contact ของ A และทำให้ข้อมูลใน CDP น่าเชื่อถือขึ้น
 
 คิวนี้ทำงานในหน่วยความจำของแอป จึงช่วยจัดลำดับระหว่างที่แอปยังทำงาน แต่ event ที่ยังส่งไม่เสร็จอาจสูญหายหากแอปถูกปิด
+
+## เมื่อ PAM แจ้งว่ายังรับ tracking ไม่ได้
+
+ตัวอย่างที่พบได้คือ ลูกค้าเพิ่งสมัครสมาชิกในแอป แต่ข้อมูลลูกค้ายังซิงก์จาก App Server ไปยัง PAM Server ไม่เสร็จ ช่วงนั้นแอปอาจเริ่มส่ง event แล้ว ทั้งที่ PAM ยังไม่มี customer profile สำหรับบันทึกกิจกรรม การส่งซ้ำในทันทีจึงยังไม่ช่วยให้เก็บข้อมูลได้
+
+ตั้งแต่ **v3.0.1** เมื่อ PAM ตอบกลับว่าระบบยังไม่พร้อมรับ tracking เช่น ไม่พบ contact, ยังไม่มีสิทธิ์ หรือยังไม่พร้อมเรื่อง consent SDK จะพักการส่ง event tracking ทั่วไปครั้งละ 1 ชั่วโมง เพื่อลดคำขอที่ส่งเข้ามาทั้งที่ยังบันทึกไม่ได้ เมื่อครบเวลา **event ครั้งถัดไป** จะถูกลองส่งอีกครั้ง
+
+ระหว่างพัก tracking คำขอที่ใช้แก้สถานะ เช่น login, การบันทึก push token และการยินยอมให้ติดตาม ยังส่งได้ หากคำขอแก้สถานะสำเร็จ SDK จะกลับมาส่ง tracking ตามปกติก่อนครบเวลา
+
+**ผลต่อข้อมูล:** event tracking ทั่วไปที่เกิดระหว่างพักจะไม่ถูกเก็บรอส่ง และการเรียก `Pam.track()` จะได้ข้อผิดพลาด `TRACKING_PAUSED` ดังนั้นการกลับมาส่งครั้งถัดไปหมายถึง event ใหม่ที่แอปเรียกหลังพ้นช่วงพัก หรือหลังแก้สถานะสำเร็จ ไม่ใช่การส่ง event ที่เกิดระหว่างพักย้อนหลัง หากแอปจำเป็นต้องเก็บ event เหล่านั้น ต้องจัดการการเก็บและส่งซ้ำเอง
 
 ## การตั้งค่าตัวตนและ push ที่เปลี่ยนไปใน v3
 
@@ -47,7 +57,8 @@ Future<void> initializePam(AuthRepository authRepository) async {
       PamPrimaryIdentityKey.sms,
     ),
 
-    // SDK เรียกก่อนส่ง Pam.track() เมื่อ event ผ่านเงื่อนไข consent แล้ว
+    // SDK เรียกก่อนส่ง Pam.track() เมื่อ event ผ่านเงื่อนไข consent
+    // และไม่ได้อยู่ในช่วงพัก tracking
     // เพื่อเทียบตัวตนในแอปกับ SDK
     // อ่านสถานะที่แอปเก็บไว้แล้วเท่านั้น; ไม่เรียก API หรือทำงานแบบ async
     identityProvider: () {
@@ -91,7 +102,7 @@ Future<void> initializePam(AuthRepository authRepository) async {
 
 ## สิ่งที่ทีมพัฒนาแอปต้องปรับ
 
-1. เปลี่ยน dependency เป็น `pam_flutter: ^3.0.0` และกำหนด `identityMatcher` ใน `PamConfig` ให้ตรงกับ key ถาวรของ CDP เช่น `customer`, `email`, `sms` หรือ secondary key ที่ตกลงกัน
+1. เปลี่ยน dependency เป็น `pam_flutter: ^3.0.1` เพื่อได้การจัดการข้อผิดพลาดและช่วงพัก tracking ตามที่อธิบายข้างต้น แล้วกำหนด `identityMatcher` ใน `PamConfig` ให้ตรงกับ key ถาวรของ CDP เช่น `customer`, `email`, `sms` หรือ secondary key ที่ตกลงกัน
 2. เปลี่ยน `Pam.userLogin(identity, options)` เป็น `Pam.userLogin(identity)` และเลิกใช้ `loginKey` กับ `LoginOptions`
 3. หากใช้ Firebase Messaging ให้แอปประกาศ dependency `firebase_messaging` เอง และส่ง `message.data` ให้ `Pam.isPushNotiFromPam()` กับ `Pam.convertToPamPushMessage()`
 4. ส่ง push token ที่ได้จาก provider ของแอปผ่าน `Pam.setPushNotificationToken(token)` โดยตรง รวมถึงจัดการกรณี token เปลี่ยน; SDK ไม่ดึง token ให้เอง
