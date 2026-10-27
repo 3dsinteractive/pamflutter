@@ -1,5 +1,6 @@
 import 'package:http/http.dart' as http;
 import 'package:http/http.dart' show Response;
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -26,7 +27,17 @@ class HttpClient {
   static Future<Response> get(Uri url,
       {Map<String, String>? headers, Duration? timeout}) async {
     var newHeader = _defaultHeaders(headers);
-    return http.get(url, headers: newHeader).timeout(timeout ?? requestTimeout);
+    final effectiveTimeout = timeout ?? requestTimeout;
+    var client = http.Client();
+    try {
+      return await client.get(url, headers: newHeader).timeout(effectiveTimeout,
+          onTimeout: () {
+        client.close();
+        throw TimeoutException("GET request timed out.", effectiveTimeout);
+      });
+    } finally {
+      client.close();
+    }
   }
 
   static Future<Response> post(Uri url,
@@ -35,9 +46,18 @@ class HttpClient {
       Encoding? encoding,
       Duration? timeout}) async {
     var newHeader = _defaultHeaders(headers);
-    return http
-        .post(url,
-            body: jsonEncode(body), encoding: encoding, headers: newHeader)
-        .timeout(timeout ?? requestTimeout);
+    final effectiveTimeout = timeout ?? requestTimeout;
+    var client = http.Client();
+    try {
+      return await client
+          .post(url,
+              body: jsonEncode(body), encoding: encoding, headers: newHeader)
+          .timeout(effectiveTimeout, onTimeout: () {
+        client.close();
+        throw TimeoutException("POST request timed out.", effectiveTimeout);
+      });
+    } finally {
+      client.close();
+    }
   }
 }
