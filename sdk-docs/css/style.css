@@ -1,0 +1,14 @@
+pre {
+  background: #1a1b26; /* สำหรับ Tokyo Night (หรือปรับตามพื้นหลังของธีม) */
+  padding: 18px 20px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow-x: auto;
+}
+
+code {
+  font-family: 'JetBrains Mono', 'Fira Code', SFMono-Regular, Consolas, monospace;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
