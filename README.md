@@ -1,11 +1,12 @@
 # PAM Flutter SDK
 
-A Flutter plugin for integrating PAM (Personalized Advertising Management) into your mobile applications.
+A Flutter plugin for integrating PAM Real CDP into Flutter mobile applications. This guide covers SDK v3.0.2.
 
 ## Table of Contents
 
 - [Installation](#installation)
 - [Migrating from 2.x](#migrating-from-2x)
+- [Integration flow](#integration-flow)
 - [Configuration](#configuration)
 - [Initialization](#initialization)
 - [Core Features](#core-features)
@@ -30,7 +31,7 @@ A Flutter plugin for integrating PAM (Personalized Advertising Management) into 
 Open a terminal and run the following command to add `pam_flutter` to your Flutter project:
 
 ```sh
-dart pub add pam_flutter
+flutter pub add pam_flutter:^3.0.2
 ```
 
 ## Migrating from 2.x
@@ -38,6 +39,21 @@ dart pub add pam_flutter
 Version 3 contains breaking identity and push-helper API changes. Follow the
 [2.x to 3.0 migration guide](MIGRATE.md) before upgrading an existing
 application.
+
+## Integration flow
+
+| Component | Responsibility |
+| --- | --- |
+| App Server | Authenticate users and sync customer profiles and demographics to the PAM Login DB through your server-to-server integration. Keep server credentials on the server. |
+| Flutter app | Initialize PAM, collect consent, signal identity changes, send events, and handle push and App Attention. |
+| PAM CDP | Receive anonymous events in the Public DB and route identified activity to the Login DB according to the SDK session. |
+
+For a newly registered user, have the App Server sync the profile using the
+same identity key and value configured in PAM. Once the profile is ready,
+call `Pam.userLogin(customerId)` in the app and check the result before sending
+account-specific events. If profile sync is asynchronous, coordinate readiness
+with your backend. A successful app registration can precede PAM profile
+availability, and tracking during that gap can return `CONTACT_NOT_FOUND`.
 
 ## Configuration
 
@@ -54,7 +70,7 @@ class PamConfigProvider {
     const loginDBAlias = "[PAM-LOGIN-DB-FROM-PAM-CMS]";
     const trackingConsentMessageID = "[CONSENT-MESSAGE-ID-FROM-PAM-CMS]";
 
-    const debugMode = true; // Enable logs
+    const debugMode = false; // Set to true while debugging.
 
     return PamConfig(
       endpoint,
@@ -79,8 +95,8 @@ import 'package:flutter/material.dart';
 import 'package:pam_flutter/pam.dart';
 import 'pam_config.dart';
 
-void main() async {
-  // Initialize PAM
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   var pamConfig = PamConfigProvider.getConfig();
   await Pam.initialize(pamConfig);
 
@@ -88,11 +104,14 @@ void main() async {
 }
 ```
 
+Consent synchronization runs in the background after initialization.
+Initialization does not register a persisted push token.
+
 ## Core Features
 
 ### Consent Management
 
-To handle user consent in compliance with PDPA or GDPR laws, you can use the following example code in your application:
+Load the consent message configured in PAM CMS and submit the choices the user confirms. The examples call `allowAll()` for the case where the user explicitly accepts every option in that message.
 
 #### Tracking Consent
 
@@ -143,124 +162,85 @@ Future<SubmitConsentResult?> allowContactingConsent() async {
 
 #### Saving Push Notification Token
 
-If your application uses push notifications, it's essential to save the device's push notification token to PAM. Follow these steps to ensure proper integration:
+The application owns push setup and token refresh. If your App Server already
+uses the device token for system notifications, keep its registration flow
+and also register the token with PAM for campaign notifications. This example assumes Firebase
+Messaging is already configured in the app. Call this once from your push service
+and cancel the subscription when that service is disposed.
 
 ```dart
+import 'dart:async';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:pam_flutter/pam.dart';
 
-// Obtain the push notification token from your messaging service
-var deviceToken = "[PUSH-NOTIFICATION-TOKEN]";
+Future<StreamSubscription<String>> registerPushToken() async {
+  final messaging = FirebaseMessaging.instance;
+  final token = await messaging.getToken();
+  if (token != null) {
+    await savePushToken(token);
+  }
+  return messaging.onTokenRefresh.listen(savePushToken);
+}
 
-// Save the push notification token to PAM
-Pam.setPushNotificationToken(deviceToken);
+Future<void> savePushToken(String token) async {
+  final result = await Pam.setPushNotificationToken(token);
+  if (result.error != null) {
+    // Handle registration failure in your push service.
+  }
+}
 ```
 
-> Note: Replace [PUSH-NOTIFICATION-TOKEN] with the actual push notification token obtained from your messaging service.
-
-By saving the push notification token to PAM, you enable the system to deliver personalized notifications to users.
+The SDK does not fetch a token. If you use the optional `Pam.onToken` platform
+callback, call `Pam.setPushNotificationToken` explicitly from your handler.
 
 #### Handling Push Notifications
 
-The PAM SDK does not depend on Firebase. If your application uses Firebase
-Messaging, pass only its data map to the PAM helpers:
-
-```dart
-import 'package:flutter/material.dart'; // Required for Navigator example
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:pam_flutter/pam.dart';
-
-// In your Firebase messaging handler
-FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-  // Check if the push notification is from PAM
-  if (Pam.isPushNotiFromPam(message.data)) {
-    // Note: Forcing navigation from foreground notifications is generally not recommended
-    // as it can disrupt the user's current activity. This example only logs and tracks.
-
-    // Convert to PAM push message
-    var pamMessage = Pam.convertToPamPushMessage(message.data);
-    if (pamMessage != null) {
-      // Handle the PAM push message
-      // For example, show a custom notification or perform actions
-      print('Received PAM push: ${pamMessage.data}');
-
-      // Optionally track that the message was read
-      pamMessage.trackRead();
-    }
-  } else {
-    // Handle non-PAM notifications
-  }
-});
-```
-
-The Firebase types remain entirely in the application. PAM receives only
-`Map<String, dynamic>` through `message.data`.
+PAM push helpers accept a `Map<String, dynamic>`. With Firebase Messaging, pass
+`message.data`. For foreground messages, use `FirebaseMessaging.onMessage` to
+display the message according to your app's UI. Mark a message read when the user
+opens it.
 
 #### Handling Notification Taps
 
-When a user taps a notification in the system notification center, the app's behavior depends on its current state.
+If your app also receives system notifications from your App Server, dispatch
+those to its existing handler. Use PAM read tracking for PAM messages.
 
-**1. App Launched from Terminated State (Cold Start)**
-
-If the app is completely closed, use `getInitialMessage()` to check if it was opened via a notification.
-
-```dart
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:pam_flutter/pam.dart';
-
-void setupInteractedMessage() async {
-  // Get any messages which caused the application to open from a terminated state.
-  RemoteMessage? initialMessage =
-      await FirebaseMessaging.instance.getInitialMessage();
-
-  if (initialMessage != null) {
-    _handleMessage(initialMessage);
-  }
-
-  // Also handle messages when the app is in the background but still running.
-  FirebaseMessaging.onMessageOpenedApp.listen(_handleMessage);
-}
-
-void _handleMessage(RemoteMessage message) {
-  if (Pam.isPushNotiFromPam(message.data)) {
-    var pamMessage = Pam.convertToPamPushMessage(message.data);
-    if (pamMessage != null) {
-      // Track that the user clicked and opened the app from this notification
-      pamMessage.trackRead();
-
-      // Navigate to the specific screen based on pamMessage data
-      // Navigator.pushNamed(context, '/detail', arguments: pamMessage);
-    }
-  }
-}
-```
-
-**2. App Resumed from Background State**
-
-If the app is running in the background, `FirebaseMessaging.onMessageOpenedApp` will trigger a stream event when the notification is tapped.
+Use the same handler for a cold start and a tap that resumes the app from the
+background. Set up the listener once after PAM initializes and when the app can
+handle notification navigation.
 
 ```dart
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:pam_flutter/pam.dart';
+void handlePushTap(RemoteMessage message) {
+  if (!Pam.isPushNotiFromPam(message.data)) return;
 
-@override
-void initState() {
-  super.initState();
+  final push = Pam.convertToPamPushMessage(message.data);
+  if (push == null) return;
 
-  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    if (Pam.isPushNotiFromPam(message.data)) {
-      var pamMessage = Pam.convertToPamPushMessage(message.data);
-      pamMessage?.trackRead();
+  push.trackRead();
+  // Navigate using your app's routing rules and push.data.
+}
 
-      // Example: Navigate to a specific page
-      // print("User tapped notification: ${pamMessage?.title}");
-    }
-  });
+Future<StreamSubscription<RemoteMessage>> listenForPushTaps() async {
+  final subscription =
+      FirebaseMessaging.onMessageOpenedApp.listen(handlePushTap);
+  final initial = await FirebaseMessaging.instance.getInitialMessage();
+  if (initial != null) handlePushTap(initial);
+  return subscription;
 }
 ```
 
 #### Loading Notification History and Tracking Read Status
 
 To load the notification history sent from the PAM system, follow these steps. Please note that the inbox data retrieved is only the raw data, and you'll need to implement the UI to display it.
+
+For the current SDK contact, call `await Pam.loadPushNotifications()`.
+You can also load by customer ID with `Pam.loadPushNotificationsFromCustomerID(customerId)`.
+
+For a unified inbox, load PAM campaign messages and your App Server's system
+messages, map them to a common app model, and sort by timestamp. Preserve the
+source so tapping a row calls `trackRead()` for PAM messages or your existing
+read handler for system messages.
 
 ##### Load Inbox Data by Email
 
@@ -290,7 +270,9 @@ The userInbox variable will contain an array of messages sent from the PAM syste
 import 'package:pam_flutter/pam.dart';
 
 // Track read status for the first message in the inbox
-userInbox?[0].trackRead();
+if (userInbox != null && userInbox.isNotEmpty) {
+  userInbox.first.trackRead();
+}
 ```
 
 > By calling trackRead(), you can keep track of whether the user has opened or read the specific message.
@@ -310,7 +292,10 @@ import 'package:pam_flutter/pam.dart';
 var userIdentity = "[YOUR-LOGIN-IDENTITY]";
 
 // Signal user login to PAM
-Pam.userLogin(userIdentity);
+final result = await Pam.userLogin(userIdentity);
+if (result.error != null) {
+  // Handle the PAM login failure before sending account-specific events.
+}
 ```
 
 > Note: Replace [YOUR-LOGIN-IDENTITY] with the actual login identity of the user, such as their email or any unique identifier.
@@ -325,7 +310,7 @@ When a user logs out of your application, it's important to signal this event to
 import 'package:pam_flutter/pam.dart';
 
 // Signal user logout to PAM
-Pam.userLogout();
+await Pam.userLogout();
 ```
 
 By signaling user logout to PAM, you contribute to the accurate tracking of user activities and ensure that the analytics reflect the user's session status.
@@ -359,12 +344,12 @@ final config = PamConfig(
 
     return PamUserState.identified(user.mobile);
   },
-  onIdentityMismatch: (mismatch) {
+  onIdentityMismatch: (mismatch) async {
     final identity = mismatch.newIdentity;
     if (identity == null) {
-      Pam.userLogout();
+      await Pam.userLogout();
     } else {
-      Pam.userLogin(identity.value);
+      await Pam.userLogin(identity.value);
     }
   },
 );
@@ -439,14 +424,17 @@ Use the following example code to send an event with a payload:
 ```dart
 import 'package:pam_flutter/pam.dart';
 
-void trackEvent() {
+Future<void> trackEvent() async {
   var eventName = "purchase";
   var payload = {
     "product_name": "pizza",
     "size": "big",
     "price": 300
   };
-  Pam.track(eventName, payload: payload);
+  final result = await Pam.track(eventName, payload: payload);
+  if (result?.error != null) {
+    // Handle the SDK or server error in your app.
+  }
 }
 ```
 
@@ -454,11 +442,40 @@ In this example, the eventName is set to "purchase," and the payload contains ad
 
 By calling Pam.track(), you send the event data to PAM for analytics.
 
-### App Attention
+##### Tracking order and failures
+
+Await logout before calling login when switching accounts. The SDK serializes
+tracking and identity transitions and binds each request to its database and
+contact. HTTP requests have a five-second timeout.
+
+When `blockEventsIfNoConsent` is enabled, a regular event blocked by the local
+consent check returns `null`. With the optional identity check enabled, an
+identity mismatch drops the event and notifies the mismatch handler.
+
+Starting in v3.0.1, the SDK reads the mobile tracking response fields
+`error_code`, `error`, and `_database` alongside the legacy fields. PAM errors
+such as `UNAUTHORIZED`, `CONTACT_NOT_FOUND`, or `NEED_CONSENT_REVIEW` pause
+regular tracking for one hour. During the pause, eligible regular events return
+`TRACKING_PAUSED` and are dropped. The next event after the pause can attempt a
+new request. The SDK does not replay dropped events.
+
+Login, register, register_success, logout, save_push, test, and allow_consent
+can pass the pause check. Successful recovery events such as login, save_push,
+and allow_consent can clear the pause early.
+
+## App Attention
 
 App Attention is a comprehensive solution for integrating custom promotional popups into your mobile applications. This feature allows you to display banners, videos, and promotional messages directly within your app, helping to increase user engagement, highlight special offers, and drive traffic to specific URLs.
 
 Designed for flexibility, App Attention provides developers with the ability to customize popup behavior, such as displaying full-screen media or small promotional messages. It supports handling user interactions, such as opening external links or triggering custom app events, ensuring seamless integration into your app's user experience.
+
+#### Campaign and media setup
+
+Create an App Attention campaign in PAM Admin and match its page name to the
+app's `pageName`. The original integration guide recommends preparing portrait
+creative at 9:16 (720 × 1280), keeping important content roughly 80 px from
+each edge at that size. Use those dimensions as a starting point and preview
+the chosen campaign layout on representative devices.
 
 #### How to Use
 
@@ -471,36 +488,17 @@ Call the `Pam.appAttention` method to display the App Attention popup. This func
 Here’s an example of how to implement it in your app:
 
 ```dart
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    // Display App Attention if it exists
-    Pam.appAttention(
-      context,
-      pageName: "home", // Specify the page name for dynamic banners
-      onBannerClick: (bannerData) {
-        // Handle banner click
-        print("CLICK LEARN MORE.");
-        print(bannerData.toString());
-
-        // Return true if you want to stop the default behavior (e.g., opening the URL)
-        // Return false to allow the default behavior (open URL in browser)
-        return false;
-      },
-    );
-
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
+// Call once when the page is ready, for example from State.initState().
+WidgetsBinding.instance.addPostFrameCallback((_) {
+  if (!context.mounted) return;
+  Pam.appAttention(
+    context,
+    pageName: 'home',
+    onBannerClick: (bannerData) {
+      return false; // Allow the default banner action.
+    },
+  );
+});
 ```
 
 ##### Explanation

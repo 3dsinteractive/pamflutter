@@ -1,3 +1,9 @@
+# 3.0.2
+
+- Remove `package_info_plus` and `device_info_plus` as SDK dependencies so host apps can choose their own versions.
+- Read the host app name, version, build number, and OS version directly on Android and iOS. Preserve the existing tracking payload fields and formatting.
+- Remove the `uuid` dependency. Generate new session IDs as UUID v4 using Dart's `Random.secure()`. The SDK continues to reuse the ID within a session.
+
 # 3.0.1
 
     Support the mobile tracking response contract with error_code/error and _database fields.

@@ -16,7 +16,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  device_info_plus: '^10.0.1'
   pam_flutter:
     # When depending on this package from a real application you should use:
     #   pam_flutter: ^x.y.z

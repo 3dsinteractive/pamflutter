@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>tracking</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/github-dark.min.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; margin: 0; display: flex; color: #333; }
+    nav { width: 240px; background: #f8f9fa; border-right: 1px solid #e9ecef; height: 100vh; position: sticky; top: 0; padding: 24px 16px; box-sizing: border-box; }
+    nav ul { list-style: none; padding: 0; margin: 0; }
+    nav li { margin-bottom: 12px; }
+    nav a { color: #0066cc; text-decoration: none; font-weight: 500; }
+    nav a:hover { text-decoration: underline; }
+    main { max-width: 850px; padding: 40px 48px; flex: 1; }
+    pre { background: #0d1117; padding: 16px; border-radius: 8px; overflow-x: auto; }
+    code { font-family: SFMono-Regular, Consolas, Menlo, monospace; font-size: 14px; }
+    img { max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 6px; margin: 16px 0; }
+    table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+    th, td { border: 1px solid #dee2e6; padding: 8px 12px; text-align: left; }
+    th { background: #f1f3f5; }
+
+    /* Github CSS */
+    pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5px}.hljs{background:#23241f;color:#f8f8f2}.hljs-subst,.hljs-tag{color:#f8f8f2}.hljs-emphasis,.hljs-strong{color:#a8a8a2}.hljs-bullet,.hljs-link,.hljs-literal,.hljs-number,.hljs-quote,.hljs-regexp{color:#ae81ff}.hljs-code,.hljs-section,.hljs-selector-class,.hljs-title{color:#a6e22e}.hljs-strong{font-weight:700}.hljs-emphasis{font-style:italic}.hljs-attr,.hljs-keyword,.hljs-name,.hljs-selector-tag{color:#f92672}.hljs-attribute,.hljs-symbol{color:#66d9ef}.hljs-class .hljs-title,.hljs-params,.hljs-title.class_{color:#f8f8f2}.hljs-addition,.hljs-built_in,.hljs-selector-attr,.hljs-selector-id,.hljs-selector-pseudo,.hljs-string,.hljs-template-variable,.hljs-type,.hljs-variable{color:#e6db74}.hljs-comment,.hljs-deletion,.hljs-meta{color:#75715e}
+
+    /*main css*/
+    pre {
+  background: #1a1b26; /* สำหรับ Tokyo Night (หรือปรับตามพื้นหลังของธีม) */
+  padding: 18px 20px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow-x: auto;
+}
+
+code {
+  font-family: 'JetBrains Mono', 'Fira Code', SFMono-Regular, Consolas, monospace;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+  </style>
+</head>
+<body>
+  <nav>
+    <h3>คู่มือ SDK</h3>
+    <ul>
+      <li><a href="index.html">หน้าแรก</a></li>
+      <li><a href="database.html">1. ระบบฐานข้อมูลใน PAM</a></li>
+      <li><a href="initialization.html">2. เตรียม Config และเริ่มต้นใช้งาน</a></li>
+      <li><a href="consent.html">3. การจัดการความยินยอม</a></li>
+      <li><a href="authentication.html">4. การเข้าสู่ระบบและออกจากระบบ</a></li>
+      <li><a href="tracking.html">5. การส่ง Event Tracking</a></li>
+      <li><a href="push-notification.html">6. Push Notification</a></li>
+      <li><a href="app-attention.html">7. App Attention</a></li>
+    </ul>
+  </nav>
+  <main>
+    <h1>การส่ง Event Tracking</h1>
+<p>ใช้ <code>Pam.track()</code> เพื่อบันทึกกิจกรรมที่ผู้ใช้ทำในแอป เช่น ดูสินค้า เพิ่มสินค้าลงตะกร้า หรือซื้อสินค้าสำเร็จ โดยส่งชื่อ event พร้อมข้อมูลประกอบผ่านพารามิเตอร์ <code>payload</code></p>
+<pre><code class="hljs language-dart"><span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">track</span>(
+  <span class="hljs-string">&#x27;add_to_cart&#x27;</span>,
+  payload: {
+    <span class="hljs-string">&#x27;sku&#x27;</span>: <span class="hljs-string">&#x27;SKU-001&#x27;</span>,
+    <span class="hljs-string">&#x27;price&#x27;</span>: <span class="hljs-number">590.0</span>,
+    <span class="hljs-string">&#x27;quantity&#x27;</span>: <span class="hljs-number">2</span>,
+    <span class="hljs-string">&#x27;title&#x27;</span>: <span class="hljs-string">&#x27;เสื้อยืดคอกลม&#x27;</span>,
+  },
+);
+</code></pre><p>ตัวอย่างไม่ใช้ <code>await</code> เพื่อให้แอปทำงานต่อได้โดยไม่ต้องรอ PAM Server และควรดำเนินการขอ Tracking Consent ให้เรียบร้อยก่อนเริ่มส่งกิจกรรมของผู้ใช้</p>
+<hr>
+<h2>กำหนด Event ร่วมกับทีม</h2>
+<p>ตั้งชื่อ event ได้ตามกิจกรรมที่ต้องการบันทึก แต่ควรตกลงชื่อ ความหมาย และ attributes ร่วมกับทีมที่นำข้อมูลไปใช้ เพื่อให้ทุกฝ่ายเข้าใจตรงกัน</p>
+<table>
+<thead>
+<tr>
+<th>ชื่อ event ตัวอย่าง</th>
+<th>จังหวะที่ส่ง</th>
+<th>attributes ตัวอย่าง</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>view_product</code></td>
+<td>แสดงรายละเอียดสินค้าให้ผู้ใช้แล้ว</td>
+<td><code>sku</code>, <code>title</code>, <code>price</code></td>
+</tr>
+<tr>
+<td><code>add_to_cart</code></td>
+<td>เพิ่มสินค้าลงตะกร้าสำเร็จ</td>
+<td><code>sku</code>, <code>title</code>, <code>price</code>, <code>quantity</code></td>
+</tr>
+<tr>
+<td><code>purchase</code></td>
+<td>ยืนยันคำสั่งซื้อสำเร็จ</td>
+<td><code>order_id</code>, <code>total</code></td>
+</tr>
+</tbody></table>
+<p>กำหนดความหมายของแต่ละ attribute ให้ชัดเจนด้วย เช่น <code>price</code> เป็นราคาต่อหน่วย และ <code>quantity</code> เป็นจำนวนที่เพิ่มในครั้งนั้น รวมถึงใช้ชื่อและชนิดข้อมูลอย่างสม่ำเสมอ</p>
+<hr>
+<h2>สร้างคลาสกลางสำหรับส่ง Event</h2>
+<p>แนะนำให้รวมการเรียก tracking ไว้ในคลาสกลาง เพื่อให้ตรวจสอบและแก้ไขชื่อ event หรือ attributes ได้จากจุดเดียว ลดการเขียนข้อมูลต่างรูปแบบกันในแต่ละหน้าของแอป</p>
+<p>หากต้องส่งกิจกรรมเดียวกันไปยังระบบอื่นในอนาคต สามารถเพิ่มการเรียกส่งในเมธอดนี้ได้ โดยไม่ต้องแก้ทุกหน้าที่เรียกใช้งาน</p>
+<h3>ไฟล์ <code>lib/track_event.dart</code></h3>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:pam_flutter/pam.dart&#x27;</span>;
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">TrackEvent</span> </span>{
+  <span class="hljs-keyword">static</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">trackAddToCart</span>({
+    <span class="hljs-keyword">required</span> <span class="hljs-title class_">String</span> sku,
+    <span class="hljs-keyword">required</span> <span class="hljs-built_in">double</span> price,
+    <span class="hljs-keyword">required</span> <span class="hljs-built_in">int</span> quantity,
+    <span class="hljs-keyword">required</span> <span class="hljs-title class_">String</span> title,
+  }) {
+    <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">track</span>(
+      <span class="hljs-string">&#x27;add_to_cart&#x27;</span>,
+      payload: {
+        <span class="hljs-string">&#x27;sku&#x27;</span>: sku,
+        <span class="hljs-string">&#x27;price&#x27;</span>: price,
+        <span class="hljs-string">&#x27;quantity&#x27;</span>: quantity,
+        <span class="hljs-string">&#x27;title&#x27;</span>: title,
+      },
+    );
+
+    <span class="hljs-comment">// หากต้องการส่งกิจกรรมนี้ไปยังระบบอื่น ให้เพิ่มการเรียกที่นี่</span>
+  }
+
+  <span class="hljs-keyword">static</span> <span class="hljs-keyword">void</span> <span class="hljs-title function_">trackViewProduct</span>({
+    <span class="hljs-keyword">required</span> <span class="hljs-title class_">String</span> sku,
+    <span class="hljs-keyword">required</span> <span class="hljs-built_in">double</span> price,
+    <span class="hljs-keyword">required</span> <span class="hljs-title class_">String</span> title,
+  }) {
+    <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">track</span>(
+      <span class="hljs-string">&#x27;view_product&#x27;</span>,
+      payload: {
+        <span class="hljs-string">&#x27;sku&#x27;</span>: sku,
+        <span class="hljs-string">&#x27;price&#x27;</span>: price,
+        <span class="hljs-string">&#x27;title&#x27;</span>: title,
+      },
+    );
+  }
+}
+</code></pre><hr>
+<h2>ตัวอย่างใช้งานในหน้าสินค้า</h2>
+<p>เรียก <code>TrackEvent.trackAddToCart()</code> หลังระบบตะกร้ายืนยันว่าเพิ่มสินค้าสำเร็จ เพื่อให้ event สะท้อนกิจกรรมที่เกิดขึ้นจริง</p>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;track_event.dart&#x27;</span>;
+
+<span class="hljs-comment">// ตัวอย่าง onPressed ของปุ่มเพิ่มสินค้าลงตะกร้า</span>
+onPressed: () <span class="hljs-keyword">async</span> {
+  <span class="hljs-comment">// รอผลจากระบบตะกร้าของแอปก่อน</span>
+  <span class="hljs-keyword">await</span> cartRepository.<span class="hljs-title function_">addItem</span>(
+    sku: <span class="hljs-string">&#x27;SKU-001&#x27;</span>,
+    quantity: <span class="hljs-number">2</span>,
+  );
+
+  <span class="hljs-comment">// แจ้งกิจกรรมโดยไม่รอผลจาก PAM</span>
+  <span class="hljs-title class_">TrackEvent</span>.<span class="hljs-title function_">trackAddToCart</span>(
+    sku: <span class="hljs-string">&#x27;SKU-001&#x27;</span>,
+    price: <span class="hljs-number">590.0</span>,
+    quantity: <span class="hljs-number">2</span>,
+    title: <span class="hljs-string">&#x27;เสื้อยืดคอกลม&#x27;</span>,
+  );
+
+  <span class="hljs-comment">// แสดงผลสำเร็จหรือให้ผู้ใช้ทำรายการต่อได้ทันที</span>
+},
+</code></pre><p><code>cartRepository.addItem()</code> เป็นตัวอย่างเมธอดของระบบตะกร้า ให้แทนด้วยโค้ดของแอป หากเพิ่มสินค้าไม่สำเร็จ ไม่ควรส่ง <code>add_to_cart</code></p>
+<hr>
+<h2>นำ Event ไปใช้สร้าง Segment</h2>
+<p>ข้อมูล event สามารถนำไปกำหนดกลุ่มลูกค้าใน PAM ได้ เช่น <strong>ลูกค้าที่เพิ่มสินค้า SKU-001 ลงตะกร้าภายใน 15 วันที่ผ่านมา</strong> โดยพิจารณาร่วมกันจาก:</p>
+<ul>
+<li>ชื่อ event: <code>add_to_cart</code></li>
+<li>attribute: <code>sku</code> มีค่าเป็น <code>SKU-001</code></li>
+<li>ช่วงเวลา: ย้อนหลัง 15 วัน</li>
+</ul>
+<p>เงื่อนไขที่นำไปใช้ได้ขึ้นอยู่กับ attributes ที่แนบมา หากไม่ได้ส่ง <code>sku</code> จะไม่สามารถใช้ข้อมูลนี้แยกกลุ่มตามสินค้าที่เพิ่มลงตะกร้าได้</p>
+<p>ควรเก็บเฉพาะ event และ attributes ที่มีวัตถุประสงค์ชัดเจน เช่น ใช้สร้าง Segment วิเคราะห์พฤติกรรม หรือกำหนดแคมเปญ หลีกเลี่ยงการเก็บกิจกรรมที่ไม่มีแผนนำไปใช้ เพราะทำให้ข้อมูลมากขึ้นและดูแลยากโดยไม่เพิ่มประโยชน์</p>
+<hr>
+<h2>ใช้ Event กับ User Journey</h2>
+<p>Event ที่ส่งจากแอปสามารถใช้เป็นเงื่อนไขในระบบ User Journey ของ PAM ได้ หาก Journey กำหนดให้รอ event ชื่อที่ระบุ เมื่อผู้ใช้เกิด event นั้นและตรงตามเงื่อนไข ระบบจะเลื่อนผู้ใช้ไปยังขั้นถัดไปของ Journey</p>
+<p>สอบถามวิธีออกแบบและตั้งค่า User Journey เพิ่มเติมได้จากทีมงาน PAM</p>
+<hr>
+<h2>ใช้ Event กับ Transaction Campaign</h2>
+<p>ส่ง <code>_campaign_id</code> ใน <code>payload</code> เพื่อระบุ Transaction Campaign ที่ต้องการให้เริ่มทำงานทันทีเมื่อได้รับ event เพื่อส่งข้อความของแคมเปญนั้นไปยังผู้ใช้ตามเงื่อนไขที่ตั้งค่าไว้</p>
+<pre><code class="hljs language-dart"><span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">track</span>(
+  <span class="hljs-string">&#x27;order_confirmed&#x27;</span>,
+  payload: {
+    <span class="hljs-string">&#x27;order_id&#x27;</span>: <span class="hljs-string">&#x27;ORDER-001&#x27;</span>,
+    <span class="hljs-string">&#x27;_campaign_id&#x27;</span>: <span class="hljs-string">&#x27;YOUR-CAMPAIGN-ID&#x27;</span>,
+  },
+);
+</code></pre><p>ให้แทน <code>YOUR-CAMPAIGN-ID</code> ด้วยรหัสแคมเปญที่ต้องการเรียกใช้งาน และสอบถามรายละเอียดการตั้งค่า เงื่อนไขการส่ง และการใช้งาน Transaction Campaign จากทีมงาน PAM</p>
+<p><a href="index.html">กลับหน้าแรก</a></p>
+
+  </main>
+</body>
+</html>

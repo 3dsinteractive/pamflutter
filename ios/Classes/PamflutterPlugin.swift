@@ -13,6 +13,15 @@ public class PamFlutterPlugin: NSObject, FlutterPlugin {
     switch call.method {
     case "getPlatformVersion":
       result("iOS " + UIDevice.current.systemVersion)
+    case "getTrackingAppInfo":
+      let bundle = Bundle.main
+      result([
+        "osVersion": "iOS: " + UIDevice.current.systemVersion,
+        "appName": bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+          ?? bundle.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "",
+        "appVersion": bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
+        "buildNumber": bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
+      ])
     case "askNotificationPermission":
       self.askNotificationPermission()
     case "getPlatform":

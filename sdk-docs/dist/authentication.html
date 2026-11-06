@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>authentication</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/github-dark.min.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; margin: 0; display: flex; color: #333; }
+    nav { width: 240px; background: #f8f9fa; border-right: 1px solid #e9ecef; height: 100vh; position: sticky; top: 0; padding: 24px 16px; box-sizing: border-box; }
+    nav ul { list-style: none; padding: 0; margin: 0; }
+    nav li { margin-bottom: 12px; }
+    nav a { color: #0066cc; text-decoration: none; font-weight: 500; }
+    nav a:hover { text-decoration: underline; }
+    main { max-width: 850px; padding: 40px 48px; flex: 1; }
+    pre { background: #0d1117; padding: 16px; border-radius: 8px; overflow-x: auto; }
+    code { font-family: SFMono-Regular, Consolas, Menlo, monospace; font-size: 14px; }
+    img { max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 6px; margin: 16px 0; }
+    table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+    th, td { border: 1px solid #dee2e6; padding: 8px 12px; text-align: left; }
+    th { background: #f1f3f5; }
+
+    /* Github CSS */
+    pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5px}.hljs{background:#23241f;color:#f8f8f2}.hljs-subst,.hljs-tag{color:#f8f8f2}.hljs-emphasis,.hljs-strong{color:#a8a8a2}.hljs-bullet,.hljs-link,.hljs-literal,.hljs-number,.hljs-quote,.hljs-regexp{color:#ae81ff}.hljs-code,.hljs-section,.hljs-selector-class,.hljs-title{color:#a6e22e}.hljs-strong{font-weight:700}.hljs-emphasis{font-style:italic}.hljs-attr,.hljs-keyword,.hljs-name,.hljs-selector-tag{color:#f92672}.hljs-attribute,.hljs-symbol{color:#66d9ef}.hljs-class .hljs-title,.hljs-params,.hljs-title.class_{color:#f8f8f2}.hljs-addition,.hljs-built_in,.hljs-selector-attr,.hljs-selector-id,.hljs-selector-pseudo,.hljs-string,.hljs-template-variable,.hljs-type,.hljs-variable{color:#e6db74}.hljs-comment,.hljs-deletion,.hljs-meta{color:#75715e}
+
+    /*main css*/
+    pre {
+  background: #1a1b26; /* สำหรับ Tokyo Night (หรือปรับตามพื้นหลังของธีม) */
+  padding: 18px 20px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow-x: auto;
+}
+
+code {
+  font-family: 'JetBrains Mono', 'Fira Code', SFMono-Regular, Consolas, monospace;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+  </style>
+</head>
+<body>
+  <nav>
+    <h3>คู่มือ SDK</h3>
+    <ul>
+      <li><a href="index.html">หน้าแรก</a></li>
+      <li><a href="database.html">1. ระบบฐานข้อมูลใน PAM</a></li>
+      <li><a href="initialization.html">2. เตรียม Config และเริ่มต้นใช้งาน</a></li>
+      <li><a href="consent.html">3. การจัดการความยินยอม</a></li>
+      <li><a href="authentication.html">4. การเข้าสู่ระบบและออกจากระบบ</a></li>
+      <li><a href="tracking.html">5. การส่ง Event Tracking</a></li>
+      <li><a href="push-notification.html">6. Push Notification</a></li>
+      <li><a href="app-attention.html">7. App Attention</a></li>
+    </ul>
+  </nav>
+  <main>
+    <h1>การเข้าสู่ระบบและออกจากระบบ</h1>
+<p>เมื่อผู้ใช้เข้าสู่ระบบหรือออกจากระบบของแอป ให้แจ้ง PAM ด้วย <code>Pam.userLogin()</code> และ <code>Pam.userLogout()</code> เพื่อให้ SDK ระบุตัวตนและเลือกฐานข้อมูลสำหรับบันทึกกิจกรรมได้ตรงกับสถานะผู้ใช้</p>
+<p>ทั้งสองเมธอดใช้แจ้งสถานะให้ PAM ไม่ได้ตรวจสอบรหัสผ่านหรือจัดการการเข้าสู่ระบบของแอปแทนระบบสมาชิก</p>
+<p>การแจ้ง login/logout ในตัวอย่างไม่ใช้ <code>await</code> เพื่อให้แอปทำงานต่อได้แม้ PAM Server ล่าช้าหรือไม่พร้อมใช้งาน SDK จัดลำดับคำขอผ่านคิวภายใน และจะเปลี่ยนสถานะเมื่อประมวลผลคำขอนั้น ส่วนการตรวจสอบ consent ยังคงใช้ <code>await</code> เพราะแอปต้องนำผลลัพธ์มาตัดสินใจ</p>
+<hr>
+<h2>ฐานข้อมูลที่ใช้ตามสถานะผู้ใช้</h2>
+<p>SDK เลือกฐานข้อมูลจากค่าที่กำหนดใน <code>PamConfig</code> โดยอัตโนมัติ แอปจึงไม่ต้องเปลี่ยน config ทุกครั้งที่ผู้ใช้เข้าสู่ระบบหรือออกจากระบบ</p>
+<table>
+<thead>
+<tr>
+<th>สถานะใน SDK</th>
+<th>ฐานข้อมูลสำหรับกิจกรรมถัดไป</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ยังไม่ได้ระบุตัวตน</td>
+<td><code>publicDBAlias</code></td>
+</tr>
+<tr>
+<td>ระบุตัวตนผ่าน <code>Pam.userLogin(identity)</code></td>
+<td><code>loginDBAlias</code></td>
+</tr>
+<tr>
+<td>ออกจากสถานะผู้ใช้ผ่าน <code>Pam.userLogout()</code></td>
+<td>กลับมาใช้ <code>publicDBAlias</code></td>
+</tr>
+</tbody></table>
+<p>การสลับฐานข้อมูลเป็นการเปลี่ยนปลายทางของกิจกรรมถัดไป ไม่ได้หมายถึงการย้ายกิจกรรมทั้งหมดที่เคยบันทึกไว้ระหว่างฐานข้อมูล</p>
+<hr>
+<h2>Pam.userLogin(): แจ้งตัวตนผู้ใช้ที่เข้าสู่ระบบ</h2>
+<p>หลังแอปตรวจสอบการเข้าสู่ระบบสำเร็จ ให้ส่งตัวระบุตัวตนผู้ใช้ไปยัง PAM โดยค่าที่ส่งต้องตรงกับ <code>identityMatcher</code> ที่ตั้งค่าไว้ เช่น หากใช้ <code>customer</code> ให้ส่งรหัสลูกค้า</p>
+<pre><code class="hljs language-dart"><span class="hljs-comment">// เรียกหลังผู้ใช้เข้าสู่ระบบแอปสำเร็จ</span>
+<span class="hljs-comment">// ตัวอย่างนี้ใช้ identityMatcher แบบ customer</span>
+<span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">userLogin</span>(<span class="hljs-string">&#x27;CUST-001&#x27;</span>);
+</code></pre><p>SDK จะเปลี่ยนเป็นสถานะผู้ใช้ที่ระบุตัวตน และเลือก <code>loginDBAlias</code> สำหรับกิจกรรมถัดไป แอปสามารถดำเนินการต่อได้โดยไม่ต้องรอผลจาก PAM Server</p>
+<p>หากใช้ <code>identityProvider</code> ให้ระบบจัดการผู้ใช้ของแอปคืนตัวตนเดียวกับที่ส่งให้ <code>Pam.userLogin()</code> เพื่อป้องกันสถานะไม่ตรงกัน</p>
+<hr>
+<h2>Pam.userLogout(): แจ้งว่าผู้ใช้ออกจากระบบ</h2>
+<p>เมื่อผู้ใช้ออกจากระบบแอป ให้แจ้ง PAM เพื่อล้างตัวตนผู้ใช้เดิมใน SDK และกลับมาใช้ <code>publicDBAlias</code> สำหรับกิจกรรมถัดไป</p>
+<pre><code class="hljs language-dart"><span class="hljs-comment">// เรียกในขั้นตอนออกจากระบบของแอป</span>
+<span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">userLogout</span>();
+
+<span class="hljs-comment">// กิจกรรมถัดไปจะใช้ publicDBAlias</span>
+<span class="hljs-comment">// และไม่ถูกส่งภายใต้ตัวตนผู้ใช้ที่ล็อกอินก่อนหน้านี้</span>
+</code></pre><p>แอปยังต้องล้าง session หรือ token ของระบบสมาชิกด้วยตนเอง หากใช้ <code>identityProvider</code> ให้ปรับสถานะของแอปเป็น <code>PamUserState.anonymous()</code> เมื่อออกจากระบบแล้ว</p>
+<hr>
+<h2>เมื่อผู้ใช้เปลี่ยนบัญชี</h2>
+<p>แจ้งออกจากตัวตนเดิมและเข้าสู่ตัวตนใหม่ตามลำดับ โดยเรียกควบคู่กับขั้นตอนเปลี่ยนบัญชีในแอป:</p>
+<pre><code class="hljs language-dart"><span class="hljs-comment">// ออกจากตัวตนเดิมใน PAM</span>
+<span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">userLogout</span>();
+
+<span class="hljs-comment">// หลังแอปเข้าสู่ระบบบัญชีใหม่สำเร็จ ให้แจ้งตัวตนใหม่</span>
+<span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">userLogin</span>(<span class="hljs-string">&#x27;CUST-002&#x27;</span>);
+</code></pre><p>เมื่อเริ่มทำงานกับบัญชีใหม่ SDK จะใช้ <code>loginDBAlias</code> พร้อมตัวตนของผู้ใช้คนใหม่สำหรับกิจกรรมถัดไป</p>
+<p><a href="index.html">กลับหน้าแรก</a></p>
+
+  </main>
+</body>
+</html>
