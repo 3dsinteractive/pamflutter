@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:pam_flutter/api/tracker_api.dart';
 import 'package:pam_flutter/pam.dart';
 import 'package:pam_flutter/preferences.dart';
@@ -96,6 +95,9 @@ class _ThrowingRemovePreference extends UserPreference {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel('pam_flutter');
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 
   late Pam pam;
   late _RecordingTrackerAPI tracker;
@@ -103,13 +105,15 @@ void main() {
   setUp(() {
     FlutterSecureStorage.setMockInitialValues({});
     SharedPreferences.setMockInitialValues({});
-    PackageInfo.setMockInitialValues(
-      appName: 'PAM Test',
-      packageName: 'ai.pams.test',
-      version: '1.0.0',
-      buildNumber: '1',
-      buildSignature: '',
-    );
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'getTrackingAppInfo');
+      return {
+        'osVersion': 'Android: 15 (SDK 35)',
+        'appName': 'PAM Test',
+        'appVersion': '1.0.0',
+        'buildNumber': '1',
+      };
+    });
 
     pam = Pam()
       ..config = PamConfig(
@@ -130,6 +134,19 @@ void main() {
     Pam.contactID = '';
     Pam.customerID = '';
     Pam.databaseAlias = '';
+  });
+
+  tearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+  test('session ID is a UUID v4 and is reused within the session', () {
+    final sessionId = pam.getSessionID();
+
+    expect(
+      sessionId,
+      matches(
+          r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'),
+    );
+    expect(pam.getSessionID(), sessionId);
   });
 
   Map<String, dynamic> fieldsAt(int index) =>
@@ -163,6 +180,10 @@ void main() {
     ]);
 
     expect(fieldsAt(0), containsPair('_database', 'public-db'));
+    expect(fieldsAt(0), containsPair('os_version', 'Android: 15 (SDK 35)'));
+    expect(fieldsAt(0), containsPair('app_version', '1.0.0'));
+    expect(tracker.requests[0]['platform'],
+        'Android: 15 (SDK 35),  PAM Test: 1.0.0(1)');
     expect(fieldsAt(0), containsPair('_contact_id', 'anonymous-contact'));
     expect(fieldsAt(0).containsKey('customer'), isFalse);
     expect(

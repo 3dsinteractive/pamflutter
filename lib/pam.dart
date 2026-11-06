@@ -2,6 +2,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
@@ -15,11 +16,8 @@ import './api/push_notification_api.dart';
 import './response/pam_push_message.dart';
 
 import 'preferences.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:android_id/android_id.dart';
 import 'dart:io' show Platform;
-import 'package:uuid/uuid.dart';
 import './api/tracker_api.dart';
 import 'package:flutter/services.dart';
 import 'package:queue/queue.dart';
@@ -735,29 +733,6 @@ class Pam {
     });
   }
 
-  Future<String> _getOSVersion() async {
-    if (Platform.isAndroid) {
-      var androidInfo = await DeviceInfoPlugin().androidInfo;
-      var release = androidInfo.version.release;
-      var sdkInt = androidInfo.version.sdkInt;
-      return 'Android: $release (SDK $sdkInt)';
-    } else if (Platform.isIOS) {
-      var iosInfo = await DeviceInfoPlugin().iosInfo;
-      var version = iosInfo.systemVersion;
-      return 'iOS: $version';
-    }
-    return '';
-  }
-
-  Future<String> _getPlatformName() async {
-    String osVersion = await _getOSVersion();
-    PackageInfo packageInfo = await PackageInfo.fromPlatform();
-    String appName = packageInfo.appName;
-    String version = packageInfo.version;
-    String buildNumber = packageInfo.buildNumber;
-    return "$osVersion,  $appName: $version($buildNumber)";
-  }
-
   String getSessionID() {
     final now = DateTime.now();
     final difference = now.difference(sessionExpire).inMinutes;
@@ -770,8 +745,17 @@ class Pam {
   }
 
   String genUUID() {
-    const uuid = Uuid();
-    return uuid.v1();
+    final random = Random.secure();
+    final bytes = List.generate(16, (_) => random.nextInt(256));
+
+    // Set the UUID version to 4 and the RFC 9562 variant to binary 10.
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+    final hex =
+        bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+        '${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
   }
 
   Future<String?> _getDeviceUDID() async {
@@ -1057,22 +1041,25 @@ class Pam {
 
   Future<Map<String, dynamic>> _createTrackingBodyForDestination(String? event,
       Map<String, dynamic>? payload, _TrackingDestination destination) async {
-    var platformName = await _getPlatformName();
-    var packageInfo = await PackageInfo.fromPlatform();
+    const channel = MethodChannel('pam_flutter');
+    final appInfo =
+        await channel.invokeMapMethod<String, String>('getTrackingAppInfo');
+    final osVersion = appInfo?['osVersion'] ?? '';
+    final appName = appInfo?['appName'] ?? '';
+    final appVersion = appInfo?['appVersion'] ?? '';
+    final buildNumber = appInfo?['buildNumber'] ?? '';
 
     Map<String, dynamic> body = {
       "event": event,
-      "platform": platformName,
+      "platform": "$osVersion,  $appName: $appVersion($buildNumber)",
       "form_fields": [],
     };
-
-    var osVersion = await _getOSVersion();
 
     Pam.log(["GET contact ID = ${destination.contactID}"]);
 
     Map<String, dynamic> formField = {
       "os_version": osVersion,
-      "app_version": packageInfo.version,
+      "app_version": appVersion,
       "_session_id": getSessionID(),
       "_consent_message_id": config?.trackingConsentMessageID,
       "_database": destination.databaseAlias

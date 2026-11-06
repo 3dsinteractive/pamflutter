@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>push-notification</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/github-dark.min.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; margin: 0; display: flex; color: #333; }
+    nav { width: 240px; background: #f8f9fa; border-right: 1px solid #e9ecef; height: 100vh; position: sticky; top: 0; padding: 24px 16px; box-sizing: border-box; }
+    nav ul { list-style: none; padding: 0; margin: 0; }
+    nav li { margin-bottom: 12px; }
+    nav a { color: #0066cc; text-decoration: none; font-weight: 500; }
+    nav a:hover { text-decoration: underline; }
+    main { max-width: 850px; padding: 40px 48px; flex: 1; }
+    pre { background: #0d1117; padding: 16px; border-radius: 8px; overflow-x: auto; }
+    code { font-family: SFMono-Regular, Consolas, Menlo, monospace; font-size: 14px; }
+    img { max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 6px; margin: 16px 0; }
+    table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+    th, td { border: 1px solid #dee2e6; padding: 8px 12px; text-align: left; }
+    th { background: #f1f3f5; }
+
+    /* Github CSS */
+    pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5px}.hljs{background:#23241f;color:#f8f8f2}.hljs-subst,.hljs-tag{color:#f8f8f2}.hljs-emphasis,.hljs-strong{color:#a8a8a2}.hljs-bullet,.hljs-link,.hljs-literal,.hljs-number,.hljs-quote,.hljs-regexp{color:#ae81ff}.hljs-code,.hljs-section,.hljs-selector-class,.hljs-title{color:#a6e22e}.hljs-strong{font-weight:700}.hljs-emphasis{font-style:italic}.hljs-attr,.hljs-keyword,.hljs-name,.hljs-selector-tag{color:#f92672}.hljs-attribute,.hljs-symbol{color:#66d9ef}.hljs-class .hljs-title,.hljs-params,.hljs-title.class_{color:#f8f8f2}.hljs-addition,.hljs-built_in,.hljs-selector-attr,.hljs-selector-id,.hljs-selector-pseudo,.hljs-string,.hljs-template-variable,.hljs-type,.hljs-variable{color:#e6db74}.hljs-comment,.hljs-deletion,.hljs-meta{color:#75715e}
+
+    /*main css*/
+    pre {
+  background: #1a1b26; /* สำหรับ Tokyo Night (หรือปรับตามพื้นหลังของธีม) */
+  padding: 18px 20px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow-x: auto;
+}
+
+code {
+  font-family: 'JetBrains Mono', 'Fira Code', SFMono-Regular, Consolas, monospace;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+  </style>
+</head>
+<body>
+  <nav>
+    <h3>คู่มือ SDK</h3>
+    <ul>
+      <li><a href="index.html">หน้าแรก</a></li>
+      <li><a href="database.html">1. ระบบฐานข้อมูลใน PAM</a></li>
+      <li><a href="initialization.html">2. เตรียม Config และเริ่มต้นใช้งาน</a></li>
+      <li><a href="consent.html">3. การจัดการความยินยอม</a></li>
+      <li><a href="authentication.html">4. การเข้าสู่ระบบและออกจากระบบ</a></li>
+      <li><a href="tracking.html">5. การส่ง Event Tracking</a></li>
+      <li><a href="push-notification.html">6. Push Notification</a></li>
+      <li><a href="app-attention.html">7. App Attention</a></li>
+    </ul>
+  </nav>
+  <main>
+    <h1>Push Notification</h1>
+<p>แอปเป็นผู้จัดการการขอสิทธิ์รับแจ้งเตือน รับ device token และรับข้อความจากผู้ให้บริการ Push Notification ส่วน PAM ใช้ token และข้อมูลข้อความที่แอปส่งให้ผ่าน SDK</p>
+<p>PAM ไม่ดึง device token หรืออ่านข้อความแจ้งเตือนจากแอปด้วยตนเอง การส่งข้อมูลให้ PAM จึงเป็นขั้นตอนที่แอปกำหนดไว้อย่างชัดเจน เพื่อความโปร่งใสในการเชื่อมต่อข้อมูล</p>
+<hr>
+<h2>ส่ง Device Token ให้ PAM</h2>
+<p>หลัง initialize PAM แล้ว เมื่อแอปได้รับ token ให้ส่งผ่าน <code>Pam.setPushNotificationToken()</code> โดยไม่ต้องรอผลจาก PAM Server:</p>
+<pre><code class="hljs language-dart"><span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">setPushNotificationToken</span>(deviceToken);
+</code></pre><p><strong>ต้องส่ง token ใหม่ให้ PAM ทุกครั้งที่มีการเปลี่ยนแปลง</strong> ไม่ว่าจะเกิดจากการต่ออายุ token การติดตั้งแอปใหม่ หรือเหตุผลอื่น เพราะ PAM ไม่สามารถตรวจพบการเปลี่ยนแปลงนี้เองได้</p>
+<h3>ตัวอย่างสำหรับแอปที่ใช้ Firebase Messaging</h3>
+<p>ตัวอย่างนี้สมมติว่าแอปติดตั้งและตั้งค่า Firebase Messaging รวมถึงขอสิทธิ์รับแจ้งเตือนเรียบร้อยแล้ว ให้เรียกฟังก์ชันนี้ครั้งเดียวหลัง Firebase และ PAM พร้อมใช้งาน โดยไม่ต้องรอขั้นตอนนี้ก่อนเปิดหน้าจอหลักของแอป</p>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:firebase_messaging/firebase_messaging.dart&#x27;</span>;
+<span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:pam_flutter/pam.dart&#x27;</span>;
+
+<span class="hljs-keyword">void</span> <span class="hljs-title function_">registerPamPushToken</span>() {
+  <span class="hljs-comment">// รับ token ที่เปลี่ยนแปลง และส่งค่าใหม่ให้ PAM ทุกครั้ง</span>
+  <span class="hljs-title class_">FirebaseMessaging</span>.instance.onTokenRefresh.<span class="hljs-title function_">listen</span>((deviceToken) {
+    <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">setPushNotificationToken</span>(deviceToken);
+  });
+
+  <span class="hljs-comment">// ส่ง token ปัจจุบันให้ PAM ด้วยเมื่อเริ่มใช้งาน</span>
+  <span class="hljs-title class_">FirebaseMessaging</span>.instance.<span class="hljs-title function_">getToken</span>().<span class="hljs-title function_">then</span>((deviceToken) {
+    <span class="hljs-keyword">if</span> (deviceToken != <span class="hljs-keyword">null</span>) {
+      <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">setPushNotificationToken</span>(deviceToken);
+    }
+  });
+}
+</code></pre><p>แอปต้องเพิ่ม dependency <code>firebase_messaging</code> เอง ดูขั้นตอนตั้งค่าและการจัดการ token ใน <a href="https://firebase.google.com/docs/cloud-messaging/flutter/get-started">เอกสาร Firebase Messaging</a></p>
+<hr>
+<h2>เมื่อผู้ใช้กดแจ้งเตือนจาก Notification Center</h2>
+<p>เมื่อได้รับเหตุการณ์เปิดแจ้งเตือน ให้ตรวจด้วย <code>Pam.isPushNotiFromPam(message.data)</code> หากได้ <code>true</code> แสดงว่าเป็นข้อความของ PAM จากนั้นแปลงข้อมูลด้วย <code>Pam.convertToPamPushMessage()</code> เพื่ออ่านฟิลด์และเรียกเมธอดของ PAM ได้สะดวก</p>
+<p>ตัวอย่าง Firebase Messaging รองรับทั้งการเปิดแอปจากเบื้องหลังและจากสถานะที่แอปปิดอยู่:</p>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:firebase_messaging/firebase_messaging.dart&#x27;</span>;
+<span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:pam_flutter/pam.dart&#x27;</span>;
+
+<span class="hljs-keyword">void</span> <span class="hljs-title function_">handleNotificationOpened</span>(<span class="hljs-title class_">RemoteMessage</span> message) {
+  <span class="hljs-comment">// ข้อความจากระบบอื่น ให้แอปจัดการตาม flow ของตน</span>
+  <span class="hljs-keyword">if</span> (!<span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">isPushNotiFromPam</span>(message.data)) {
+    <span class="hljs-keyword">return</span>;
+  }
+
+  <span class="hljs-keyword">final</span> noti = <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">convertToPamPushMessage</span>(message.data);
+  <span class="hljs-keyword">if</span> (noti == <span class="hljs-keyword">null</span>) {
+    <span class="hljs-keyword">return</span>;
+  }
+
+  <span class="hljs-comment">// ส่งสัญญาณกลับ PAM ว่าผู้ใช้เปิดอ่านข้อความแล้ว</span>
+  <span class="hljs-comment">// เมธอดนี้ส่งเบื้องหลัง ไม่ต้อง await</span>
+  noti.<span class="hljs-title function_">trackRead</span>();
+
+  <span class="hljs-comment">// อ่านข้อมูลเพื่อแสดงเนื้อหาหรือเลือกหน้าปลายทางในแอป</span>
+  <span class="hljs-keyword">final</span> destinationUrl = noti.url;
+  <span class="hljs-keyword">final</span> imageUrl = noti.thumbnailUrl;
+  <span class="hljs-keyword">final</span> popupType = noti.popupType;
+  <span class="hljs-keyword">final</span> payload = noti.data;
+
+  <span class="hljs-comment">// นำข้อมูลไปใช้กับระบบเปิดหน้าปลายทางของแอป</span>
+}
+
+<span class="hljs-keyword">void</span> <span class="hljs-title function_">registerNotificationOpenHandlers</span>() {
+  <span class="hljs-comment">// ผู้ใช้กดแจ้งเตือนขณะแอปอยู่เบื้องหลัง</span>
+  <span class="hljs-title class_">FirebaseMessaging</span>.onMessageOpenedApp.<span class="hljs-title function_">listen</span>(handleNotificationOpened);
+
+  <span class="hljs-comment">// ผู้ใช้กดแจ้งเตือนเพื่อเปิดแอปที่ปิดอยู่</span>
+  <span class="hljs-title class_">FirebaseMessaging</span>.instance.<span class="hljs-title function_">getInitialMessage</span>().<span class="hljs-title function_">then</span>((message) {
+    <span class="hljs-keyword">if</span> (message != <span class="hljs-keyword">null</span>) {
+      <span class="hljs-title function_">handleNotificationOpened</span>(message);
+    }
+  });
+}
+</code></pre><p>เรียก <code>registerNotificationOpenHandlers()</code> ครั้งเดียวหลัง Firebase และ PAM พร้อมใช้งาน หากเปิดหน้าปลายทางด้วย Navigator ให้รอจนหน้าจอและระบบนำทางของแอปพร้อมก่อน ดูรายละเอียดเหตุการณ์เปิดแจ้งเตือนใน <a href="https://firebase.google.com/docs/cloud-messaging/flutter/receive-messages">เอกสาร Firebase</a></p>
+<hr>
+<h2>ข้อมูลใน PamPushMessage</h2>
+<table>
+<thead>
+<tr>
+<th>ฟิลด์</th>
+<th>ข้อมูลที่ได้จากการแปลงข้อความ Push</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>noti.url</code></td>
+<td>URL ปลายทางที่กำหนดมากับข้อความ</td>
+</tr>
+<tr>
+<td><code>noti.thumbnailUrl</code></td>
+<td>URL รูปภาพที่ SDK อ่านจาก <code>flex</code></td>
+</tr>
+<tr>
+<td><code>noti.flex</code></td>
+<td>เนื้อหา <code>flex</code> ของข้อความ</td>
+</tr>
+<tr>
+<td><code>noti.popupType</code></td>
+<td>รูปแบบการแสดงผลที่ระบุมากับข้อความ</td>
+</tr>
+<tr>
+<td><code>noti.data</code></td>
+<td>ข้อมูล payload ของ PAM หลังแปลงจากข้อความ</td>
+</tr>
+<tr>
+<td><code>noti.pixel</code></td>
+<td>URL สำหรับส่งสัญญาณการอ่าน ซึ่ง <code>trackRead()</code> ใช้ภายใน</td>
+</tr>
+<tr>
+<td><code>noti.clickTrackingUrl</code></td>
+<td>URL สำหรับติดตามการกดลิงก์ หากมี</td>
+</tr>
+<tr>
+<td><code>noti.redirectId</code></td>
+<td>รหัสอ้างอิงการ redirect หากมี</td>
+</tr>
+</tbody></table>
+<p>สำหรับ <code>convertToPamPushMessage()</code> ใน SDK ปัจจุบัน ฟิลด์ <code>title</code>, <code>description</code> และ <code>deliverID</code> ถูกกำหนดเป็นข้อความว่าง หากต้องการชื่อและรายละเอียดแจ้งเตือนจาก Firebase ให้อ่าน <code>message.notification?.title</code> และ <code>message.notification?.body</code> ส่วน <code>date</code> เป็นเวลาที่แปลงข้อความ และ <code>isOpen</code> เริ่มต้นเป็น <code>false</code></p>
+<p>เรียก <code>noti.trackRead()</code> เมื่อผู้ใช้เปิดข้อความแล้ว เพื่อแจ้งผลการอ่านกลับไปยัง PAM โดยไม่ต้องเรียกตั้งแต่ตอนรับข้อความเข้ามา</p>
+<hr>
+<h2>ดึงประวัติ Push Notification</h2>
+<p>เรียก <code>Pam.loadPushNotifications()</code> เพื่อดึงรายการข้อความย้อนหลัง โดย SDK คืนเฉพาะข้อมูล แอปต้องสร้างหน้าจอแสดงรายการและรายละเอียดข้อความเอง</p>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">final</span> messages = <span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">loadPushNotifications</span>();
+</code></pre><p>ผลลัพธ์เป็น <code>List&lt;PamPushMessage&gt;?</code> สามารถนำฟิลด์ เช่น <code>title</code>, <code>description</code>, <code>thumbnailUrl</code>, <code>date</code> และ <code>isOpen</code> ไปใช้แสดงผลได้ หากได้ <code>null</code> ให้แสดงสถานะโหลดข้อมูลไม่สำเร็จ และหากได้รายการว่าง ให้แสดงว่ายังไม่มีข้อความ</p>
+<p>เมื่อผู้ใช้เปิดอ่านข้อความจากหน้าประวัติ ให้เรียก <code>message.trackRead()</code> เพื่อแจ้งผลการอ่านกลับไปยัง PAM เช่นเดียวกับการเปิดจาก Notification Center</p>
+<pre><code class="hljs language-dart"><span class="hljs-comment">// ตัวอย่าง onTap ของรายการข้อความในหน้าประวัติ</span>
+onTap: () {
+  <span class="hljs-comment">// แจ้ง PAM ว่าผู้ใช้เปิดอ่านข้อความนี้แล้ว โดยไม่ต้อง await</span>
+  message.<span class="hljs-title function_">trackRead</span>();
+
+  <span class="hljs-comment">// แสดงรายละเอียดข้อความตาม UI ที่แอปออกแบบไว้</span>
+},
+</code></pre><p>เรียก <code>trackRead()</code> เมื่อผู้ใช้เปิดข้อความแต่ละรายการ ไม่ใช่ตอนโหลดรายการประวัติ เพื่อให้สถานะการอ่านสะท้อนการใช้งานจริง</p>
+<p>ขั้นตอนนี้ใช้ <code>await</code> เพราะหน้าประวัติต้องนำข้อมูลที่ได้มาแสดงผล ระหว่างรอแอปสามารถแสดงสถานะกำลังโหลดในหน้านั้นได้</p>
+<p><a href="index.html">กลับหน้าแรก</a></p>
+
+  </main>
+</body>
+</html>

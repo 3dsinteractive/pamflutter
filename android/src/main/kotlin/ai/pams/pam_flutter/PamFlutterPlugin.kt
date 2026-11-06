@@ -9,6 +9,7 @@ import android.content.Context
 import android.app.Activity
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import android.provider.Settings
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -59,12 +60,37 @@ class PamFlutterPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
       "getPlatformVersion"->{
         result.success("Android ${android.os.Build.VERSION.RELEASE}")
       }
+      "getTrackingAppInfo" -> {
+        val appContext = context
+        if (appContext == null) {
+          result.error("NO_CONTEXT", "Application context is unavailable", null)
+        } else {
+          result.success(getTrackingAppInfo(appContext))
+        }
+      }
       else -> result.notImplemented()
     }
   }
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     channel.setMethodCallHandler(null)
+  }
+
+  @Suppress("DEPRECATION")
+  private fun getTrackingAppInfo(context: Context): Map<String, String> {
+    val packageManager = context.packageManager
+    val packageInfo = packageManager.getPackageInfo(context.packageName, 0)
+    val buildNumber = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+      packageInfo.longVersionCode
+    } else {
+      packageInfo.versionCode.toLong()
+    }
+    return mapOf(
+      "osVersion" to "Android: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})",
+      "appName" to packageManager.getApplicationLabel(context.applicationInfo).toString(),
+      "appVersion" to packageInfo.versionName.orEmpty(),
+      "buildNumber" to buildNumber.toString()
+    )
   }
 
 
