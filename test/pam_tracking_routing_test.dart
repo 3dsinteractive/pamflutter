@@ -38,6 +38,11 @@ class _RecordingTrackerAPI extends TrackerAPI {
       ..contactID = database == 'public-db'
           ? 'public-contact'
           : 'login-contact-$customer';
+    if (body['event'] == 'allow_consent') {
+      response
+        ..consentID = 'consent-record-id'
+        ..consentMessageID = fields['_consent_message_id'] as String?;
+    }
     return response;
   }
 }
@@ -151,6 +156,35 @@ void main() {
 
   Map<String, dynamic> fieldsAt(int index) =>
       tracker.requests[index]['form_fields'] as Map<String, dynamic>;
+
+  void expectAllowAllConsentFields(
+    Map<String, dynamic> fields,
+    String consentMessageId,
+  ) {
+    expect(
+      fields,
+      containsPair('_consent_message_id', consentMessageId),
+    );
+    expect(fields, containsPair('_version', 'latest'));
+
+    const allowFields = [
+      '_allow_terms_and_conditions',
+      '_allow_privacy_overview',
+      '_allow_necessary_cookies',
+      '_allow_preferences_cookies',
+      '_allow_analytics_cookies',
+      '_allow_marketing_cookies',
+      '_allow_social_media_cookies',
+      '_allow_email',
+      '_allow_sms',
+      '_allow_line',
+      '_allow_facebook_messenger',
+      '_allow_push_notification',
+    ];
+    for (final field in allowFields) {
+      expect(fields, containsPair(field, true));
+    }
+  }
 
   void useIdentityMatcher(PamIdentityMatcher matcher) {
     final currentConfig = pam.config!;
@@ -339,6 +373,8 @@ void main() {
     final response = PamResponse.parse(jsonEncode({
       'contact_id': '',
       '_database': '',
+      'consent_id': 'consent-record-id',
+      'consent_message_id': 'consent-message-id',
       'error': 'Contact not found',
       'error_code': 'CONTACT_NOT_FOUND',
     }));
@@ -347,6 +383,8 @@ void main() {
     expect(response?.error?.errorMessage, 'Contact not found');
     expect(response?.database, '');
     expect(response?.contactID, '');
+    expect(response?.consentID, 'consent-record-id');
+    expect(response?.consentMessageID, 'consent-message-id');
   });
 
   test('contact-not-found response pauses normal tracking temporarily',
@@ -394,6 +432,109 @@ void main() {
     expect(
       contactNotFoundTracker.requests.map((body) => body['event']),
       ['open_home', 'allow_consent', 'purchase'],
+    );
+  });
+
+  test('allowAllTrackingConsent submits latest version and allows tracking',
+      () async {
+    pam.config = PamConfig(
+      pam.config!.pamServer,
+      pam.config!.publicDBAlias,
+      pam.config!.loginDBAlias,
+      'tracking-consent-message',
+      pam.config!.enableLog,
+      identityMatcher: pam.config!.identityMatcher,
+      blockEventsIfNoConsent: true,
+      identityProvider: pam.config!.identityProvider,
+      onIdentityMismatch: pam.config!.onIdentityMismatch,
+    );
+
+    final result =
+        await Pam.allowAllTrackingConsent('tracking-consent-message');
+    final normalResponse = await Pam.track('purchase');
+
+    expect(result, isNotNull);
+    expect(result?.result.keys, ['tracking-consent-message']);
+    expect(
+      result?.result['tracking-consent-message']?.consentMessageID,
+      'tracking-consent-message',
+    );
+    expect(
+      result?.result['tracking-consent-message']?.consentID,
+      'consent-record-id',
+    );
+    expect(pam.allowTracking, isTrue);
+    expect(normalResponse?.error, isNull);
+    expect(tracker.requests.map((body) => body['event']), [
+      'allow_consent',
+      'purchase',
+    ]);
+
+    final consentFields = fieldsAt(0);
+    expect(consentFields, containsPair('_database', 'public-db'));
+    expectAllowAllConsentFields(consentFields, 'tracking-consent-message');
+  });
+
+  test('allowAllContactingConsent does not allow tracking', () async {
+    pam.config = PamConfig(
+      pam.config!.pamServer,
+      pam.config!.publicDBAlias,
+      pam.config!.loginDBAlias,
+      'tracking-consent-message',
+      pam.config!.enableLog,
+      identityMatcher: pam.config!.identityMatcher,
+      blockEventsIfNoConsent: true,
+      identityProvider: pam.config!.identityProvider,
+      onIdentityMismatch: pam.config!.onIdentityMismatch,
+    );
+
+    final result =
+        await Pam.allowAllContactingConsent('contacting-consent-message');
+    final normalResponse = await Pam.track('purchase');
+
+    expect(result, isNotNull);
+    expect(result?.result.keys, ['contacting-consent-message']);
+    expect(
+      result?.result['contacting-consent-message']?.consentMessageID,
+      'contacting-consent-message',
+    );
+    expect(
+      result?.result['contacting-consent-message']?.consentID,
+      'consent-record-id',
+    );
+    expect(pam.allowTracking, isFalse);
+    expect(normalResponse, isNull);
+    expect(tracker.requests.map((body) => body['event']), ['allow_consent']);
+
+    final consentFields = fieldsAt(0);
+    expect(consentFields, containsPair('_database', 'public-db'));
+    expectAllowAllConsentFields(consentFields, 'contacting-consent-message');
+  });
+
+  test('allowAllTrackingConsent does not allow tracking after server error',
+      () async {
+    final contactNotFoundTracker = _ContactNotFoundTrackerAPI();
+    pam.trackerAPI = contactNotFoundTracker;
+    pam.config = PamConfig(
+      pam.config!.pamServer,
+      pam.config!.publicDBAlias,
+      pam.config!.loginDBAlias,
+      'tracking-consent-message',
+      pam.config!.enableLog,
+      identityMatcher: pam.config!.identityMatcher,
+      blockEventsIfNoConsent: true,
+      identityProvider: pam.config!.identityProvider,
+      onIdentityMismatch: pam.config!.onIdentityMismatch,
+    );
+
+    final result =
+        await Pam.allowAllTrackingConsent('tracking-consent-message');
+
+    expect(result, isNull);
+    expect(pam.allowTracking, isFalse);
+    expect(
+      contactNotFoundTracker.requests.map((body) => body['event']),
+      ['allow_consent'],
     );
   });
 

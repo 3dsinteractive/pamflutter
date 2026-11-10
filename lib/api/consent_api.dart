@@ -85,13 +85,49 @@ class ConsentAPI {
 
     var response = await Pam.shared.postTracker("allow_consent", payload);
 
-    var result = AllowConsentResult(
-        response.contactID, response.database, response.consentID);
+    var result = AllowConsentResult(response.contactID, response.database,
+        response.consentID, response.consentMessageID);
 
     Pam.log([
       "SUBMIT CONSENT",
       "Type: ${consentMessage.type}, ID: ${consentMessage.id}",
       ...consentMessage.permission.map((t) => "⦾${t.name.key}=${t.allow}"),
+      "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
+      response
+    ]);
+
+    return result;
+  }
+
+  Future<AllowConsentResult?> allowAllConsent(String consentMessageId) async {
+    final payload = {
+      "_consent_message_id": consentMessageId,
+      "_version": "latest",
+      "_allow_terms_and_conditions": true,
+      "_allow_privacy_overview": true,
+      "_allow_necessary_cookies": true,
+      "_allow_preferences_cookies": true,
+      "_allow_analytics_cookies": true,
+      "_allow_marketing_cookies": true,
+      "_allow_social_media_cookies": true,
+      "_allow_email": true,
+      "_allow_sms": true,
+      "_allow_line": true,
+      "_allow_facebook_messenger": true,
+      "_allow_push_notification": true,
+    };
+
+    var response = await Pam.shared.postTracker("allow_consent", payload);
+
+    var result = response.error == null
+        ? AllowConsentResult(response.contactID, response.database,
+            response.consentID, response.consentMessageID)
+        : null;
+
+    Pam.log([
+      "ALLOW ALL CONSENT",
+      "ID: $consentMessageId",
+      "Version: latest",
       "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
       response
     ]);
