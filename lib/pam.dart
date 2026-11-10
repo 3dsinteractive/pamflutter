@@ -1163,7 +1163,7 @@ class Pam {
       String? event, Map<String, dynamic>? payload) async {
     try {
       final destination = await _createTrackingDestination();
-      return _postTrackerTo(event, payload, destination);
+      return await _postTrackerTo(event, payload, destination);
     } catch (error, stackTrace) {
       return _createInternalErrorResponse("TRACKING ERROR", error, stackTrace);
     }

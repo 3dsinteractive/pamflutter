@@ -1,3 +1,7 @@
+# 3.0.4
+
+- Fixed bugs
+
 # 3.0.3
 
 - Add quick allow-all consent helpers for tracking and contacting consent messages.
