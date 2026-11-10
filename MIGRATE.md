@@ -8,7 +8,7 @@ update their `PamConfig` and some identity or push-notification calls.
 
 ```yaml
 dependencies:
-  pam_flutter: ^3.0.0
+  pam_flutter: ^3.0.3
 ```
 
 Then refresh the application's dependencies:
@@ -272,7 +272,7 @@ consent API response.
 
 ## Migration checklist
 
-- [ ] Change the dependency constraint to `pam_flutter: ^3.0.0`.
+- [ ] Change the dependency constraint to `pam_flutter: ^3.0.3`.
 - [ ] Add the permanent `identityMatcher` to every `PamConfig`.
 - [ ] Remove `loginKey` from `PamConfig`.
 - [ ] Remove all `LoginOptions` arguments from `Pam.userLogin()`.

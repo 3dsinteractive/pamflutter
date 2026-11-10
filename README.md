@@ -1,6 +1,6 @@
 # PAM Flutter SDK
 
-A Flutter plugin for integrating PAM Real CDP into Flutter mobile applications. This guide covers SDK v3.0.2.
+A Flutter plugin for integrating PAM Real CDP into Flutter mobile applications. This guide covers SDK v3.0.3.
 
 ## Table of Contents
 
@@ -31,7 +31,7 @@ A Flutter plugin for integrating PAM Real CDP into Flutter mobile applications. 
 Open a terminal and run the following command to add `pam_flutter` to your Flutter project:
 
 ```sh
-flutter pub add pam_flutter:^3.0.2
+flutter pub add pam_flutter:^3.0.3
 ```
 
 ## Migrating from 2.x
@@ -113,9 +113,34 @@ Initialization does not register a persisted push token.
 
 Load the consent message configured in PAM CMS and submit the choices the user confirms. The examples call `allowAll()` for the case where the user explicitly accepts every option in that message.
 
+#### Allow All Consent
+
+Use `Pam.allowAllTrackingConsent()` or `Pam.allowAllContactingConsent()` when
+you want to allow every permission on the latest version of a consent message
+without loading the consent message first.
+
+Use the tracking helper only for tracking consent messages. It unlocks local
+event tracking after the server accepts the consent. Use the contacting helper
+for marketing communication consent messages; it does not change local tracking
+state.
+
+```dart
+import 'package:pam_flutter/pam.dart';
+
+Future<SubmitConsentResult?> allowAllTrackingConsent() async {
+  return Pam.allowAllTrackingConsent("[YOUR-TRACKING-CONSENT-MSG-ID]");
+}
+
+Future<SubmitConsentResult?> allowAllContactingConsent() async {
+  return Pam.allowAllContactingConsent("[YOUR-CONTACTING-CONSENT-MSG-ID]");
+}
+```
+
+> Reminder: Replace the consent message IDs with your actual consent message IDs from your PAM CMS.
+
 #### Tracking Consent
 
-Tracking Consent allows users to grant permission for tracking events or user behavior. Use the following example code to implement tracking consent in your application:
+Tracking Consent allows users to grant permission for tracking events or user behavior. Use the manual flow when you need to inspect the consent message or allow individual permissions selectively:
 
 ```dart
 import 'package:pam_flutter/pam.dart';
@@ -137,7 +162,7 @@ Future<SubmitConsentResult?> allowTrackingConsent() async {
 
 #### Contacting Consent
 
-Contacting Consent allows users to grant permission for communication for marketing purposes. Use the following example code to implement contacting consent in your application:
+Contacting Consent allows users to grant permission for communication for marketing purposes. Use the manual flow when you need to inspect the consent message or allow individual permissions selectively:
 
 ```dart
 import 'package:pam_flutter/pam.dart';
@@ -512,6 +537,9 @@ WidgetsBinding.instance.addPostFrameCallback((_) {
 ## API Reference
 
 For detailed API documentation, please refer to the source code and inline comments in the `lib/` directory.
+
+Consent submission results include the accepted `consentID` and
+`consentMessageID` returned by PAM.
 
 ## Examples
 

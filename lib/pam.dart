@@ -274,6 +274,37 @@ class Pam {
     return null;
   }
 
+  static Future<SubmitConsentResult?> allowAllTrackingConsent(
+      String consentMessageId) async {
+    final result = await _submitAllConsent(consentMessageId);
+    if (result != null) {
+      await shared.setAllowTracking(true);
+    }
+    return result;
+  }
+
+  static Future<SubmitConsentResult?> allowAllContactingConsent(
+      String consentMessageId) async {
+    return _submitAllConsent(consentMessageId);
+  }
+
+  static Future<SubmitConsentResult?> _submitAllConsent(
+      String consentMessageId) {
+    return shared.queue.add(() async {
+      var consentAPI = ConsentAPI(shared.config?.pamServer ?? "");
+      Map<String, AllowConsentResult> consentResult = {};
+      String ids = "";
+      var result = await consentAPI.allowAllConsent(consentMessageId);
+      if (result == null) {
+        return null;
+      }
+
+      consentResult = {consentMessageId: result};
+      ids = result.consentID ?? "";
+      return SubmitConsentResult(consentResult, ids);
+    });
+  }
+
   //iOS App Tracking Transparency
 
   static Future<List<PamPushMessage>?> loadPushNotificationsFromMobile(

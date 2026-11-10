@@ -1,3 +1,10 @@
+# 3.0.3
+
+- Add quick allow-all consent helpers for tracking and contacting consent messages.
+- Keep manual consent submission unchanged for selective permission use cases.
+- Parse `consent_message_id` from `allow_consent` responses and expose it on `AllowConsentResult`.
+- Only unlock local tracking after `allowAllTrackingConsent` succeeds.
+
 # 3.0.2
 
 - Remove `package_info_plus` and `device_info_plus` as SDK dependencies so host apps can choose their own versions.

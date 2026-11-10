@@ -7,7 +7,7 @@ class PamErrorResponse {
 }
 
 class PamResponse {
-  String? database, contactID, consentID;
+  String? database, contactID, consentID, consentMessageID;
   PamErrorResponse? error;
 
   static PamResponse createErrorResponse(
@@ -36,6 +36,7 @@ class PamResponse {
 
     response.contactID = map["contact_id"];
     response.consentID = map["consent_id"];
+    response.consentMessageID = map["consent_message_id"];
     response.database = map["_database"] ?? map["database"];
 
     return response;

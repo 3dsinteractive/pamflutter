@@ -2,8 +2,47 @@ import 'package:flutter/material.dart';
 import 'package:pam_flutter/pam.dart';
 import './pam_config.dart';
 
+PamUserState identityProvider() {
+  // if no Status
+  return PamUserState.unknown();
+
+  // // if not login yet
+  // return const PamUserState.anonymous();
+
+  // // if logged in
+  // return PamUserState.loggedIn(
+  //   identity: PamIdentity(
+  //     value: "member-id-123",
+  //     type: PamIdentityType.customer,
+  //   ),
+  // );
+}
+
+Future<void> onIdentityMismatch(PamIdentityMismatch mismatch) async {
+  final identity = mismatch.newIdentity;
+  if (identity == null) {
+    Pam.userLogout();
+  } else {
+    Pam.userLogin(identity.value);
+  }
+}
+
+void consent() async {
+  Pam.loadConsentStatus("xxx").then(
+    (userConsent) {
+      debugPrint("User Consent: $userConsent");
+      if (userConsent.needConsentReview) {
+        // Show Consent UI
+      }
+    },
+  );
+
+  Pam.allowAllTrackingConsent("xxx");
+}
+
 void main() {
-  var pamConfig = PamConfigProvider.getConfig();
+  var pamConfig =
+      PamConfigProvider.getDevelopConfig(identityProvider, onIdentityMismatch);
   Pam.initialize(pamConfig);
 
   runApp(const MyApp());
@@ -47,19 +86,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  void allowConsent() async {
-    var trackingConsentMessageID =
-        Pam.shared.config?.trackingConsentMessageID ?? "";
-
-    var trackingConsent =
-        await Pam.loadConsentMessage(trackingConsentMessageID);
-    trackingConsent?.allowAll();
-
-    if (trackingConsent != null) {
-      await Pam.submitConsent(trackingConsent);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -76,7 +102,9 @@ class _MyHomePageState extends State<MyHomePage> {
                 foregroundColor: WidgetStateProperty.all<Color>(Colors.blue),
               ),
               onPressed: () {
-                Pam.allowConsent("2VNmHzWrxPYJj0zDiM1cQGeW2S5");
+                Pam.allowAllTrackingConsent(
+                  Pam.shared.config?.trackingConsentMessageID ?? "",
+                );
               },
               child: Text('Allow Consent'),
             ),

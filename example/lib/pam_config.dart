@@ -1,57 +1,47 @@
 import 'package:pam_flutter/pam.dart';
 
 class PamConfigProvider {
-  /// Pass a provider that reads the application's current authentication state.
-  /// Replace `authRepository` with your application's authentication store:
-  ///
-  /// ```dart
-  /// final config = PamConfigProvider.getConfig(
-  ///   identityProvider: () {
-  ///     if (authRepository.isLoading) {
-  ///       return const PamUserState.unknown();
-  ///     }
-  ///
-  ///     final user = authRepository.currentUser;
-  ///     if (user == null) {
-  ///       return const PamUserState.anonymous();
-  ///     }
-  ///
-  ///     // Use the customer ID matching PamPrimaryIdentityKey.customer below.
-  ///     return PamUserState.identified(user.customerId);
-  ///   },
-  /// );
-  /// ```
-  ///
-  /// Read live state inside the callback so account changes are picked up.
-  /// Normal login/logout flows must still call Pam.userLogin/Pam.userLogout.
-  static PamConfig getConfig({PamIdentityProvider? identityProvider}) {
-    // Replace the following values with your configuration
-    const endpoint = "https://stgx.pams.ai";
-    const publicDBAlias = "ecom-public";
-    const loginDBAlias = "ecom-login";
-    const trackingConsentMessageID = "2VNmHzWrxPYJj0zDiM1cQGeW2S5";
-
-    const debugMode = true; // Enabled log
-
-    return PamConfig(
-      endpoint,
-      publicDBAlias,
-      loginDBAlias,
-      trackingConsentMessageID,
-      debugMode,
-      identityMatcher: PamIdentityMatcher.primary(
-        PamPrimaryIdentityKey.customer,
-      ),
+  static PamConfig getDevelopConfig(PamIdentityProvider? identityProvider,
+      PamIdentityMismatchHandler? onIdentityMismatch) {
+    return _createConfig(
+      endpoint: 'https://[example].pams.ai',
+      publicDBAlias: 'database-develop',
+      loginDBAlias: '',
+      trackingConsentMessageID: '..',
+      enableLog: true,
       identityProvider: identityProvider,
-      // The mismatched event is skipped. Sync the SDK for subsequent events.
-      onIdentityMismatch: (mismatch) async {
-        final identity = mismatch.newIdentity;
-        if (identity == null) {
-          await Pam.userLogout();
-        } else {
-          await Pam.userLogin(identity.value);
-        }
-      },
+      onIdentityMismatch: onIdentityMismatch,
     );
+  }
+
+  static PamConfig getProductionConfig(PamIdentityProvider? identityProvider,
+      PamIdentityMismatchHandler? onIdentityMismatch) {
+    return _createConfig(
+      endpoint: 'https://[example].pams.ai',
+      publicDBAlias: 'database',
+      loginDBAlias: '',
+      trackingConsentMessageID: '..',
+      enableLog: false,
+      identityProvider: identityProvider,
+      onIdentityMismatch: onIdentityMismatch,
+    );
+  }
+
+  static PamConfig _createConfig({
+    required String endpoint,
+    required String publicDBAlias,
+    required String loginDBAlias,
+    required String trackingConsentMessageID,
+    required bool enableLog,
+    required PamIdentityProvider? identityProvider,
+    required PamIdentityMismatchHandler? onIdentityMismatch,
+  }) {
+    return PamConfig(endpoint, publicDBAlias, loginDBAlias,
+        trackingConsentMessageID, enableLog,
+        identityMatcher: PamIdentityMatcher.primary(
+          PamPrimaryIdentityKey.customer,
+        ),
+        identityProvider: identityProvider,
+        onIdentityMismatch: onIdentityMismatch);
   }
 }
