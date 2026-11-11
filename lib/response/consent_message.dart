@@ -450,7 +450,11 @@ class ConsentMessage {
       Map<String, dynamic> json = jsonDecode(jsonStr);
       return ConsentMessage.fromJson(json);
     } catch (e, stackTrace) {
-      Pam.log(["ConsentMessage.parse Error", stackTrace, e]);
+      Pam.log(
+        ["ConsentMessage.parse Error", stackTrace, e],
+        category: PamLogCategory.consent,
+        level: PamLogLevel.error,
+      );
       return null;
     }
   }

@@ -40,6 +40,31 @@ final config = PamConfig(
 
 ---
 
+## ตรวจสอบการทำงานด้วย Log
+
+ตั้ง `enableLog` เป็น `true` เพื่อเปิด log ทุกหมวดของ SDK และตั้งเป็น `false` เพื่อปิดทุกระดับ การเรียกแบบเดิมยังใช้ได้ และเลือกหมวดกับระดับเพิ่มเติมได้:
+
+```dart
+Pam.log(['SDK ready']); // General / INFO
+Pam.log(
+  ['Failed to load consent'],
+  category: PamLogCategory.consent,
+  level: PamLogLevel.error,
+);
+```
+
+หมวด `PamLogCategory` มี `general`, `tracking`, `identity`, `consent`, `push`, `attention` และ `storage` ส่วน `PamLogLevel` มี `debug`, `info` (ค่าเริ่มต้น), `warning` และ `error` แต่ละบรรทัดมีรูปแบบ `[PAM][Consent][ERROR] ข้อความ` รวมถึง stack trace และข้อความยาวที่แบ่งเป็นหลายบรรทัด
+
+- **Android Studio Logcat:** กรองด้วย `tag:PAM`, `tag:PAM message:Consent` หรือ `tag:PAM level:ERROR`
+- **iOS Xcode / Console:** กรอง subsystem `ai.pams.flutter` และ category เช่น `Consent` หากต้องการรายละเอียดให้เปิดการแสดงข้อความระดับ info/debug ด้วย ระดับ warning ใช้ชนิด default ของ OSLog พร้อม `[WARN]` ในข้อความ
+- หากระบบ log ของ native ยังไม่พร้อม จะใช้ Flutter console แทน โดยค้นหา `[PAM]` ได้
+
+Log ของ API มี `request_id` สำหรับจับคู่คำขอกับผลลัพธ์ พร้อม HTTP status และ `duration_ms` ส่วน payload/response body อยู่ระดับ DEBUG ข้อผิดพลาดอยู่ระดับ ERROR นอกจากนี้มีเหตุผลที่ข้าม Attention, แหล่งค่าปุ่ม API/code/default, การเปลี่ยน session และผลการ reset เพื่อช่วยไล่ปัญหา
+
+หลังอัปเดต SDK ต้อง rebuild แอปเพื่อรวมโค้ด native ใหม่ การ hot reload อย่างเดียวไม่เพียงพอ
+
+---
+
 <a id="identity-matcher"></a>
 
 ## identityMatcher: เลือกข้อมูลที่ใช้ระบุตัวตน

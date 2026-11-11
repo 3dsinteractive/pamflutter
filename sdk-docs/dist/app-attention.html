@@ -72,15 +72,25 @@ code {
 <pre><code class="hljs language-dart"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:flutter/material.dart&#x27;</span>;
 <span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:pam_flutter/pam.dart&#x27;</span>;
 
-<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">HomePage</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">StatelessWidget</span> </span>{
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">HomePage</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">StatefulWidget</span> </span>{
   <span class="hljs-keyword">const</span> <span class="hljs-title class_">HomePage</span>({<span class="hljs-keyword">super</span>.key});
 
   <span class="hljs-meta">@override</span>
-  <span class="hljs-title class_">Widget</span> <span class="hljs-title function_">build</span>(<span class="hljs-title class_">BuildContext</span> context) {
-    <span class="hljs-comment">// ตรวจสอบว่ามี App Attention สำหรับหน้า home หรือไม่</span>
-    <span class="hljs-comment">// ไม่ต้อง await แอปสามารถแสดงหน้าจอต่อได้ทันที</span>
-    <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">appAttention</span>(context, pageName: <span class="hljs-string">&#x27;home&#x27;</span>);
+  <span class="hljs-title class_">State</span>&lt;<span class="hljs-title class_">HomePage</span>&gt; <span class="hljs-title function_">createState</span>() =&gt; <span class="hljs-title class_">_HomePageState</span>();
+}
 
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">_HomePageState</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">State</span>&lt;<span class="hljs-title">HomePage</span>&gt; </span>{
+  <span class="hljs-meta">@override</span>
+  <span class="hljs-keyword">void</span> <span class="hljs-title function_">initState</span>() {
+    <span class="hljs-keyword">super</span>.<span class="hljs-title function_">initState</span>();
+    <span class="hljs-title class_">WidgetsBinding</span>.instance.<span class="hljs-title function_">addPostFrameCallback</span>((_) {
+      <span class="hljs-keyword">if</span> (!mounted) <span class="hljs-keyword">return</span>;
+      <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">appAttention</span>(context, pageName: <span class="hljs-string">&#x27;home&#x27;</span>);
+    });
+  }
+
+  <span class="hljs-meta">@override</span>
+  <span class="hljs-title class_">Widget</span> <span class="hljs-title function_">build</span>(<span class="hljs-title class_">BuildContext</span> context) {
     <span class="hljs-keyword">return</span> <span class="hljs-title class_">Scaffold</span>(
       appBar: <span class="hljs-title class_">AppBar</span>(title: <span class="hljs-keyword">const</span> <span class="hljs-title class_">Text</span>(<span class="hljs-string">&#x27;หน้าหลัก&#x27;</span>)),
       body: <span class="hljs-keyword">const</span> <span class="hljs-title class_">Center</span>(child: <span class="hljs-title class_">Text</span>(<span class="hljs-string">&#x27;ยินดีต้อนรับ&#x27;</span>)),
@@ -88,7 +98,21 @@ code {
   }
 }
 </code></pre><p>สามารถเรียก <code>Pam.appAttention()</code> เพื่อตรวจสอบข้อความที่ต้องแสดงได้ หากไม่มีป๊อปอัปที่เข้าเงื่อนไข ระบบจะไม่แสดงอะไร และแอปทำงานต่อได้ตามปกติ</p>
-<p>ในตัวอย่างนี้ การเรียกอยู่ใน <code>build()</code> ซึ่ง Flutter อาจเรียกซ้ำเมื่อหน้าจออัปเดต หากต้องการตรวจสอบเพียงครั้งเดียวเมื่อเปิดหน้า ให้ย้ายการเรียกไปยังจุดเริ่มต้นของหน้านั้นแทน</p>
+<p>เรียกเมื่อหน้าแสดงครั้งแรกตามตัวอย่าง ไม่ควรเรียกใน <code>build()</code> เพราะอาจเกิดการเรียกใหม่เมื่อหน้าจออัปเดต</p>
+<p>ทั้งแอปแสดง App Attention ได้ทีละหนึ่งอัน ระหว่างโหลดหรือแสดงป๊อปอัป การเรียกซ้ำทุก <code>pageName</code> จะถูกข้ามโดยไม่เก็บคิว เมื่อปิดแล้วต้องเรียก <code>Pam.appAttention()</code> ใหม่จึงจะมีโอกาสแสดงอีกครั้ง ไม่มีการเปิดอันถัดไปอัตโนมัติ หากไม่มีข้อความหรือเกิดข้อผิดพลาดก็สามารถเรียกใหม่ได้ เมธอดคืน <code>Future&lt;void&gt;</code> ให้รอจบงานได้ และจะข้ามผลลัพธ์เก่าหากหน้าไม่อยู่ด้านหน้าหรือ session เปลี่ยนไป</p>
+<hr>
+<h2>เปลี่ยนข้อความและสี Action Button</h2>
+<p>หาก API ไม่ส่ง <code>url</code> สำหรับคลิก ส่ง <code>null</code> ข้อความว่าง หรือช่องว่างล้วน SDK จะซ่อน Action Button ทั้ง iOS และ Android แม้กำหนดข้อความปุ่มหรือ <code>onBannerClick</code> ไว้ เนื้อหาป๊อปอัปและปุ่มปิดยังแสดงตามปกติ</p>
+<p>กำหนดข้อความ สีพื้นหลัง และสีข้อความของปุ่มจากโค้ดได้ทั้ง Android และ iOS:</p>
+<pre><code class="hljs language-dart"><span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">appAttention</span>(
+  context,
+  pageName: <span class="hljs-string">&#x27;home&#x27;</span>,
+  actionButtonLabel: <span class="hljs-string">&#x27;ดูข้อเสนอ&#x27;</span>,
+  actionButtonColor: <span class="hljs-string">&#x27;#0066FF&#x27;</span>,
+  actionButtonTextColor: <span class="hljs-string">&#x27;#FFFFFF&#x27;</span>,
+);
+</code></pre><p>สีใช้รูปแบบ <code>#RRGGBB</code> จำนวน 6 หลัก รองรับตัวอักษรพิมพ์เล็กและใหญ่ หากสีไม่ถูกต้องจะใช้สีเดิมของปุ่ม ไม่กำหนดตัวเลือกใดก็ใช้ค่าเดิมได้</p>
+<p>ค่าจาก API มีลำดับความสำคัญสูงกว่าค่าจากโค้ด โดยพิจารณาแยกแต่ละฟิลด์: <code>action_button_label</code>, <code>action_button_color</code> และ <code>action_button_text_color</code> หาก API ไม่ส่งฟิลด์นั้น ส่ง <code>null</code> ส่งข้อความว่าง หรือช่องว่างล้วน จะใช้ค่าจากโค้ดแทน หากไม่ได้กำหนดจากโค้ดด้วย จะใช้ค่าเริ่มต้นของปุ่ม</p>
 <hr>
 <h2>onBannerClick: กำหนดการทำงานเมื่อผู้ใช้คลิกป๊อปอัป</h2>
 <p>โดยปกติ เมื่อผู้ใช้คลิก App Attention SDK จะอ่าน <code>url</code> ที่กำหนดมากับข้อความและเปิดด้วยแอปภายนอก หากต้องการจัดการเอง เช่น เปิดหน้าสินค้าภายในแอป หรือนำผู้ใช้ไปยังหน้าคูปอง ให้ส่ง callback ผ่านพารามิเตอร์ <code>onBannerClick</code></p>

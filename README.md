@@ -1,6 +1,6 @@
 # PAM Flutter SDK
 
-A Flutter plugin for integrating PAM Real CDP into Flutter mobile applications. This guide covers SDK v3.0.3.
+A Flutter plugin for integrating PAM Real CDP into Flutter mobile applications. This guide covers SDK v3.1.0.
 
 ## Table of Contents
 
@@ -14,6 +14,7 @@ A Flutter plugin for integrating PAM Real CDP into Flutter mobile applications. 
   - [Push Notifications](#push-notifications)
   - [User Tracking](#user-tracking)
   - [App Attention](#app-attention)
+- [Logging](#logging)
 - [API Reference](#api-reference)
 - [Examples](#examples)
 - [Troubleshooting](#troubleshooting)
@@ -23,15 +24,17 @@ A Flutter plugin for integrating PAM Real CDP into Flutter mobile applications. 
 
 ### Prerequisites
 
-- Flutter SDK version 3.3.0 or later
-- Dart SDK version 3.6.0 or later
+- Flutter SDK version 3.41.0 or later
+- Dart SDK version 3.11.0 or later
+- Android API 24 or later
+- iOS 13.0 or later
 
 ### Adding pam_flutter to Your Project
 
 Open a terminal and run the following command to add `pam_flutter` to your Flutter project:
 
 ```sh
-flutter pub add pam_flutter:^3.0.3
+flutter pub add pam_flutter:^3.1.0
 ```
 
 ## Migrating from 2.x
@@ -340,6 +343,29 @@ await Pam.userLogout();
 
 By signaling user logout to PAM, you contribute to the accurate tracking of user activities and ensure that the analytics reflect the user's session status.
 
+#### Resetting Local PAM Data
+
+To forget the current user's local PAM data, await reset. PAM stays ready to use
+with the same app configuration; there is no need to initialize again:
+
+```dart
+await Pam.reset();
+```
+
+Reset waits for queued operations, removes all PAM keys from secure storage and
+SharedPreferences, and clears in-memory contacts, login identity, saved push
+token, cached device ID, tracking consent, session, and tracking pause.
+App configuration, database aliases, logging settings, and callbacks are preserved.
+The next operation chooses the database for the anonymous state from that config.
+Other application storage is preserved. Storage failures are thrown so callers
+can retry; in-memory state is cleared even if storage cleanup fails.
+
+Reset does not send logout, unlink a server-side push token, or delete server
+contacts or tracking history. Use `Pam.userLogout()` first if remote logout is
+needed. The OS-provided device ID may be the same when read again; reset does
+not change OS tracking or notification permissions. Await reset before
+submitting new PAM operations.
+
 `Pam.userLogout()` removes the notification token from the logged-in contact
 and does not attach the saved token to the anonymous contact. A token previously
 provided by the application remains available for the next explicit
@@ -528,11 +554,80 @@ WidgetsBinding.instance.addPostFrameCallback((_) {
 
 ##### Explanation
 
+App Attention displays one popup across the app at a time. Calls made while
+loading or displaying a popup are skipped for every `pageName`, without a queue.
+After dismissal, explicitly call `Pam.appAttention` again to check for another
+popup. Empty responses and errors also release the lock. The method returns
+`Future<void>` and ignores stale responses/clicks after the calling page or user
+session changes. Call it when entering a page, rather than from `build()`.
+
 - `context`: The BuildContext of the current widget tree.
 - `pageName`: A string that specifies the current page name, allowing dynamic banners tailored to specific app pages.
+- `actionButtonLabel`: Optional label for the action button.
+- `actionButtonColor`: Optional button background in `#RRGGBB` format, for example `#0066FF`.
+- `actionButtonTextColor`: Optional button text color in `#RRGGBB` format, for example `#FFFFFF`.
 - `onBannerClick`: A callback function triggered when the user interacts with the banner. It receives `bannerData` as a parameter, which contains details about the clicked banner. The callback can:
   - Return `true` to stop the default behavior (e.g., open a custom page in your app).
   - Return `false` to proceed with the default behavior (e.g., open the provided URL in the browser).
+
+```dart
+Pam.appAttention(
+  context,
+  pageName: 'home',
+  actionButtonLabel: 'View offer',
+  actionButtonColor: '#0066FF',
+  actionButtonTextColor: '#FFFFFF',
+);
+```
+
+These options apply on Android and iOS. Colors accept six hex digits with a
+leading `#`, in either letter case; invalid colors keep the platform's existing
+button color. For each popup payload field (`action_button_label`,
+`action_button_color`, `action_button_text_color`), a non-empty API string takes
+priority over the corresponding code parameter. Missing, null, empty, or
+whitespace-only API values use the code parameter instead. If that parameter is
+also omitted, the platform's existing default is used.
+
+The action button is hidden on both platforms when the API's `url` is missing,
+null, empty, or whitespace-only, even if a button label or click callback is
+provided. The popup content and close button remain available.
+
+## Logging
+
+Set `enableLog` to `true` in `PamConfig` to enable SDK logs. Existing calls still
+work; category and level are optional:
+
+```dart
+Pam.log(['SDK ready']); // General / INFO
+Pam.log(
+  ['Failed to load consent'],
+  category: PamLogCategory.consent,
+  level: PamLogLevel.error,
+);
+```
+
+Categories: `general`, `tracking`, `identity`, `consent`, `push`, `attention`,
+`storage`. Levels: `debug`, `info` (default), `warning`, `error`.
+Every output line has a prefix such as `[PAM][Consent][ERROR]`.
+`enableLog: false` suppresses all levels.
+
+- **Android Studio Logcat:** use `tag:PAM` for all SDK logs,
+  `tag:PAM message:Consent` for consent, or `tag:PAM level:ERROR` for errors.
+- **iOS Xcode / Console:** filter subsystem `ai.pams.flutter` and category such
+  as `Consent`. DEBUG maps to debug, INFO to info, WARN to default (iOS has no
+  warning log type), and ERROR to error. Enable the viewer's info/debug messages
+  when inspecting verbose diagnostics. OSLog supports iOS 13 and later.
+- **Other platforms or unavailable native logging:** messages fall back to the
+  Flutter console, where `[PAM]` and category names can be searched as text.
+
+HTTP logs include a local `request_id`, status, and `duration_ms`. Request and
+response bodies are DEBUG; HTTP errors and failed event outcomes are ERROR.
+Attention logs explain skipped requests, stale results, popup completion, and
+whether each action button setting came from API, code, or defaults. Identity
+and storage logs record session changes and reset outcomes.
+
+Rebuild the app after upgrading to include the native logging handlers; hot
+reload alone does not install them.
 
 ## API Reference
 
@@ -548,7 +643,7 @@ Check the `example/` directory for a complete sample application demonstrating t
 ## Troubleshooting
 
 - **Configuration Issues**: Ensure all values in `pam_config.dart` are correct, including endpoint, database aliases, and consent message IDs.
-- **Debugging**: Set `debugMode = true` to enable logs in the console for debugging.
+- **Debugging**: Set `enableLog` to `true` in `PamConfig`; see Logging above for native console filters.
 - **Network and Permissions**: Check internet connection and required permissions (e.g., for push notifications on iOS/Android).
 - **PAM CMS Verification**: Verify that keys, IDs, and settings in PAM CMS match your config.
 - **Error Checking**: Look for error messages in the console or logs for more details.

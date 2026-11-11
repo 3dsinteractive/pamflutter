@@ -64,10 +64,18 @@ class UserPreference {
 
   Future<void> remove(SaveKey key) async {
     String keyName = getKeyName(key);
-    await _secureStorage.delete(key: keyName);
+    try {
+      await _secureStorage.delete(key: keyName);
+    } finally {
+      var pref = await SharedPreferences.getInstance();
+      await pref.remove(keyName);
+    }
+  }
 
-    var pref = await SharedPreferences.getInstance();
-    await pref.remove(keyName);
+  /// Removes only PAM keys from secure storage and legacy preferences.
+  /// Attempts every key and reports storage failures to the caller.
+  Future<void> clear() async {
+    await Future.wait(SaveKey.values.map(remove));
   }
 
   Future<String?> _readLegacySharedPreferencesStringAndMigrate(

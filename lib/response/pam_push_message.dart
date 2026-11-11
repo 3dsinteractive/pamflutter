@@ -19,20 +19,21 @@ class PamPushMessage {
   String? clickTrackingUrl = "";
   String? redirectId = "";
 
-  PamPushMessage(
-      {required this.deliverID,
-      required this.pixel,
-      required this.title,
-      required this.description,
-      required this.thumbnailUrl,
-      required this.flex,
-      required this.url,
-      required this.popupType,
-      required this.date,
-      required this.isOpen,
-      required this.data,
-      required this.clickTrackingUrl,
-      required this.redirectId});
+  PamPushMessage({
+    required this.deliverID,
+    required this.pixel,
+    required this.title,
+    required this.description,
+    required this.thumbnailUrl,
+    required this.flex,
+    required this.url,
+    required this.popupType,
+    required this.date,
+    required this.isOpen,
+    required this.data,
+    required this.clickTrackingUrl,
+    required this.redirectId,
+  });
 
   Future<void> fireAndForget(String? url) async {
     if (url == null) {
@@ -40,10 +41,22 @@ class PamPushMessage {
     }
     try {
       final uri = Uri.parse(url);
-      await http.get(uri).timeout(const Duration(seconds: 3));
-      Pam.log(['Track sent successfully: $url']);
+      final response = await http.get(uri).timeout(const Duration(seconds: 3));
+      Pam.log(
+        [
+          'Push pixel completed deliver_id=$deliverID status=${response.statusCode}',
+        ],
+        category: PamLogCategory.push,
+        level: response.statusCode >= 400
+            ? PamLogLevel.error
+            : PamLogLevel.debug,
+      );
     } catch (e) {
-      Pam.log(['Track failed: $e']);
+      Pam.log(
+        ['Push pixel failed deliver_id=$deliverID', e],
+        category: PamLogCategory.push,
+        level: PamLogLevel.error,
+      );
     }
   }
 
@@ -61,7 +74,11 @@ class PamPushMessage {
     try {
       map = jsonDecode(jsonStr);
     } catch (e, stackTrace) {
-      Pam.log(["Push Message Parse Error", stackTrace, e]);
+      Pam.log(
+        ["Push Message Parse Error", stackTrace, e],
+        category: PamLogCategory.push,
+        level: PamLogLevel.error,
+      );
       return [];
     }
 
@@ -93,23 +110,29 @@ class PamPushMessage {
       String? redirectId = json["redirect_id"];
 
       var item = PamPushMessage(
-          deliverID: deliverID,
-          pixel: pixel,
-          title: title,
-          description: description,
-          thumbnailUrl: thumbnailUrl,
-          flex: flex,
-          url: url,
-          popupType: popupType,
-          date: localDateTime,
-          isOpen: isOpen,
-          data: payloadJson,
-          clickTrackingUrl: clickTrackingUrl,
-          redirectId: redirectId);
+        deliverID: deliverID,
+        pixel: pixel,
+        title: title,
+        description: description,
+        thumbnailUrl: thumbnailUrl,
+        flex: flex,
+        url: url,
+        popupType: popupType,
+        date: localDateTime,
+        isOpen: isOpen,
+        data: payloadJson,
+        clickTrackingUrl: clickTrackingUrl,
+        redirectId: redirectId,
+      );
 
       result.add(item);
     }
 
+    Pam.log(
+      ['Messages parsed count=${result.length}'],
+      category: PamLogCategory.push,
+      level: PamLogLevel.debug,
+    );
     return result;
   }
 }

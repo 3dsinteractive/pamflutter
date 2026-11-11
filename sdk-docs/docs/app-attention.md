@@ -28,15 +28,25 @@ App Attention มีให้เลือกสองขนาด ได้แ�
 import 'package:flutter/material.dart';
 import 'package:pam_flutter/pam.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // ตรวจสอบว่ามี App Attention สำหรับหน้า home หรือไม่
-    // ไม่ต้อง await แอปสามารถแสดงหน้าจอต่อได้ทันที
-    Pam.appAttention(context, pageName: 'home');
+  State<HomePage> createState() => _HomePageState();
+}
 
+class _HomePageState extends State<HomePage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Pam.appAttention(context, pageName: 'home');
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('หน้าหลัก')),
       body: const Center(child: Text('ยินดีต้อนรับ')),
@@ -47,7 +57,31 @@ class HomePage extends StatelessWidget {
 
 สามารถเรียก `Pam.appAttention()` เพื่อตรวจสอบข้อความที่ต้องแสดงได้ หากไม่มีป๊อปอัปที่เข้าเงื่อนไข ระบบจะไม่แสดงอะไร และแอปทำงานต่อได้ตามปกติ
 
-ในตัวอย่างนี้ การเรียกอยู่ใน `build()` ซึ่ง Flutter อาจเรียกซ้ำเมื่อหน้าจออัปเดต หากต้องการตรวจสอบเพียงครั้งเดียวเมื่อเปิดหน้า ให้ย้ายการเรียกไปยังจุดเริ่มต้นของหน้านั้นแทน
+เรียกเมื่อหน้าแสดงครั้งแรกตามตัวอย่าง ไม่ควรเรียกใน `build()` เพราะอาจเกิดการเรียกใหม่เมื่อหน้าจออัปเดต
+
+ทั้งแอปแสดง App Attention ได้ทีละหนึ่งอัน ระหว่างโหลดหรือแสดงป๊อปอัป การเรียกซ้ำทุก `pageName` จะถูกข้ามโดยไม่เก็บคิว เมื่อปิดแล้วต้องเรียก `Pam.appAttention()` ใหม่จึงจะมีโอกาสแสดงอีกครั้ง ไม่มีการเปิดอันถัดไปอัตโนมัติ หากไม่มีข้อความหรือเกิดข้อผิดพลาดก็สามารถเรียกใหม่ได้ เมธอดคืน `Future<void>` ให้รอจบงานได้ และจะข้ามผลลัพธ์เก่าหากหน้าไม่อยู่ด้านหน้าหรือ session เปลี่ยนไป
+
+---
+
+## เปลี่ยนข้อความและสี Action Button
+
+หาก API ไม่ส่ง `url` สำหรับคลิก ส่ง `null` ข้อความว่าง หรือช่องว่างล้วน SDK จะซ่อน Action Button ทั้ง iOS และ Android แม้กำหนดข้อความปุ่มหรือ `onBannerClick` ไว้ เนื้อหาป๊อปอัปและปุ่มปิดยังแสดงตามปกติ
+
+กำหนดข้อความ สีพื้นหลัง และสีข้อความของปุ่มจากโค้ดได้ทั้ง Android และ iOS:
+
+```dart
+Pam.appAttention(
+  context,
+  pageName: 'home',
+  actionButtonLabel: 'ดูข้อเสนอ',
+  actionButtonColor: '#0066FF',
+  actionButtonTextColor: '#FFFFFF',
+);
+```
+
+สีใช้รูปแบบ `#RRGGBB` จำนวน 6 หลัก รองรับตัวอักษรพิมพ์เล็กและใหญ่ หากสีไม่ถูกต้องจะใช้สีเดิมของปุ่ม ไม่กำหนดตัวเลือกใดก็ใช้ค่าเดิมได้
+
+ค่าจาก API มีลำดับความสำคัญสูงกว่าค่าจากโค้ด โดยพิจารณาแยกแต่ละฟิลด์: `action_button_label`, `action_button_color` และ `action_button_text_color` หาก API ไม่ส่งฟิลด์นั้น ส่ง `null` ส่งข้อความว่าง หรือช่องว่างล้วน จะใช้ค่าจากโค้ดแทน หากไม่ได้กำหนดจากโค้ดด้วย จะใช้ค่าเริ่มต้นของปุ่ม
 
 ---
 

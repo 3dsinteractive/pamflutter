@@ -9,6 +9,8 @@ public class PopupViewController: UIViewController {
     var containerView: UIView?
     var videoPlayer: AVPlayer?
     var result: FlutterResult?
+    var logger: PamLogger?
+    private var closing = false
 
     public override func viewDidLoad() {
         super.viewDidLoad()
@@ -28,7 +30,13 @@ public class PopupViewController: UIViewController {
 
         // ส่ง Tracking Pixel ไปยัง Server
         if let url = URL(string: trackingPixelUrl ?? "") {
-            URLSession.shared.dataTask(with: url).resume()
+            let logger = self.logger
+            URLSession.shared.dataTask(with: url) { [weak logger] _, response, error in
+                DispatchQueue.main.async {
+                    logger?.attentionPixelFailed(
+                        status: (response as? HTTPURLResponse)?.statusCode, error: error)
+                }
+            }.resume()
         }
 
         // พื้นหลังสีดำโปร่งแสง
@@ -196,10 +204,21 @@ public class PopupViewController: UIViewController {
 
         // Close Button
         let info = UIButton(type: .system)
+        let actionURL = (popup["url"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        info.isHidden = actionURL.isEmpty
         info.backgroundColor = UIColor(red: 0.36, green: 0.94, blue: 0.85, alpha: 1.0)
         info.setTitleColor(.black, for: UIControl.State.normal)
         info.layer.cornerRadius = 20
         info.setTitle("LEARN MORE..", for: .normal)
+        if let text = popup["action_button_label"] as? String {
+            info.setTitle(text, for: .normal)
+        }
+        if let color = buttonColor(popup["action_button_color"]) {
+            info.backgroundColor = color
+        }
+        if let color = buttonColor(popup["action_button_text_color"]) {
+            info.setTitleColor(color, for: .normal)
+        }
         info.addTarget(self, action: #selector(learnMore), for: .touchUpInside)
         info.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(info)
@@ -222,6 +241,20 @@ public class PopupViewController: UIViewController {
         )
     }
 
+    private func buttonColor(_ value: Any?) -> UIColor? {
+        guard let text = value as? String else { return nil }
+        let hex = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard hex.range(of: "^#[0-9a-fA-F]{6}$", options: .regularExpression) != nil,
+            let rgb = UInt32(hex.dropFirst(), radix: 16)
+        else { return nil }
+        return UIColor(
+            red: CGFloat((rgb >> 16) & 0xff) / 255,
+            green: CGFloat((rgb >> 8) & 0xff) / 255,
+            blue: CGFloat(rgb & 0xff) / 255,
+            alpha: 1
+        )
+    }
+
     @objc private func restartVideo() {
         videoPlayer?.seek(to: .zero)
         videoPlayer?.play()
@@ -231,21 +264,35 @@ public class PopupViewController: UIViewController {
         playerLayer?.frame = containerView?.bounds ?? CGRect.zero
     }
 
+    // Complete only after dismissal, and only once, for every dismissal path.
+    func complete(_ value: Any?) {
+        let callback = result
+        result = nil
+        videoPlayer?.pause()
+        NotificationCenter.default.removeObserver(self)
+        callback?(value)
+    }
+
+    private func close(with value: Any?) {
+        guard !closing, result != nil else { return }
+        closing = true
+        videoPlayer?.pause()
+        dismiss(animated: true) { self.complete(value) }
+    }
+
     @objc private func learnMore() {
-        result?(popupData)
-        dismiss(animated: true)
+        close(with: popupData)
     }
 
     @objc private func closePopup() {
-        UIView.animate(
-            withDuration: 0.3,
-            animations: {
-                self.view.alpha = 0
-            },
-            completion: { _ in
-                self.result?(nil)
-                self.dismiss(animated: false, completion: nil)
-            })
+        close(with: nil)
+    }
+
+    public override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        if !closing && (isBeingDismissed || presentingViewController == nil) {
+            complete(nil)
+        }
     }
 
     deinit {

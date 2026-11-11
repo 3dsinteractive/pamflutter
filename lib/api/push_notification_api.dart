@@ -1,3 +1,4 @@
+import '../src/pam_log_request.dart';
 import '../http/http_client.dart';
 import '../response/pam_push_message.dart';
 import '../pam.dart';
@@ -16,30 +17,30 @@ class PamPushNotificationAPI {
   }
 
   Future<List<PamPushMessage>?> loadPushNotificationsFromMobile(
-      String mobileNumber) async {
+    String mobileNumber,
+  ) async {
     Response? response;
     var db = await Pam.shared.getDatabaseAlias();
     var contact = await Pam.shared.getContactID();
-    Pam.log([
-      "LOAD PUSH NOTIFICATION",
-      "_database=$db&_contact_id=$contact&sms=$mobileNumber"
-    ]);
+    final log = PamLogRequest(
+      PamLogCategory.push,
+      'GET /api/app-notifications',
+      details: {
+        'server': Uri.tryParse(baseURL)?.host,
+        'database': db,
+        'contact_id': contact,
+        'match': 'sms',
+      },
+    );
     try {
       var uri = Uri.parse(
-          "$baseURL/api/app-notifications?_database=$db&_contact_id=$contact&sms=$mobileNumber");
+        "$baseURL/api/app-notifications?_database=$db&_contact_id=$contact&sms=$mobileNumber",
+      );
       response = await HttpClient.get(uri);
 
-      Pam.log([
-        "LOAD PUSH NOTIFICATION",
-        uri,
-        "mobile number = $mobileNumber",
-        "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
-        "Status Code: ${response.statusCode}",
-        "----- Response Body -----",
-        response.body,
-      ]);
+      log.complete(response.statusCode, body: response.body);
     } catch (e, stackTrace) {
-      Pam.log(["ERROR", stackTrace, e]);
+      log.fail(e, stackTrace);
     }
 
     if (response != null) {
@@ -50,30 +51,30 @@ class PamPushNotificationAPI {
   }
 
   Future<List<PamPushMessage>?> loadPushNotificationsFromEmail(
-      String email) async {
+    String email,
+  ) async {
     Response? response;
     var db = await Pam.shared.getDatabaseAlias();
     var contact = await Pam.shared.getContactID();
 
-    Pam.log([
-      "LOAD PUSH NOTIFICATION",
-      "_database=$db&_contact_id=$contact&email=$email"
-    ]);
+    final log = PamLogRequest(
+      PamLogCategory.push,
+      'GET /api/app-notifications',
+      details: {
+        'server': Uri.tryParse(baseURL)?.host,
+        'database': db,
+        'contact_id': contact,
+        'match': 'email',
+      },
+    );
     try {
       var uri = Uri.parse(
-          "$baseURL/api/app-notifications?_database=$db&_contact_id=$contact&email=$email");
+        "$baseURL/api/app-notifications?_database=$db&_contact_id=$contact&email=$email",
+      );
       response = await HttpClient.get(uri);
-      Pam.log([
-        "LOAD PUSH NOTIFICATION",
-        uri,
-        "email = $email",
-        "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
-        "Status Code: ${response.statusCode}",
-        "----- Response Body -----",
-        response.body
-      ]);
+      log.complete(response.statusCode, body: response.body);
     } catch (e, stackTrace) {
-      Pam.log(["ERROR", stackTrace, e]);
+      log.fail(e, stackTrace);
     }
 
     if (response != null) {
@@ -84,29 +85,29 @@ class PamPushNotificationAPI {
   }
 
   Future<List<PamPushMessage>?> loadPushNotificationsFromCustomerID(
-      String customer) async {
+    String customer,
+  ) async {
     Response? response;
     var db = await Pam.shared.getDatabaseAlias();
     var contact = await Pam.shared.getContactID();
-    Pam.log([
-      "LOAD PUSH NOTIFICATION",
-      "_database=$db&_contact_id=$contact&customer=$customer"
-    ]);
+    final log = PamLogRequest(
+      PamLogCategory.push,
+      'GET /api/app-notifications',
+      details: {
+        'server': Uri.tryParse(baseURL)?.host,
+        'database': db,
+        'contact_id': contact,
+        'match': 'customer',
+      },
+    );
     try {
       var uri = Uri.parse(
-          "$baseURL/api/app-notifications?_database=$db&_contact_id=$contact&customer=$customer");
+        "$baseURL/api/app-notifications?_database=$db&_contact_id=$contact&customer=$customer",
+      );
       response = await HttpClient.get(uri);
-      Pam.log([
-        "LOAD PUSH NOTIFICATION",
-        uri,
-        "customer id = $customer",
-        "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
-        "Status Code: ${response.statusCode}",
-        "----- Response Body -----",
-        response.body,
-      ]);
+      log.complete(response.statusCode, body: response.body);
     } catch (e, stackTrace) {
-      Pam.log(["ERROR", stackTrace, e]);
+      log.fail(e, stackTrace);
     }
 
     if (response != null) {
@@ -120,22 +121,24 @@ class PamPushNotificationAPI {
     Response? response;
     var db = await Pam.shared.getDatabaseAlias();
     var contact = await Pam.shared.getContactID();
-    Pam.log(["LOAD PUSH NOTIFICATION", "_database=$db&_contact_id=$contact"]);
+    final log = PamLogRequest(
+      PamLogCategory.push,
+      'GET /api/app-notifications',
+      details: {
+        'server': Uri.tryParse(baseURL)?.host,
+        'database': db,
+        'contact_id': contact,
+        'match': 'contact',
+      },
+    );
     try {
       var uri = Uri.parse(
-          "$baseURL/api/app-notifications?_database=$db&_contact_id=$contact");
+        "$baseURL/api/app-notifications?_database=$db&_contact_id=$contact",
+      );
       response = await HttpClient.get(uri);
-      Pam.log([
-        "LOAD PUSH NOTIFICATION",
-        uri,
-        "contact id = $contact",
-        "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
-        "Status Code: ${response.statusCode}",
-        "----- Response Body -----",
-        response.body,
-      ]);
+      log.complete(response.statusCode, body: response.body);
     } catch (e, stackTrace) {
-      Pam.log(["ERROR", stackTrace, e]);
+      log.fail(e, stackTrace);
     }
 
     if (response != null) {

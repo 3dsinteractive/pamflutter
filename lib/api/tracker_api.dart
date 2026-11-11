@@ -1,3 +1,4 @@
+import '../src/pam_log_request.dart';
 import '../response/pam_response.dart';
 import '../pam.dart';
 import 'dart:convert';
@@ -12,35 +13,33 @@ class TrackerAPI {
   Future<PamResponse?> postTracker(Map<String, dynamic> body) async {
     var uri = Uri.parse("$baseURL/trackers/events");
 
+    final log = PamLogRequest(
+      PamLogCategory.tracking,
+      'POST /trackers/events',
+      details: {'server': Uri.tryParse(baseURL)?.host, 'event': body['event']},
+    );
     try {
-      var response =
-          await HttpClient.post(uri, body: body, timeout: requestTimeout);
-
-      const encoder = JsonEncoder.withIndent('  ');
-      var bodyLog = encoder.convert(body);
-
-      Pam.log([
-        "${DateTime.now()}",
-        "🦄🦄🦄🦄🦄 PAM TRACKING EVENT 🦄🦄🦄🦄🦄🦄\n\n",
+      if (Pam.shared.isEnableLog) {
+        log.payload(const JsonEncoder.withIndent('  ').convert(body));
+      }
+      var response = await HttpClient.post(
         uri,
-        "----- Payload -----",
-        bodyLog,
-        "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
-        "Status Code: ${response.statusCode}",
-        "----- Response Body -----",
-        response.body,
-        "-------------",
-        "RES+ = ${response.body}"
-      ]);
+        body: body,
+        timeout: requestTimeout,
+      );
+
+      log.complete(response.statusCode, body: response.body);
 
       final pamResponse = PamResponse.parse(response.body);
       return pamResponse;
     } catch (e, stackTrace) {
-      Pam.log(["TRACKING ERROR", stackTrace, e]);
+      log.fail(e, stackTrace);
 
       var errorResponse = PamResponse();
-      errorResponse.error =
-          PamErrorResponse(code: "EXCEPTION", errorMessage: e.toString());
+      errorResponse.error = PamErrorResponse(
+        code: "EXCEPTION",
+        errorMessage: e.toString(),
+      );
       return errorResponse;
     }
   }

@@ -116,6 +116,23 @@ code {
 </tr>
 </tbody></table>
 <hr>
+<h2>ตรวจสอบการทำงานด้วย Log</h2>
+<p>ตั้ง <code>enableLog</code> เป็น <code>true</code> เพื่อเปิด log ทุกหมวดของ SDK และตั้งเป็น <code>false</code> เพื่อปิดทุกระดับ การเรียกแบบเดิมยังใช้ได้ และเลือกหมวดกับระดับเพิ่มเติมได้:</p>
+<pre><code class="hljs language-dart"><span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">log</span>([<span class="hljs-string">&#x27;SDK ready&#x27;</span>]); <span class="hljs-comment">// General / INFO</span>
+<span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">log</span>(
+  [<span class="hljs-string">&#x27;Failed to load consent&#x27;</span>],
+  category: <span class="hljs-title class_">PamLogCategory</span>.consent,
+  level: <span class="hljs-title class_">PamLogLevel</span>.error,
+);
+</code></pre><p>หมวด <code>PamLogCategory</code> มี <code>general</code>, <code>tracking</code>, <code>identity</code>, <code>consent</code>, <code>push</code>, <code>attention</code> และ <code>storage</code> ส่วน <code>PamLogLevel</code> มี <code>debug</code>, <code>info</code> (ค่าเริ่มต้น), <code>warning</code> และ <code>error</code> แต่ละบรรทัดมีรูปแบบ <code>[PAM][Consent][ERROR] ข้อความ</code> รวมถึง stack trace และข้อความยาวที่แบ่งเป็นหลายบรรทัด</p>
+<ul>
+<li><strong>Android Studio Logcat:</strong> กรองด้วย <code>tag:PAM</code>, <code>tag:PAM message:Consent</code> หรือ <code>tag:PAM level:ERROR</code></li>
+<li><strong>iOS Xcode / Console:</strong> กรอง subsystem <code>ai.pams.flutter</code> และ category เช่น <code>Consent</code> หากต้องการรายละเอียดให้เปิดการแสดงข้อความระดับ info/debug ด้วย ระดับ warning ใช้ชนิด default ของ OSLog พร้อม <code>[WARN]</code> ในข้อความ</li>
+<li>หากระบบ log ของ native ยังไม่พร้อม จะใช้ Flutter console แทน โดยค้นหา <code>[PAM]</code> ได้</li>
+</ul>
+<p>Log ของ API มี <code>request_id</code> สำหรับจับคู่คำขอกับผลลัพธ์ พร้อม HTTP status และ <code>duration_ms</code> ส่วน payload/response body อยู่ระดับ DEBUG ข้อผิดพลาดอยู่ระดับ ERROR นอกจากนี้มีเหตุผลที่ข้าม Attention, แหล่งค่าปุ่ม API/code/default, การเปลี่ยน session และผลการ reset เพื่อช่วยไล่ปัญหา</p>
+<p>หลังอัปเดต SDK ต้อง rebuild แอปเพื่อรวมโค้ด native ใหม่ การ hot reload อย่างเดียวไม่เพียงพอ</p>
+<hr>
 <p><a id="identity-matcher"></a></p>
 <h2>identityMatcher: เลือกข้อมูลที่ใช้ระบุตัวตน</h2>
 <p>เลือกฟิลด์ให้ตรงกับคีย์ของฐานข้อมูลใน PAM เช่น หากใช้รหัสลูกค้า ให้กำหนดดังนี้:</p>
