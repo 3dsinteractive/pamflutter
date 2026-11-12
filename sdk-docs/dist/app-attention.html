@@ -175,6 +175,76 @@ code {
   },
 );
 </code></pre><p>หากต้องเริ่มงาน asynchronous ภายใน callback สามารถเรียกฟังก์ชันแยกให้ทำงานต่อได้ แล้วคืน <code>true</code> ทันทีเมื่อแอปเป็นผู้รับผิดชอบการคลิกนั้น โดยไม่ต้องรอผลใน callback</p>
+<h2>ตรวจ App Attention จากจุดกลางเมื่อเปลี่ยนหน้า</h2>
+<p>หากต้องการตรวจทั้งตอนเข้าหน้าใหม่และกลับมาหน้าเดิม ให้ใช้ <code>NavigatorObserver</code> แทนการเรียกซ้ำใน <code>initState()</code> ของแต่ละหน้า ตัวอย่างนี้ใช้กับ <code>MaterialApp</code> / <code>Navigator</code> ที่มีชื่อ route โดยข้าม dialog และ popup ของแอป</p>
+<p>ก่อนตรวจ Attention ต้อง initialize PAM และได้รับ contact จาก API แล้ว ซึ่งอาจมาจาก tracking event ใดก็ได้ ไม่จำเป็นต้องผ่าน login หรือ consent โดยเฉพาะ หากยังไม่มี contact SDK จะข้ามการตรวจ Attention ครั้งนั้น</p>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:flutter/material.dart&#x27;</span>;
+<span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:pam_flutter/pam.dart&#x27;</span>;
+
+<span class="hljs-keyword">void</span> <span class="hljs-title function_">checkPamAttentionForPage</span>(
+  <span class="hljs-title class_">BuildContext</span> context, {
+  <span class="hljs-keyword">required</span> <span class="hljs-title class_">String</span> pageName,
+}) {
+  <span class="hljs-keyword">if</span> (!context.mounted) <span class="hljs-keyword">return</span>;
+  <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">appAttention</span>(context, pageName: pageName);
+}
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PamAttentionNavigatorObserver</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">NavigatorObserver</span> </span>{
+  <span class="hljs-built_in">int</span> _pageChangeVersion = <span class="hljs-number">0</span>;
+
+  <span class="hljs-meta">@override</span>
+  <span class="hljs-keyword">void</span> <span class="hljs-title function_">didPush</span>(<span class="hljs-title class_">Route</span>&lt;<span class="hljs-built_in">dynamic</span>&gt; route, <span class="hljs-title class_">Route</span>&lt;<span class="hljs-built_in">dynamic</span>&gt;? previousRoute) {
+    <span class="hljs-comment">// เข้าไปยังหน้าใหม่</span>
+    <span class="hljs-title function_">_checkCurrentPage</span>(route);
+  }
+
+  <span class="hljs-meta">@override</span>
+  <span class="hljs-keyword">void</span> <span class="hljs-title function_">didPop</span>(<span class="hljs-title class_">Route</span>&lt;<span class="hljs-built_in">dynamic</span>&gt; route, <span class="hljs-title class_">Route</span>&lt;<span class="hljs-built_in">dynamic</span>&gt;? previousRoute) {
+    <span class="hljs-comment">// กลับมายังหน้าก่อนหน้า: มีโอกาสตรวจ Attention ใหม่อีกครั้ง</span>
+    <span class="hljs-comment">// การปิด dialog ไม่ถือเป็นการกลับเข้าหน้าใหม่ในตัวอย่างนี้</span>
+    <span class="hljs-keyword">if</span> (route <span class="hljs-keyword">is</span> <span class="hljs-title class_">PageRoute</span>) <span class="hljs-title function_">_checkCurrentPage</span>(previousRoute);
+  }
+
+  <span class="hljs-meta">@override</span>
+  <span class="hljs-keyword">void</span> <span class="hljs-title function_">didReplace</span>({<span class="hljs-title class_">Route</span>&lt;<span class="hljs-built_in">dynamic</span>&gt;? newRoute, <span class="hljs-title class_">Route</span>&lt;<span class="hljs-built_in">dynamic</span>&gt;? oldRoute}) {
+    <span class="hljs-comment">// เปลี่ยนหน้าด้วย pushReplacement เป็นต้น</span>
+    <span class="hljs-title function_">_checkCurrentPage</span>(newRoute);
+  }
+
+  <span class="hljs-keyword">void</span> <span class="hljs-title function_">_checkCurrentPage</span>(<span class="hljs-title class_">Route</span>&lt;<span class="hljs-built_in">dynamic</span>&gt;? route) {
+    <span class="hljs-keyword">if</span> (route <span class="hljs-keyword">is</span>! <span class="hljs-title class_">PageRoute</span>) <span class="hljs-keyword">return</span>; <span class="hljs-comment">// ไม่ตรวจสำหรับ dialog หรือ popup ของแอป</span>
+    <span class="hljs-keyword">final</span> version = ++_pageChangeVersion;
+
+    <span class="hljs-comment">// รอให้หน้าปัจจุบันสร้างเสร็จก่อน จึงได้ context ของหน้านั้น</span>
+    <span class="hljs-title class_">WidgetsBinding</span>.instance.<span class="hljs-title function_">addPostFrameCallback</span>((_) {
+      <span class="hljs-keyword">if</span> (version != _pageChangeVersion || !route.isCurrent) <span class="hljs-keyword">return</span>;
+      <span class="hljs-keyword">final</span> context = route.subtreeContext;
+      <span class="hljs-keyword">final</span> routeName = route.settings.name;
+      <span class="hljs-keyword">if</span> (context == <span class="hljs-keyword">null</span> || !context.mounted || routeName == <span class="hljs-keyword">null</span>) <span class="hljs-keyword">return</span>;
+
+      <span class="hljs-keyword">final</span> pageName = routeName == <span class="hljs-string">&#x27;/&#x27;</span>
+          ? <span class="hljs-string">&#x27;home&#x27;</span>
+          : routeName.<span class="hljs-title function_">startsWith</span>(<span class="hljs-string">&#x27;/&#x27;</span>)
+          ? routeName.<span class="hljs-title function_">substring</span>(<span class="hljs-number">1</span>)
+          : routeName;
+      <span class="hljs-keyword">if</span> (pageName.isEmpty) <span class="hljs-keyword">return</span>;
+
+      <span class="hljs-title function_">checkPamAttentionForPage</span>(context, pageName: pageName);
+      <span class="hljs-comment">// ไม่มี Attention -&gt; ไม่แสดงอะไร และไม่ขัดจังหวะหน้าปัจจุบัน</span>
+      <span class="hljs-comment">// หากมีป๊อปอัปอื่นกำลังโหลด/แสดง SDK จะข้ามรอบนี้ ไม่เก็บคิว</span>
+    });
+  }
+}
+</code></pre><p>สร้าง observer ครั้งเดียว เช่น เป็น field ของ State ที่สร้าง <code>MaterialApp</code> แล้วลงทะเบียนผ่าน <code>navigatorObservers</code>:</p>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">final</span> pamAttentionObserver = <span class="hljs-title class_">PamAttentionNavigatorObserver</span>();
+
+<span class="hljs-comment">// ภายใน build() ของ State เดียวกัน</span>
+<span class="hljs-keyword">return</span> <span class="hljs-title class_">MaterialApp</span>(
+  navigatorObservers: [pamAttentionObserver],
+  <span class="hljs-comment">// กำหนด routes / onGenerateRoute ของแอปตามปกติ</span>
+);
+</code></pre><p>ตัวอย่างแปลง <code>/</code> เป็น <code>home</code> และ <code>/products</code> เป็น <code>products</code> ให้ปรับ mapping ให้ตรงกับชื่อหน้าใน PAM หากสร้าง <code>MaterialPageRoute</code> เองต้องกำหนด <code>RouteSettings(name: ...)</code> ด้วย หากใช้ router อื่นหรือสลับ tab โดยไม่เปลี่ยน route ให้เรียก <code>checkPamAttentionForPage()</code> จาก callback ของระบบนั้นแทน</p>
+<p>เลือกใช้ observer หรือการเรียกจากหน้าเพียงวิธีเดียวสำหรับหน้าเดียวกัน ระหว่าง Attention โหลดหรือแสดงอยู่ การเรียกใหม่จะถูกข้ามตามพฤติกรรมของ SDK</p>
 <p><a href="index.html">กลับหน้าแรก</a></p>
 
   </main>

@@ -225,9 +225,10 @@ callback, call `Pam.setPushNotificationToken` explicitly from your handler.
 #### Handling Push Notifications
 
 PAM push helpers accept a `Map<String, dynamic>`. With Firebase Messaging, pass
-`message.data`. For foreground messages, use `FirebaseMessaging.onMessage` to
-display the message according to your app's UI. Mark a message read when the user
-opens it.
+`message.data`. The integration example responds only to notification taps that
+resume the app from the background or launch it from a terminated state. Receiving
+a foreground push does not trigger navigation, a banner or popup, or read/click
+tracking in this example.
 
 #### Handling Notification Taps
 
@@ -434,8 +435,11 @@ correct primary or secondary identity payload from `identityMatcher`.
 
 The identity provider must synchronously read cached application state. Return
 `PamUserState.unknown()` while authentication state is still loading. When the
-app and SDK identities do not match, the current tracking event is dropped and
-the global mismatch handler is notified once for that mismatch state.
+SDK already has an identity and it does not match the app identity, the current
+tracking event is dropped and the global mismatch handler is notified once for
+that mismatch state. If the SDK identity is `null`, tracking continues without
+calling `onIdentityMismatch`. The first contact can also be created by consent
+submission, such as `Pam.allowAllTrackingConsent()`, without `Pam.userLogin()`.
 
 #### Migrating Identity Configuration from 2.x
 

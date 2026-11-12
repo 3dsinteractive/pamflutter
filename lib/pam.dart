@@ -1183,15 +1183,19 @@ class Pam {
     }
 
     final oldIdentity = await _getSdkIdentity();
+    // No existing identity means this is an initial identity, not a mismatch.
+    if (oldIdentity == null) {
+      _resetIdentityMismatch();
+      return null;
+    }
+
     final isMatch = _isSameIdentity(oldIdentity, newIdentity);
     if (isMatch) {
       _resetIdentityMismatch();
       return null;
     }
 
-    final mismatchType = oldIdentity == null
-        ? PamIdentityMismatchType.loginRequired
-        : newIdentity == null
+    final mismatchType = newIdentity == null
         ? PamIdentityMismatchType.logoutRequired
         : PamIdentityMismatchType.accountSwitchRequired;
     final mismatch = PamIdentityMismatch(
@@ -1202,7 +1206,7 @@ class Pam {
     );
     final fingerprint = jsonEncode({
       "type": mismatchType.name,
-      "old_value": oldIdentity?.value,
+      "old_value": oldIdentity.value,
       "new_value": newIdentity?.value,
     });
 
@@ -1218,7 +1222,7 @@ class Pam {
           "IDENTITY STATE MISMATCH",
           "Type = ${mismatchType.name}",
           "Identity matcher = ${config?.identityMatcher.type.name}/${config?.identityMatcher.key}",
-          "Old identity = ${oldIdentity?.value}",
+          "Old identity = ${oldIdentity.value}",
           "New identity = ${newIdentity?.value}",
           "Event $event was dropped.",
         ],

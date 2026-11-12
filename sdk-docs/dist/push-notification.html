@@ -66,66 +66,145 @@ code {
 </code></pre><p><strong>ต้องส่ง token ใหม่ให้ PAM ทุกครั้งที่มีการเปลี่ยนแปลง</strong> ไม่ว่าจะเกิดจากการต่ออายุ token การติดตั้งแอปใหม่ หรือเหตุผลอื่น เพราะ PAM ไม่สามารถตรวจพบการเปลี่ยนแปลงนี้เองได้</p>
 <h3>ตัวอย่างสำหรับแอปที่ใช้ Firebase Messaging</h3>
 <p>ตัวอย่างนี้สมมติว่าแอปติดตั้งและตั้งค่า Firebase Messaging รวมถึงขอสิทธิ์รับแจ้งเตือนเรียบร้อยแล้ว ให้เรียกฟังก์ชันนี้ครั้งเดียวหลัง Firebase และ PAM พร้อมใช้งาน โดยไม่ต้องรอขั้นตอนนี้ก่อนเปิดหน้าจอหลักของแอป</p>
-<pre><code class="hljs language-dart"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:firebase_messaging/firebase_messaging.dart&#x27;</span>;
-<span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:pam_flutter/pam.dart&#x27;</span>;
+<pre><code class="hljs language-dart"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:pam_flutter/pam.dart&#x27;</span>;
+<span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:firebase_messaging/firebase_messaging.dart&#x27;</span>;
 
+<span class="hljs-comment">// แอปจัดการ Firebase.initializeApp(), การตั้งค่า Firebase และสิทธิ์แจ้งเตือนเอง</span>
+<span class="hljs-comment">// เรียกครั้งเดียวหลัง Firebase และ PAM พร้อมใช้งาน โดยไม่ต้อง await</span>
 <span class="hljs-keyword">void</span> <span class="hljs-title function_">registerPamPushToken</span>() {
-  <span class="hljs-comment">// รับ token ที่เปลี่ยนแปลง และส่งค่าใหม่ให้ PAM ทุกครั้ง</span>
-  <span class="hljs-title class_">FirebaseMessaging</span>.instance.onTokenRefresh.<span class="hljs-title function_">listen</span>((deviceToken) {
-    <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">setPushNotificationToken</span>(deviceToken);
-  });
+  <span class="hljs-keyword">void</span> <span class="hljs-title function_">logPushError</span>(<span class="hljs-title class_">Object</span> error, [<span class="hljs-title class_">StackTrace</span>? stackTrace]) {
+    <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">log</span>(
+      [
+        <span class="hljs-string">&#x27;PAM push token registration failed&#x27;</span>,
+        error,
+        <span class="hljs-keyword">if</span> (stackTrace != <span class="hljs-keyword">null</span>) stackTrace,
+      ],
+      category: <span class="hljs-title class_">PamLogCategory</span>.push,
+      level: <span class="hljs-title class_">PamLogLevel</span>.error,
+    );
+  }
 
-  <span class="hljs-comment">// ส่ง token ปัจจุบันให้ PAM ด้วยเมื่อเริ่มใช้งาน</span>
-  <span class="hljs-title class_">FirebaseMessaging</span>.instance.<span class="hljs-title function_">getToken</span>().<span class="hljs-title function_">then</span>((deviceToken) {
-    <span class="hljs-keyword">if</span> (deviceToken != <span class="hljs-keyword">null</span>) {
-      <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">setPushNotificationToken</span>(deviceToken);
-    }
-  });
+  <span class="hljs-keyword">void</span> <span class="hljs-title function_">sendToken</span>(<span class="hljs-title class_">String</span> token) {
+    <span class="hljs-keyword">if</span> (token.<span class="hljs-title function_">trim</span>().isEmpty) <span class="hljs-keyword">return</span>;
+    <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">setPushNotificationToken</span>(token)
+        .then&lt;<span class="hljs-keyword">void</span>&gt;((response) {
+          <span class="hljs-keyword">if</span> (response.error != <span class="hljs-keyword">null</span>) {
+            <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">log</span>(
+              [
+                <span class="hljs-string">&#x27;PAM push token registration failed: <span class="hljs-subst">${response.error?.code}</span>&#x27;</span>,
+                response.error?.errorMessage,
+              ],
+              category: <span class="hljs-title class_">PamLogCategory</span>.push,
+              level: <span class="hljs-title class_">PamLogLevel</span>.error,
+            );
+          }
+        })
+        .<span class="hljs-title function_">catchError</span>(logPushError);
+  }
+
+  <span class="hljs-keyword">final</span> messaging = <span class="hljs-title class_">FirebaseMessaging</span>.instance;
+
+  <span class="hljs-comment">// ส่งค่าใหม่ให้ PAM เมื่อ push token เปลี่ยน</span>
+  messaging.onTokenRefresh.<span class="hljs-title function_">listen</span>(sendToken, onError: logPushError);
+
+  <span class="hljs-comment">// ส่ง token ปัจจุบันให้ PAM ด้วย ไม่ต้องรอให้ token เปลี่ยนก่อน</span>
+  messaging
+      .<span class="hljs-title function_">getToken</span>()
+      .then&lt;<span class="hljs-keyword">void</span>&gt;((token) {
+        <span class="hljs-keyword">if</span> (token != <span class="hljs-keyword">null</span>) <span class="hljs-title function_">sendToken</span>(token);
+      })
+      .<span class="hljs-title function_">catchError</span>(logPushError);
 }
 </code></pre><p>แอปต้องเพิ่ม dependency <code>firebase_messaging</code> เอง ดูขั้นตอนตั้งค่าและการจัดการ token ใน <a href="https://firebase.google.com/docs/cloud-messaging/flutter/get-started">เอกสาร Firebase Messaging</a></p>
 <hr>
-<h2>เมื่อผู้ใช้กดแจ้งเตือนจาก Notification Center</h2>
-<p>เมื่อได้รับเหตุการณ์เปิดแจ้งเตือน ให้ตรวจด้วย <code>Pam.isPushNotiFromPam(message.data)</code> หากได้ <code>true</code> แสดงว่าเป็นข้อความของ PAM จากนั้นแปลงข้อมูลด้วย <code>Pam.convertToPamPushMessage()</code> เพื่ออ่านฟิลด์และเรียกเมธอดของ PAM ได้สะดวก</p>
-<p>ตัวอย่าง Firebase Messaging รองรับทั้งการเปิดแอปจากเบื้องหลังและจากสถานะที่แอปปิดอยู่:</p>
+<h2>จัดการเมื่อผู้ใช้กดแจ้งเตือนจาก Notification Center</h2>
+<p>ตัวอย่างนี้ทำงานเฉพาะเมื่อผู้ใช้ตั้งใจกดแจ้งเตือนจาก Notification Center ในสองกรณี:</p>
+<ol>
+<li>แอปอยู่ใน background แล้วกลับมาทำงานผ่าน <code>FirebaseMessaging.onMessageOpenedApp</code></li>
+<li>แอปไม่มี process ทำงานอยู่ แล้วเปิดขึ้นใหม่จากการกดแจ้งเตือน โดยอ่านผ่าน <code>FirebaseMessaging.instance.getInitialMessage()</code></li>
+</ol>
+<p>เมื่อได้รับ push ระหว่างใช้งานแอป (foreground) ตัวอย่างนี้จะไม่เปิดหน้าอ่าน ไม่เปลี่ยนหน้าปัจจุบัน ไม่แสดง banner หรือ popup และไม่ส่ง <code>trackRead()</code> / <code>trackPushUrlClick()</code> เพื่อไม่ขัดจังหวะการใช้งาน การเปิดแอปตามปกติโดยไม่ได้กดแจ้งเตือนก็ไม่ถือว่าเปิดอ่านข้อความ</p>
+<p>ลงทะเบียนครั้งเดียวหลัง Firebase, PAM และระบบนำทางพร้อม โดยใช้ร่วมกับ <code>registerPamPushToken()</code> ด้านบน และใช้แทน listener เปิดแจ้งเตือนเดิมเพื่อไม่ส่งผลการอ่านหรือเปิดหน้าซ้ำ</p>
 <pre><code class="hljs language-dart"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:firebase_messaging/firebase_messaging.dart&#x27;</span>;
 <span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:pam_flutter/pam.dart&#x27;</span>;
 
-<span class="hljs-keyword">void</span> <span class="hljs-title function_">handleNotificationOpened</span>(<span class="hljs-title class_">RemoteMessage</span> message) {
-  <span class="hljs-comment">// ข้อความจากระบบอื่น ให้แอปจัดการตาม flow ของตน</span>
-  <span class="hljs-keyword">if</span> (!<span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">isPushNotiFromPam</span>(message.data)) {
-    <span class="hljs-keyword">return</span>;
+<span class="hljs-built_in">bool</span> _pamPushHandlersRegistered = <span class="hljs-keyword">false</span>;
+
+<span class="hljs-comment">// จัดการเฉพาะการกด Push จาก PAM สำหรับแอปที่ใช้ Firebase Messaging</span>
+<span class="hljs-comment">// ใช้ร่วมกับ registerPamPushToken() ด้านบน ซึ่งทำหน้าที่ส่ง token</span>
+<span class="hljs-comment">//</span>
+<span class="hljs-comment">// เรียกครั้งเดียวหลัง Firebase, PAM และระบบนำทางของแอปพร้อมแล้ว</span>
+<span class="hljs-comment">// เช่น เรียกหลังเฟรมแรกของหน้าหลัก ไม่ต้อง await ฟังก์ชันนี้</span>
+<span class="hljs-comment">//</span>
+<span class="hljs-comment">// registerPamPushHandlers(</span>
+<span class="hljs-comment">//   openDestination: (url) {</span>
+<span class="hljs-comment">//     // เปิด url ด้วยระบบ deep link หรือระบบนำทางของแอป</span>
+<span class="hljs-comment">//     // เช่น myapp://coupon -&gt; หน้าคูปอง โดยแอปเป็นผู้กำหนด logic เอง</span>
+<span class="hljs-comment">//   },</span>
+<span class="hljs-comment">// );</span>
+<span class="hljs-keyword">void</span> <span class="hljs-title function_">registerPamPushHandlers</span>({
+  <span class="hljs-keyword">required</span> <span class="hljs-keyword">void</span> <span class="hljs-title class_">Function</span>(<span class="hljs-title class_">String</span> url) openDestination,
+}) {
+  <span class="hljs-comment">// ไม่เพิ่ม listener ซ้ำหากเผลอเรียกฟังก์ชันนี้หลายครั้ง</span>
+  <span class="hljs-comment">// ตัวอย่างนี้ให้ listener อยู่ตลอดอายุแอป ไม่ต้องลงทะเบียนใหม่ตอน login/logout</span>
+  <span class="hljs-keyword">if</span> (_pamPushHandlersRegistered) <span class="hljs-keyword">return</span>;
+  _pamPushHandlersRegistered = <span class="hljs-keyword">true</span>;
+
+  <span class="hljs-keyword">void</span> <span class="hljs-title function_">logPushError</span>(<span class="hljs-title class_">Object</span> error, [<span class="hljs-title class_">StackTrace</span>? stackTrace]) {
+    <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">log</span>(
+      [<span class="hljs-string">&#x27;PAM push handling failed&#x27;</span>, error, <span class="hljs-keyword">if</span> (stackTrace != <span class="hljs-keyword">null</span>) stackTrace],
+      category: <span class="hljs-title class_">PamLogCategory</span>.push,
+      level: <span class="hljs-title class_">PamLogLevel</span>.error,
+    );
   }
 
-  <span class="hljs-keyword">final</span> noti = <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">convertToPamPushMessage</span>(message.data);
-  <span class="hljs-keyword">if</span> (noti == <span class="hljs-keyword">null</span>) {
-    <span class="hljs-keyword">return</span>;
-  }
+  <span class="hljs-keyword">void</span> <span class="hljs-title function_">handleOpened</span>(<span class="hljs-title class_">RemoteMessage</span> message) {
+    <span class="hljs-comment">// Push จากระบบอื่น ให้แอปเชื่อม handler ของระบบนั้นเพิ่มเติมเอง</span>
+    <span class="hljs-keyword">if</span> (!<span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">isPushNotiFromPam</span>(message.data)) <span class="hljs-keyword">return</span>;
 
-  <span class="hljs-comment">// ส่งสัญญาณกลับ PAM ว่าผู้ใช้เปิดอ่านข้อความแล้ว</span>
-  <span class="hljs-comment">// เมธอดนี้ส่งเบื้องหลัง ไม่ต้อง await</span>
-  noti.<span class="hljs-title function_">trackRead</span>();
+    <span class="hljs-keyword">try</span> {
+      <span class="hljs-keyword">final</span> pamMessage = <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">convertToPamPushMessage</span>(message.data);
+      <span class="hljs-keyword">if</span> (pamMessage == <span class="hljs-keyword">null</span>) <span class="hljs-keyword">return</span>;
 
-  <span class="hljs-comment">// อ่านข้อมูลเพื่อแสดงเนื้อหาหรือเลือกหน้าปลายทางในแอป</span>
-  <span class="hljs-keyword">final</span> destinationUrl = noti.url;
-  <span class="hljs-keyword">final</span> imageUrl = noti.thumbnailUrl;
-  <span class="hljs-keyword">final</span> popupType = noti.popupType;
-  <span class="hljs-keyword">final</span> payload = noti.data;
+      <span class="hljs-comment">// ตอนนี้ผู้ใช้เปิดข้อความแล้ว จึงส่งสัญญาณว่าอ่านแล้ว</span>
+      <span class="hljs-comment">// trackRead() ส่งเบื้องหลัง ไม่ต้อง await</span>
+      pamMessage.<span class="hljs-title function_">trackRead</span>();
 
-  <span class="hljs-comment">// นำข้อมูลไปใช้กับระบบเปิดหน้าปลายทางของแอป</span>
-}
+      <span class="hljs-keyword">final</span> url = pamMessage.url;
+      <span class="hljs-keyword">if</span> (url == <span class="hljs-keyword">null</span> || url.<span class="hljs-title function_">trim</span>().isEmpty) <span class="hljs-keyword">return</span>;
 
-<span class="hljs-keyword">void</span> <span class="hljs-title function_">registerNotificationOpenHandlers</span>() {
-  <span class="hljs-comment">// ผู้ใช้กดแจ้งเตือนขณะแอปอยู่เบื้องหลัง</span>
-  <span class="hljs-title class_">FirebaseMessaging</span>.onMessageOpenedApp.<span class="hljs-title function_">listen</span>(handleNotificationOpened);
+      <span class="hljs-comment">// ตัวอย่างนี้เปิด URL ปลายทางทันทีเมื่อคลิกแจ้งเตือน</span>
+      <span class="hljs-comment">// จึงบันทึกคลิก URL ด้วย แล้วเปิดหน้าปลายทางโดยไม่ต้องรอ PAM</span>
+      pamMessage.<span class="hljs-title function_">trackPushUrlClick</span>();
+      <span class="hljs-title function_">openDestination</span>(url);
 
-  <span class="hljs-comment">// ผู้ใช้กดแจ้งเตือนเพื่อเปิดแอปที่ปิดอยู่</span>
-  <span class="hljs-title class_">FirebaseMessaging</span>.instance.<span class="hljs-title function_">getInitialMessage</span>().<span class="hljs-title function_">then</span>((message) {
-    <span class="hljs-keyword">if</span> (message != <span class="hljs-keyword">null</span>) {
-      <span class="hljs-title function_">handleNotificationOpened</span>(message);
+      <span class="hljs-comment">// ถ้าแอปเลือกเปิดหน้ารายละเอียดก่อน แล้วมีปุ่มให้กด URL อีกที</span>
+      <span class="hljs-comment">// ให้ย้าย trackPushUrlClick() ไปจุดกดปุ่ม URL จริงแทน เพื่อไม่นับซ้ำ</span>
+    } <span class="hljs-keyword">catch</span> (error, stackTrace) {
+      <span class="hljs-title function_">logPushError</span>(error, stackTrace);
     }
-  });
+  }
+
+  <span class="hljs-comment">// 1. ผู้ใช้กดแจ้งเตือนจาก Notification Center ขณะแอปอยู่เบื้องหลัง</span>
+  <span class="hljs-title class_">FirebaseMessaging</span>.onMessageOpenedApp.<span class="hljs-title function_">listen</span>(
+    handleOpened,
+    onError: logPushError,
+  );
+
+  <span class="hljs-comment">// 2. ผู้ใช้กดแจ้งเตือนเพื่อเปิดแอปที่ปิดอยู่ (cold start)</span>
+  <span class="hljs-comment">// อ่านข้อความเริ่มต้นในเบื้องหลัง โดยไม่ให้ flow เปิดแอปต้องรอ PAM</span>
+  <span class="hljs-title class_">FirebaseMessaging</span>.instance
+      .<span class="hljs-title function_">getInitialMessage</span>()
+      .then&lt;<span class="hljs-keyword">void</span>&gt;((message) {
+        <span class="hljs-keyword">if</span> (message != <span class="hljs-keyword">null</span>) <span class="hljs-title function_">handleOpened</span>(message);
+      })
+      .<span class="hljs-title function_">catchError</span>(logPushError);
+
+  <span class="hljs-comment">// ไม่ลงทะเบียน FirebaseMessaging.onMessage ในตัวอย่างนี้</span>
+  <span class="hljs-comment">// การได้รับ push ขณะใช้แอปจึงไม่เปิดหน้าอ่านหรือส่ง read/click tracking</span>
 }
-</code></pre><p>เรียก <code>registerNotificationOpenHandlers()</code> ครั้งเดียวหลัง Firebase และ PAM พร้อมใช้งาน หากเปิดหน้าปลายทางด้วย Navigator ให้รอจนหน้าจอและระบบนำทางของแอปพร้อมก่อน ดูรายละเอียดเหตุการณ์เปิดแจ้งเตือนใน <a href="https://firebase.google.com/docs/cloud-messaging/flutter/receive-messages">เอกสาร Firebase</a></p>
+</code></pre><p>ส่ง <code>openDestination</code> ให้เชื่อมกับระบบนำทางที่แอปใช้อยู่ เพื่อเปิดหน้าปลายทางหลังผู้ใช้กดแจ้งเตือนเท่านั้น ตัวอย่างนี้ให้ listeners อยู่ตลอดอายุแอป หากลงทะเบียนเฉพาะหน้าต้องจัดเก็บ subscriptions และยกเลิกเมื่อเลิกใช้งาน</p>
+<p>การรับข้อความยังไม่ใช่การอ่าน เรียก <code>trackRead()</code> เมื่อเปิดข้อความจริง และเรียก <code>trackPushUrlClick()</code> เมื่อเปิด URL จริง หากแอปเปิดหน้ารายละเอียดก่อน ให้ย้ายการนับคลิกไปที่ปุ่ม URL ในหน้ารายละเอียด ตัวอย่างนี้ไม่ได้แสดง banner หรือสร้าง local notification ให้อัตโนมัติ</p>
 <hr>
 <h2>ข้อมูลใน PamPushMessage</h2>
 <table>

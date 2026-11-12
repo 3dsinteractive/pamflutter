@@ -814,7 +814,94 @@ void main() {
     expect(tracker.requests.map((body) => body['event']), ['open_home']);
   });
 
+  test('initial identity allows tracking without notifying a mismatch', () async {
+    var mismatchCount = 0;
+    pam.config!.identityProvider = () => PamUserState.identified('customer-a');
+    pam.config!.onIdentityMismatch = (_) => mismatchCount++;
+
+    final firstResponse = await Pam.track('first_event');
+    final secondResponse = await Pam.track('second_event');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(firstResponse?.error, isNull);
+    expect(secondResponse?.error, isNull);
+    expect(tracker.requests.map((body) => body['event']), [
+      'first_event',
+      'second_event',
+    ]);
+    expect(mismatchCount, 0);
+
+    await Pam.userLogin('customer-a');
+    tracker.requests.clear();
+    final response = await Pam.track('after_login');
+    expect(response?.error, isNull);
+    expect(fieldsAt(0), containsPair('customer', 'customer-a'));
+    expect(mismatchCount, 0);
+  });
+
+  test('identity mismatch is checked even without a contact ID', () async {
+    pam.custID = 'customer-old';
+    pam.publicContact = null;
+    pam.loginContact = null;
+    pam.config!.identityProvider = () => PamUserState.identified('customer-new');
+    PamIdentityMismatch? reportedMismatch;
+    pam.config!.onIdentityMismatch = (mismatch) {
+      reportedMismatch = mismatch;
+    };
+
+    final response = await Pam.track('custom_event');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(response?.error?.code, 'IDENTITY_STATE_MISMATCH');
+    expect(tracker.requests, isEmpty);
+    expect(reportedMismatch?.type, PamIdentityMismatchType.accountSwitchRequired);
+    expect(reportedMismatch?.oldIdentity?.value, 'customer-old');
+    expect(reportedMismatch?.newIdentity?.value, 'customer-new');
+  });
+
+  test('first consent creates a contact and allows tracking without login', () async {
+    pam.publicContact = null;
+    pam.config!.blockEventsIfNoConsent = true;
+    pam.config!.identityProvider = () => PamUserState.identified('customer-a');
+    var mismatchCount = 0;
+    pam.config!.onIdentityMismatch = (_) => mismatchCount++;
+
+    final consent = await Pam.allowAllTrackingConsent('consent-message');
+
+    expect(consent, isNotNull);
+    expect(fieldsAt(0).containsKey('_contact_id'), isFalse);
+    expect(pam.publicContact, 'public-contact');
+    expect(await pam.pref.getString(SaveKey.contactID), 'public-contact');
+
+    final response = await Pam.track('after_consent');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(response?.error, isNull);
+    expect(tracker.requests.map((body) => body['event']), [
+      'allow_consent',
+      'after_consent',
+    ]);
+    expect(fieldsAt(1), containsPair('_contact_id', 'public-contact'));
+    expect(mismatchCount, 0);
+    expect(await pam.isUserLogin(), isFalse);
+  });
+
+  test('anonymous identity allows tracking without notifying a mismatch', () async {
+    var mismatchCount = 0;
+    pam.config!.identityProvider = () => const PamUserState.anonymous();
+    pam.config!.onIdentityMismatch = (_) => mismatchCount++;
+
+    final response = await Pam.track('open_home');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(response?.error, isNull);
+    expect(tracker.requests.map((body) => body['event']), ['open_home']);
+    expect(mismatchCount, 0);
+  });
+
   test('identity mismatch drops events and notifies only once', () async {
+    await Pam.userLogin('customer-old');
+    tracker.requests.clear();
     var mismatchCount = 0;
     PamIdentityMismatch? reportedMismatch;
     pam.config!.identityProvider = () => PamUserState.identified('customer-a');
@@ -831,8 +918,8 @@ void main() {
     expect(secondResponse?.error?.code, 'IDENTITY_STATE_MISMATCH');
     expect(tracker.requests, isEmpty);
     expect(mismatchCount, 1);
-    expect(reportedMismatch?.type, PamIdentityMismatchType.loginRequired);
-    expect(reportedMismatch?.oldIdentity, isNull);
+    expect(reportedMismatch?.type, PamIdentityMismatchType.accountSwitchRequired);
+    expect(reportedMismatch?.oldIdentity?.value, 'customer-old');
     expect(reportedMismatch?.newIdentity?.value, 'customer-a');
     expect(reportedMismatch?.event, 'first_event');
   });
@@ -861,6 +948,8 @@ void main() {
     'central mismatch handler can resolve identity for the next event',
     () async {
       final resolved = Completer<void>();
+      await Pam.userLogin('customer-old');
+      tracker.requests.clear();
       pam.config!.identityProvider =
           () => PamUserState.identified('0818888888');
       pam.config!.onIdentityMismatch = (mismatch) async {
@@ -878,6 +967,25 @@ void main() {
       expect(tracker.requests.map((body) => body['event']), ['after_login']);
     },
   );
+
+  test('existing identity with anonymous app state still requires logout', () async {
+    await Pam.userLogin('customer-a');
+    tracker.requests.clear();
+    PamIdentityMismatch? reportedMismatch;
+    pam.config!.identityProvider = () => const PamUserState.anonymous();
+    pam.config!.onIdentityMismatch = (mismatch) {
+      reportedMismatch = mismatch;
+    };
+
+    final response = await Pam.track('open_home');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(response?.error?.code, 'IDENTITY_STATE_MISMATCH');
+    expect(tracker.requests, isEmpty);
+    expect(reportedMismatch?.type, PamIdentityMismatchType.logoutRequired);
+    expect(reportedMismatch?.oldIdentity?.value, 'customer-a');
+    expect(reportedMismatch?.newIdentity, isNull);
+  });
 
   test('identity provider errors drop the event without throwing', () async {
     pam.config!.identityProvider = () => throw StateError('Auth not ready');

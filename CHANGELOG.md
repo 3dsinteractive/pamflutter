@@ -1,3 +1,9 @@
+# 3.1.1
+
+## Fixed
+
+- Do not call `onIdentityMismatch` or drop tracking events when `oldIdentity` is `null`. Continue checking existing user identities for account switches and logout mismatches, independently of `contactID`.
+
 # 3.1.0
 
 ## Added

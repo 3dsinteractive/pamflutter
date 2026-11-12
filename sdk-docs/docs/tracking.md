@@ -113,6 +113,48 @@ onPressed: () async {
 
 ---
 
+## บันทึกคำสั่งซื้อและสินค้าแต่ละรายการ
+
+หลังระบบคำสั่งซื้อยืนยันสำเร็จ สามารถส่ง `purchase` สำหรับยอดรวม และ `purchase_item` สำหรับสินค้าแต่ละรายการ โดยเชื่อมกันด้วย `order_id` ตัวอย่างใช้ค่าที่รับเข้ามาจริง ไม่กำหนด SKU ราคา หรือสกุลเงินตายตัวในเมธอด
+
+```dart
+import 'package:pam_flutter/pam.dart';
+
+void trackPurchase({
+  required String orderId,
+  required double totalAmount,
+  required String currency,
+  required List<Map<String, dynamic>> items,
+}) {
+  Pam.track(
+    'purchase',
+    payload: {
+      'order_id': orderId,
+      'total_amount': totalAmount,
+      'currency': currency,
+    },
+  );
+
+  for (final item in items) {
+    Pam.track(
+      'purchase_item',
+      payload: {
+        'order_id': orderId,
+        'sku': item['sku'],
+        'price': item['price'],
+        'quantity': item['quantity'],
+        'title': item['title'],
+        'currency': currency,
+      },
+    );
+  }
+}
+```
+
+ให้ตกลงชื่อ event และ attributes กับทีม Data ก่อนใช้ เช่น เลือกใช้ `total` หรือ `total_amount` ให้สม่ำเสมอ แต่ละรายการต้องมี `sku`, `price`, `quantity` และ `title` ตามรูปแบบที่ตกลงไว้ คำขอแต่ละ event แยกจากกัน จึงไม่ใช่ธุรกรรมที่สำเร็จหรือล้มเหลวพร้อมกันทั้งหมด และควรเรียกจากจุดยืนยันคำสั่งซื้อเพียงครั้งเดียวเพื่อไม่ส่งซ้ำจากการสร้างหน้าจอใหม่
+
+---
+
 ## นำ Event ไปใช้สร้าง Segment
 
 ข้อมูล event สามารถนำไปกำหนดกลุ่มลูกค้าใน PAM ได้ เช่น **ลูกค้าที่เพิ่มสินค้า SKU-001 ลงตะกร้าภายใน 15 วันที่ผ่านมา** โดยพิจารณาร่วมกันจาก:

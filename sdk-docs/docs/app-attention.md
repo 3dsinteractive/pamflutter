@@ -151,4 +151,86 @@ Pam.appAttention(
 
 หากต้องเริ่มงาน asynchronous ภายใน callback สามารถเรียกฟังก์ชันแยกให้ทำงานต่อได้ แล้วคืน `true` ทันทีเมื่อแอปเป็นผู้รับผิดชอบการคลิกนั้น โดยไม่ต้องรอผลใน callback
 
+## ตรวจ App Attention จากจุดกลางเมื่อเปลี่ยนหน้า
+
+หากต้องการตรวจทั้งตอนเข้าหน้าใหม่และกลับมาหน้าเดิม ให้ใช้ `NavigatorObserver` แทนการเรียกซ้ำใน `initState()` ของแต่ละหน้า ตัวอย่างนี้ใช้กับ `MaterialApp` / `Navigator` ที่มีชื่อ route โดยข้าม dialog และ popup ของแอป
+
+ก่อนตรวจ Attention ต้อง initialize PAM และได้รับ contact จาก API แล้ว ซึ่งอาจมาจาก tracking event ใดก็ได้ ไม่จำเป็นต้องผ่าน login หรือ consent โดยเฉพาะ หากยังไม่มี contact SDK จะข้ามการตรวจ Attention ครั้งนั้น
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:pam_flutter/pam.dart';
+
+void checkPamAttentionForPage(
+  BuildContext context, {
+  required String pageName,
+}) {
+  if (!context.mounted) return;
+  Pam.appAttention(context, pageName: pageName);
+}
+
+class PamAttentionNavigatorObserver extends NavigatorObserver {
+  int _pageChangeVersion = 0;
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    // เข้าไปยังหน้าใหม่
+    _checkCurrentPage(route);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    // กลับมายังหน้าก่อนหน้า: มีโอกาสตรวจ Attention ใหม่อีกครั้ง
+    // การปิด dialog ไม่ถือเป็นการกลับเข้าหน้าใหม่ในตัวอย่างนี้
+    if (route is PageRoute) _checkCurrentPage(previousRoute);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    // เปลี่ยนหน้าด้วย pushReplacement เป็นต้น
+    _checkCurrentPage(newRoute);
+  }
+
+  void _checkCurrentPage(Route<dynamic>? route) {
+    if (route is! PageRoute) return; // ไม่ตรวจสำหรับ dialog หรือ popup ของแอป
+    final version = ++_pageChangeVersion;
+
+    // รอให้หน้าปัจจุบันสร้างเสร็จก่อน จึงได้ context ของหน้านั้น
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (version != _pageChangeVersion || !route.isCurrent) return;
+      final context = route.subtreeContext;
+      final routeName = route.settings.name;
+      if (context == null || !context.mounted || routeName == null) return;
+
+      final pageName = routeName == '/'
+          ? 'home'
+          : routeName.startsWith('/')
+          ? routeName.substring(1)
+          : routeName;
+      if (pageName.isEmpty) return;
+
+      checkPamAttentionForPage(context, pageName: pageName);
+      // ไม่มี Attention -> ไม่แสดงอะไร และไม่ขัดจังหวะหน้าปัจจุบัน
+      // หากมีป๊อปอัปอื่นกำลังโหลด/แสดง SDK จะข้ามรอบนี้ ไม่เก็บคิว
+    });
+  }
+}
+```
+
+สร้าง observer ครั้งเดียว เช่น เป็น field ของ State ที่สร้าง `MaterialApp` แล้วลงทะเบียนผ่าน `navigatorObservers`:
+
+```dart
+final pamAttentionObserver = PamAttentionNavigatorObserver();
+
+// ภายใน build() ของ State เดียวกัน
+return MaterialApp(
+  navigatorObservers: [pamAttentionObserver],
+  // กำหนด routes / onGenerateRoute ของแอปตามปกติ
+);
+```
+
+ตัวอย่างแปลง `/` เป็น `home` และ `/products` เป็น `products` ให้ปรับ mapping ให้ตรงกับชื่อหน้าใน PAM หากสร้าง `MaterialPageRoute` เองต้องกำหนด `RouteSettings(name: ...)` ด้วย หากใช้ router อื่นหรือสลับ tab โดยไม่เปลี่ยน route ให้เรียก `checkPamAttentionForPage()` จาก callback ของระบบนั้นแทน
+
+เลือกใช้ observer หรือการเรียกจากหน้าเพียงวิธีเดียวสำหรับหน้าเดียวกัน ระหว่าง Attention โหลดหรือแสดงอยู่ การเรียกใหม่จะถูกข้ามตามพฤติกรรมของ SDK
+
 [กลับหน้าแรก](index.html)
