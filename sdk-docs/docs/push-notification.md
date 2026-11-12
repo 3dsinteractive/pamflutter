@@ -21,21 +21,54 @@ Pam.setPushNotificationToken(deviceToken);
 ตัวอย่างนี้สมมติว่าแอปติดตั้งและตั้งค่า Firebase Messaging รวมถึงขอสิทธิ์รับแจ้งเตือนเรียบร้อยแล้ว ให้เรียกฟังก์ชันนี้ครั้งเดียวหลัง Firebase และ PAM พร้อมใช้งาน โดยไม่ต้องรอขั้นตอนนี้ก่อนเปิดหน้าจอหลักของแอป
 
 ```dart
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:pam_flutter/pam.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
+// แอปจัดการ Firebase.initializeApp(), การตั้งค่า Firebase และสิทธิ์แจ้งเตือนเอง
+// เรียกครั้งเดียวหลัง Firebase และ PAM พร้อมใช้งาน โดยไม่ต้อง await
 void registerPamPushToken() {
-  // รับ token ที่เปลี่ยนแปลง และส่งค่าใหม่ให้ PAM ทุกครั้ง
-  FirebaseMessaging.instance.onTokenRefresh.listen((deviceToken) {
-    Pam.setPushNotificationToken(deviceToken);
-  });
+  void logPushError(Object error, [StackTrace? stackTrace]) {
+    Pam.log(
+      [
+        'PAM push token registration failed',
+        error,
+        if (stackTrace != null) stackTrace,
+      ],
+      category: PamLogCategory.push,
+      level: PamLogLevel.error,
+    );
+  }
 
-  // ส่ง token ปัจจุบันให้ PAM ด้วยเมื่อเริ่มใช้งาน
-  FirebaseMessaging.instance.getToken().then((deviceToken) {
-    if (deviceToken != null) {
-      Pam.setPushNotificationToken(deviceToken);
-    }
-  });
+  void sendToken(String token) {
+    if (token.trim().isEmpty) return;
+    Pam.setPushNotificationToken(token)
+        .then<void>((response) {
+          if (response.error != null) {
+            Pam.log(
+              [
+                'PAM push token registration failed: ${response.error?.code}',
+                response.error?.errorMessage,
+              ],
+              category: PamLogCategory.push,
+              level: PamLogLevel.error,
+            );
+          }
+        })
+        .catchError(logPushError);
+  }
+
+  final messaging = FirebaseMessaging.instance;
+
+  // ส่งค่าใหม่ให้ PAM เมื่อ push token เปลี่ยน
+  messaging.onTokenRefresh.listen(sendToken, onError: logPushError);
+
+  // ส่ง token ปัจจุบันให้ PAM ด้วย ไม่ต้องรอให้ token เปลี่ยนก่อน
+  messaging
+      .getToken()
+      .then<void>((token) {
+        if (token != null) sendToken(token);
+      })
+      .catchError(logPushError);
 }
 ```
 
@@ -43,54 +76,101 @@ void registerPamPushToken() {
 
 ---
 
-## เมื่อผู้ใช้กดแจ้งเตือนจาก Notification Center
+## จัดการเมื่อผู้ใช้กดแจ้งเตือนจาก Notification Center
 
-เมื่อได้รับเหตุการณ์เปิดแจ้งเตือน ให้ตรวจด้วย `Pam.isPushNotiFromPam(message.data)` หากได้ `true` แสดงว่าเป็นข้อความของ PAM จากนั้นแปลงข้อมูลด้วย `Pam.convertToPamPushMessage()` เพื่ออ่านฟิลด์และเรียกเมธอดของ PAM ได้สะดวก
+ตัวอย่างนี้ทำงานเฉพาะเมื่อผู้ใช้ตั้งใจกดแจ้งเตือนจาก Notification Center ในสองกรณี:
 
-ตัวอย่าง Firebase Messaging รองรับทั้งการเปิดแอปจากเบื้องหลังและจากสถานะที่แอปปิดอยู่:
+1. แอปอยู่ใน background แล้วกลับมาทำงานผ่าน `FirebaseMessaging.onMessageOpenedApp`
+2. แอปไม่มี process ทำงานอยู่ แล้วเปิดขึ้นใหม่จากการกดแจ้งเตือน โดยอ่านผ่าน `FirebaseMessaging.instance.getInitialMessage()`
+
+เมื่อได้รับ push ระหว่างใช้งานแอป (foreground) ตัวอย่างนี้จะไม่เปิดหน้าอ่าน ไม่เปลี่ยนหน้าปัจจุบัน ไม่แสดง banner หรือ popup และไม่ส่ง `trackRead()` / `trackPushUrlClick()` เพื่อไม่ขัดจังหวะการใช้งาน การเปิดแอปตามปกติโดยไม่ได้กดแจ้งเตือนก็ไม่ถือว่าเปิดอ่านข้อความ
+
+ลงทะเบียนครั้งเดียวหลัง Firebase, PAM และระบบนำทางพร้อม โดยใช้ร่วมกับ `registerPamPushToken()` ด้านบน และใช้แทน listener เปิดแจ้งเตือนเดิมเพื่อไม่ส่งผลการอ่านหรือเปิดหน้าซ้ำ
 
 ```dart
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:pam_flutter/pam.dart';
 
-void handleNotificationOpened(RemoteMessage message) {
-  // ข้อความจากระบบอื่น ให้แอปจัดการตาม flow ของตน
-  if (!Pam.isPushNotiFromPam(message.data)) {
-    return;
+bool _pamPushHandlersRegistered = false;
+
+// จัดการเฉพาะการกด Push จาก PAM สำหรับแอปที่ใช้ Firebase Messaging
+// ใช้ร่วมกับ registerPamPushToken() ด้านบน ซึ่งทำหน้าที่ส่ง token
+//
+// เรียกครั้งเดียวหลัง Firebase, PAM และระบบนำทางของแอปพร้อมแล้ว
+// เช่น เรียกหลังเฟรมแรกของหน้าหลัก ไม่ต้อง await ฟังก์ชันนี้
+//
+// registerPamPushHandlers(
+//   openDestination: (url) {
+//     // เปิด url ด้วยระบบ deep link หรือระบบนำทางของแอป
+//     // เช่น myapp://coupon -> หน้าคูปอง โดยแอปเป็นผู้กำหนด logic เอง
+//   },
+// );
+void registerPamPushHandlers({
+  required void Function(String url) openDestination,
+}) {
+  // ไม่เพิ่ม listener ซ้ำหากเผลอเรียกฟังก์ชันนี้หลายครั้ง
+  // ตัวอย่างนี้ให้ listener อยู่ตลอดอายุแอป ไม่ต้องลงทะเบียนใหม่ตอน login/logout
+  if (_pamPushHandlersRegistered) return;
+  _pamPushHandlersRegistered = true;
+
+  void logPushError(Object error, [StackTrace? stackTrace]) {
+    Pam.log(
+      ['PAM push handling failed', error, if (stackTrace != null) stackTrace],
+      category: PamLogCategory.push,
+      level: PamLogLevel.error,
+    );
   }
 
-  final noti = Pam.convertToPamPushMessage(message.data);
-  if (noti == null) {
-    return;
-  }
+  void handleOpened(RemoteMessage message) {
+    // Push จากระบบอื่น ให้แอปเชื่อม handler ของระบบนั้นเพิ่มเติมเอง
+    if (!Pam.isPushNotiFromPam(message.data)) return;
 
-  // ส่งสัญญาณกลับ PAM ว่าผู้ใช้เปิดอ่านข้อความแล้ว
-  // เมธอดนี้ส่งเบื้องหลัง ไม่ต้อง await
-  noti.trackRead();
+    try {
+      final pamMessage = Pam.convertToPamPushMessage(message.data);
+      if (pamMessage == null) return;
 
-  // อ่านข้อมูลเพื่อแสดงเนื้อหาหรือเลือกหน้าปลายทางในแอป
-  final destinationUrl = noti.url;
-  final imageUrl = noti.thumbnailUrl;
-  final popupType = noti.popupType;
-  final payload = noti.data;
+      // ตอนนี้ผู้ใช้เปิดข้อความแล้ว จึงส่งสัญญาณว่าอ่านแล้ว
+      // trackRead() ส่งเบื้องหลัง ไม่ต้อง await
+      pamMessage.trackRead();
 
-  // นำข้อมูลไปใช้กับระบบเปิดหน้าปลายทางของแอป
-}
+      final url = pamMessage.url;
+      if (url == null || url.trim().isEmpty) return;
 
-void registerNotificationOpenHandlers() {
-  // ผู้ใช้กดแจ้งเตือนขณะแอปอยู่เบื้องหลัง
-  FirebaseMessaging.onMessageOpenedApp.listen(handleNotificationOpened);
+      // ตัวอย่างนี้เปิด URL ปลายทางทันทีเมื่อคลิกแจ้งเตือน
+      // จึงบันทึกคลิก URL ด้วย แล้วเปิดหน้าปลายทางโดยไม่ต้องรอ PAM
+      pamMessage.trackPushUrlClick();
+      openDestination(url);
 
-  // ผู้ใช้กดแจ้งเตือนเพื่อเปิดแอปที่ปิดอยู่
-  FirebaseMessaging.instance.getInitialMessage().then((message) {
-    if (message != null) {
-      handleNotificationOpened(message);
+      // ถ้าแอปเลือกเปิดหน้ารายละเอียดก่อน แล้วมีปุ่มให้กด URL อีกที
+      // ให้ย้าย trackPushUrlClick() ไปจุดกดปุ่ม URL จริงแทน เพื่อไม่นับซ้ำ
+    } catch (error, stackTrace) {
+      logPushError(error, stackTrace);
     }
-  });
+  }
+
+  // 1. ผู้ใช้กดแจ้งเตือนจาก Notification Center ขณะแอปอยู่เบื้องหลัง
+  FirebaseMessaging.onMessageOpenedApp.listen(
+    handleOpened,
+    onError: logPushError,
+  );
+
+  // 2. ผู้ใช้กดแจ้งเตือนเพื่อเปิดแอปที่ปิดอยู่ (cold start)
+  // อ่านข้อความเริ่มต้นในเบื้องหลัง โดยไม่ให้ flow เปิดแอปต้องรอ PAM
+  FirebaseMessaging.instance
+      .getInitialMessage()
+      .then<void>((message) {
+        if (message != null) handleOpened(message);
+      })
+      .catchError(logPushError);
+
+  // ไม่ลงทะเบียน FirebaseMessaging.onMessage ในตัวอย่างนี้
+  // การได้รับ push ขณะใช้แอปจึงไม่เปิดหน้าอ่านหรือส่ง read/click tracking
 }
 ```
 
-เรียก `registerNotificationOpenHandlers()` ครั้งเดียวหลัง Firebase และ PAM พร้อมใช้งาน หากเปิดหน้าปลายทางด้วย Navigator ให้รอจนหน้าจอและระบบนำทางของแอปพร้อมก่อน ดูรายละเอียดเหตุการณ์เปิดแจ้งเตือนใน [เอกสาร Firebase](https://firebase.google.com/docs/cloud-messaging/flutter/receive-messages)
+ส่ง `openDestination` ให้เชื่อมกับระบบนำทางที่แอปใช้อยู่ เพื่อเปิดหน้าปลายทางหลังผู้ใช้กดแจ้งเตือนเท่านั้น ตัวอย่างนี้ให้ listeners อยู่ตลอดอายุแอป หากลงทะเบียนเฉพาะหน้าต้องจัดเก็บ subscriptions และยกเลิกเมื่อเลิกใช้งาน
+
+การรับข้อความยังไม่ใช่การอ่าน เรียก `trackRead()` เมื่อเปิดข้อความจริง และเรียก `trackPushUrlClick()` เมื่อเปิด URL จริง หากแอปเปิดหน้ารายละเอียดก่อน ให้ย้ายการนับคลิกไปที่ปุ่ม URL ในหน้ารายละเอียด ตัวอย่างนี้ไม่ได้แสดง banner หรือสร้าง local notification ให้อัตโนมัติ
 
 ---
 

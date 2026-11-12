@@ -1,3 +1,34 @@
+# 3.1.1
+
+## Fixed
+
+- Do not call `onIdentityMismatch` or drop tracking events when `oldIdentity` is `null`. Continue checking existing user identities for account switches and logout mismatches, independently of `contactID`.
+
+# 3.1.0
+
+## Added
+
+- Optional `PamLogCategory` and `PamLogLevel` enums for `Pam.log`; existing `Pam.log([...])` calls continue to use General / INFO. Android logs use tag `PAM`; iOS uses OSLog subsystem `ai.pams.flutter` and feature categories. Every line includes a searchable prefix, including stack traces and long Unicode messages, with Flutter console fallback if native logging is unavailable.
+- Categorized SDK diagnostics with request IDs, HTTP status and duration, event destinations and error codes, Attention skip reasons and button setting sources, identity session changes, reset outcomes, and native tracking-pixel failures. Payloads and response bodies use DEBUG; failed requests and event outcomes use ERROR. Remove duplicate response output and decorative separators.
+- Optional `actionButtonLabel`, `actionButtonColor`, and `actionButtonTextColor` on `Pam.appAttention` for Android and iOS. Colors accept `#RRGGBB`. Non-empty API fields take priority over code values; missing, null, empty, or whitespace-only API fields fall back to code, then native defaults.
+- `Pam.reset()` clears PAM user data in secure storage, legacy preferences, and memory after queued work and consent synchronization finish. Preserve configuration, logging settings, and callbacks; do not send logout, delete server data, or require reinitialization. Attempt all storage keys and still clear memory if storage cleanup fails.
+- Support public-only and login-only database configurations. Skip tracking with `TRACKING_DISABLED` when no database alias exists for the current session. Public-only login/logout use the public database without database-transfer media cleanup.
+
+## Fixed
+
+- Hide the App Attention action button on Android and iOS when the API's `url` is missing, null, empty, or whitespace-only; keep the popup content and close button available.
+- Allow only one pending or visible App Attention across the app. Skip concurrent calls for all page names without queuing. Release the lock after dismissal, empty responses, and errors; require an explicit new call to display another popup.
+- Return `Future<void>` from `Pam.appAttention`, contain storage and request failures, and discard responses/clicks after the calling page or user session changes. Move SDK examples out of `build()`.
+- Complete native Attention results exactly once after dismissal. Handle Android Back, activity detachment, and missing activities; use the active iOS scene's topmost presenter and report presentation failures instead of leaving pending calls unresolved.
+- Serialize enabling tracking consent with consent submission, and await consent preference writes so reset and queued tracking cannot overtake them.
+- Remove legacy preference values even when secure-storage deletion fails.
+
+## Compatibility and upgrade notes
+
+- Require Dart 3.11+, Flutter 3.41+, Android API 24+, and iOS 13+.
+- Update dependencies, including `flutter_secure_storage` 11.x and `flutter_lints` 6.x. Remove `android_id`; obtain the Android identifier through the SDK's native method channel.
+- Rebuild Android and iOS apps after upgrading to include native popup and logging changes; hot reload alone is insufficient. `enableLog: false` continues to disable SDK logs at every level.
+
 # 3.0.4
 
 - Fixed bugs

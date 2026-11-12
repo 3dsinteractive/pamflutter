@@ -22,7 +22,11 @@ class PamResponse {
     try {
       map = jsonDecode(jsonString);
     } catch (e, stackTrace) {
-      Pam.log(["PamResponse parse Error", stackTrace, e]);
+      Pam.log(
+        ["PamResponse parse Error", stackTrace, e],
+        category: PamLogCategory.tracking,
+        level: PamLogLevel.error,
+      );
       return null;
     }
 

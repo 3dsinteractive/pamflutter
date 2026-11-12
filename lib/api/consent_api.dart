@@ -1,3 +1,4 @@
+import '../src/pam_log_request.dart';
 import 'package:http/http.dart' show Response;
 import 'package:pam_flutter/response/customer_consent_status.dart';
 import '../pam.dart';
@@ -13,21 +14,21 @@ class ConsentAPI {
 
   Future<ConsentMessage?> loadConsentMessage(String id) async {
     Response? response;
+    final log = PamLogRequest(
+      PamLogCategory.consent,
+      'GET /consent-message',
+      details: {
+        'server': Uri.tryParse(baseURL)?.host,
+        'consent_message_id': id,
+      },
+    );
     try {
       var uri = Uri.parse("$baseURL/consent-message/$id");
       response = await HttpClient.get(uri);
 
-      Pam.log([
-        "LOAD CONSENT MESSAGE",
-        uri,
-        "consent_message_id: $id",
-        "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
-        "Status Code: ${response.statusCode}",
-        "----- Response Body -----",
-        response.body
-      ]);
+      log.complete(response.statusCode, body: response.body);
     } catch (e, stackTrace) {
-      Pam.log(["TRACKING ERROR", stackTrace, e]);
+      log.fail(e, stackTrace);
     }
 
     if (response != null) {
@@ -38,24 +39,28 @@ class ConsentAPI {
   }
 
   Future<CustomerConsentStatus?> loadConsentStatus(
-      String contactId, String consentMessageIDs) async {
+    String contactId,
+    String consentMessageIDs,
+  ) async {
     Response? response;
+    final log = PamLogRequest(
+      PamLogCategory.consent,
+      'GET /contacts/consents',
+      details: {
+        'server': Uri.tryParse(baseURL)?.host,
+        'contact_id': contactId,
+        'consent_message_ids': consentMessageIDs,
+      },
+    );
     try {
-      var uri =
-          Uri.parse("$baseURL/contacts/$contactId/consents/$consentMessageIDs");
+      var uri = Uri.parse(
+        "$baseURL/contacts/$contactId/consents/$consentMessageIDs",
+      );
       response = await HttpClient.get(uri);
 
-      Pam.log([
-        "LOAD CONSENT STATUS",
-        uri,
-        "consent_message_id: $consentMessageIDs",
-        "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
-        "Status Code: ${response.statusCode}",
-        "----- Response Body -----",
-        response.body
-      ]);
+      log.complete(response.statusCode, body: response.body);
     } catch (e, stackTrace) {
-      Pam.log(["LOAD CONSENT STATUS ERROR", stackTrace, e]);
+      log.fail(e, stackTrace);
     }
 
     if (response != null) {
@@ -66,10 +71,11 @@ class ConsentAPI {
   }
 
   Future<AllowConsentResult?> submitConsent(
-      ConsentMessage consentMessage) async {
+    ConsentMessage consentMessage,
+  ) async {
     Map<String, dynamic> payload = {
       "_consent_message_id": consentMessage.id,
-      "_version": consentMessage.version
+      "_version": consentMessage.version,
     };
 
     var trackingConsentMessageID =
@@ -79,22 +85,27 @@ class ConsentAPI {
       payload["_allow_${element.name.key}"] = element.allow;
       if (consentMessage.id == trackingConsentMessageID &&
           element.name == ConsentPermissionName.preferencesCookies) {
-        Pam.shared.setAllowTracking(true);
+        await Pam.shared.setAllowTracking(true);
       }
     }
 
     var response = await Pam.shared.postTracker("allow_consent", payload);
 
-    var result = AllowConsentResult(response.contactID, response.database,
-        response.consentID, response.consentMessageID);
+    var result = AllowConsentResult(
+      response.contactID,
+      response.database,
+      response.consentID,
+      response.consentMessageID,
+    );
 
-    Pam.log([
-      "SUBMIT CONSENT",
-      "Type: ${consentMessage.type}, ID: ${consentMessage.id}",
-      ...consentMessage.permission.map((t) => "⦾${t.name.key}=${t.allow}"),
-      "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
-      response
-    ]);
+    Pam.log(
+      [
+        'Submit consent id=${consentMessage.id} version=${consentMessage.version} '
+            'consent_id=${response.consentID} error_code=${response.error?.code}',
+      ],
+      category: PamLogCategory.consent,
+      level: response.error == null ? PamLogLevel.info : PamLogLevel.error,
+    );
 
     return result;
   }
@@ -120,17 +131,22 @@ class ConsentAPI {
     var response = await Pam.shared.postTracker("allow_consent", payload);
 
     var result = response.error == null
-        ? AllowConsentResult(response.contactID, response.database,
-            response.consentID, response.consentMessageID)
+        ? AllowConsentResult(
+            response.contactID,
+            response.database,
+            response.consentID,
+            response.consentMessageID,
+          )
         : null;
 
-    Pam.log([
-      "ALLOW ALL CONSENT",
-      "ID: $consentMessageId",
-      "Version: latest",
-      "🚥🚥🚥🚥🚥 RESULT 🚥🚥🚥🚥🚥",
-      response
-    ]);
+    Pam.log(
+      [
+        'Allow all consent id=$consentMessageId version=latest '
+            'consent_id=${response.consentID} error_code=${response.error?.code}',
+      ],
+      category: PamLogCategory.consent,
+      level: response.error == null ? PamLogLevel.info : PamLogLevel.error,
+    );
 
     return result;
   }

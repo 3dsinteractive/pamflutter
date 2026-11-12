@@ -70,4 +70,25 @@ void main() {
     expect(await secureStorage.read(key: keyName), isNull);
     expect(prefs.getString(keyName), isNull);
   });
+
+  test(
+    'clear removes all PAM keys and preserves host application data',
+    () async {
+      final values = {
+        for (final key in SaveKey.values)
+          preference.getKeyName(key): 'saved-value',
+        'app-token': 'keep-me',
+      };
+      FlutterSecureStorage.setMockInitialValues(values);
+      SharedPreferences.setMockInitialValues(values);
+
+      await preference.clear();
+
+      final storage = const FlutterSecureStorage();
+      final prefs = await SharedPreferences.getInstance();
+      expect(await storage.readAll(), {'app-token': 'keep-me'});
+      expect(prefs.getKeys(), {'app-token'});
+      expect(prefs.getString('app-token'), 'keep-me');
+    },
+  );
 }

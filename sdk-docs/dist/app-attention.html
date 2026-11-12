@@ -72,15 +72,25 @@ code {
 <pre><code class="hljs language-dart"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:flutter/material.dart&#x27;</span>;
 <span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:pam_flutter/pam.dart&#x27;</span>;
 
-<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">HomePage</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">StatelessWidget</span> </span>{
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">HomePage</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">StatefulWidget</span> </span>{
   <span class="hljs-keyword">const</span> <span class="hljs-title class_">HomePage</span>({<span class="hljs-keyword">super</span>.key});
 
   <span class="hljs-meta">@override</span>
-  <span class="hljs-title class_">Widget</span> <span class="hljs-title function_">build</span>(<span class="hljs-title class_">BuildContext</span> context) {
-    <span class="hljs-comment">// ตรวจสอบว่ามี App Attention สำหรับหน้า home หรือไม่</span>
-    <span class="hljs-comment">// ไม่ต้อง await แอปสามารถแสดงหน้าจอต่อได้ทันที</span>
-    <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">appAttention</span>(context, pageName: <span class="hljs-string">&#x27;home&#x27;</span>);
+  <span class="hljs-title class_">State</span>&lt;<span class="hljs-title class_">HomePage</span>&gt; <span class="hljs-title function_">createState</span>() =&gt; <span class="hljs-title class_">_HomePageState</span>();
+}
 
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">_HomePageState</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">State</span>&lt;<span class="hljs-title">HomePage</span>&gt; </span>{
+  <span class="hljs-meta">@override</span>
+  <span class="hljs-keyword">void</span> <span class="hljs-title function_">initState</span>() {
+    <span class="hljs-keyword">super</span>.<span class="hljs-title function_">initState</span>();
+    <span class="hljs-title class_">WidgetsBinding</span>.instance.<span class="hljs-title function_">addPostFrameCallback</span>((_) {
+      <span class="hljs-keyword">if</span> (!mounted) <span class="hljs-keyword">return</span>;
+      <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">appAttention</span>(context, pageName: <span class="hljs-string">&#x27;home&#x27;</span>);
+    });
+  }
+
+  <span class="hljs-meta">@override</span>
+  <span class="hljs-title class_">Widget</span> <span class="hljs-title function_">build</span>(<span class="hljs-title class_">BuildContext</span> context) {
     <span class="hljs-keyword">return</span> <span class="hljs-title class_">Scaffold</span>(
       appBar: <span class="hljs-title class_">AppBar</span>(title: <span class="hljs-keyword">const</span> <span class="hljs-title class_">Text</span>(<span class="hljs-string">&#x27;หน้าหลัก&#x27;</span>)),
       body: <span class="hljs-keyword">const</span> <span class="hljs-title class_">Center</span>(child: <span class="hljs-title class_">Text</span>(<span class="hljs-string">&#x27;ยินดีต้อนรับ&#x27;</span>)),
@@ -88,7 +98,21 @@ code {
   }
 }
 </code></pre><p>สามารถเรียก <code>Pam.appAttention()</code> เพื่อตรวจสอบข้อความที่ต้องแสดงได้ หากไม่มีป๊อปอัปที่เข้าเงื่อนไข ระบบจะไม่แสดงอะไร และแอปทำงานต่อได้ตามปกติ</p>
-<p>ในตัวอย่างนี้ การเรียกอยู่ใน <code>build()</code> ซึ่ง Flutter อาจเรียกซ้ำเมื่อหน้าจออัปเดต หากต้องการตรวจสอบเพียงครั้งเดียวเมื่อเปิดหน้า ให้ย้ายการเรียกไปยังจุดเริ่มต้นของหน้านั้นแทน</p>
+<p>เรียกเมื่อหน้าแสดงครั้งแรกตามตัวอย่าง ไม่ควรเรียกใน <code>build()</code> เพราะอาจเกิดการเรียกใหม่เมื่อหน้าจออัปเดต</p>
+<p>ทั้งแอปแสดง App Attention ได้ทีละหนึ่งอัน ระหว่างโหลดหรือแสดงป๊อปอัป การเรียกซ้ำทุก <code>pageName</code> จะถูกข้ามโดยไม่เก็บคิว เมื่อปิดแล้วต้องเรียก <code>Pam.appAttention()</code> ใหม่จึงจะมีโอกาสแสดงอีกครั้ง ไม่มีการเปิดอันถัดไปอัตโนมัติ หากไม่มีข้อความหรือเกิดข้อผิดพลาดก็สามารถเรียกใหม่ได้ เมธอดคืน <code>Future&lt;void&gt;</code> ให้รอจบงานได้ และจะข้ามผลลัพธ์เก่าหากหน้าไม่อยู่ด้านหน้าหรือ session เปลี่ยนไป</p>
+<hr>
+<h2>เปลี่ยนข้อความและสี Action Button</h2>
+<p>หาก API ไม่ส่ง <code>url</code> สำหรับคลิก ส่ง <code>null</code> ข้อความว่าง หรือช่องว่างล้วน SDK จะซ่อน Action Button ทั้ง iOS และ Android แม้กำหนดข้อความปุ่มหรือ <code>onBannerClick</code> ไว้ เนื้อหาป๊อปอัปและปุ่มปิดยังแสดงตามปกติ</p>
+<p>กำหนดข้อความ สีพื้นหลัง และสีข้อความของปุ่มจากโค้ดได้ทั้ง Android และ iOS:</p>
+<pre><code class="hljs language-dart"><span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">appAttention</span>(
+  context,
+  pageName: <span class="hljs-string">&#x27;home&#x27;</span>,
+  actionButtonLabel: <span class="hljs-string">&#x27;ดูข้อเสนอ&#x27;</span>,
+  actionButtonColor: <span class="hljs-string">&#x27;#0066FF&#x27;</span>,
+  actionButtonTextColor: <span class="hljs-string">&#x27;#FFFFFF&#x27;</span>,
+);
+</code></pre><p>สีใช้รูปแบบ <code>#RRGGBB</code> จำนวน 6 หลัก รองรับตัวอักษรพิมพ์เล็กและใหญ่ หากสีไม่ถูกต้องจะใช้สีเดิมของปุ่ม ไม่กำหนดตัวเลือกใดก็ใช้ค่าเดิมได้</p>
+<p>ค่าจาก API มีลำดับความสำคัญสูงกว่าค่าจากโค้ด โดยพิจารณาแยกแต่ละฟิลด์: <code>action_button_label</code>, <code>action_button_color</code> และ <code>action_button_text_color</code> หาก API ไม่ส่งฟิลด์นั้น ส่ง <code>null</code> ส่งข้อความว่าง หรือช่องว่างล้วน จะใช้ค่าจากโค้ดแทน หากไม่ได้กำหนดจากโค้ดด้วย จะใช้ค่าเริ่มต้นของปุ่ม</p>
 <hr>
 <h2>onBannerClick: กำหนดการทำงานเมื่อผู้ใช้คลิกป๊อปอัป</h2>
 <p>โดยปกติ เมื่อผู้ใช้คลิก App Attention SDK จะอ่าน <code>url</code> ที่กำหนดมากับข้อความและเปิดด้วยแอปภายนอก หากต้องการจัดการเอง เช่น เปิดหน้าสินค้าภายในแอป หรือนำผู้ใช้ไปยังหน้าคูปอง ให้ส่ง callback ผ่านพารามิเตอร์ <code>onBannerClick</code></p>
@@ -151,6 +175,76 @@ code {
   },
 );
 </code></pre><p>หากต้องเริ่มงาน asynchronous ภายใน callback สามารถเรียกฟังก์ชันแยกให้ทำงานต่อได้ แล้วคืน <code>true</code> ทันทีเมื่อแอปเป็นผู้รับผิดชอบการคลิกนั้น โดยไม่ต้องรอผลใน callback</p>
+<h2>ตรวจ App Attention จากจุดกลางเมื่อเปลี่ยนหน้า</h2>
+<p>หากต้องการตรวจทั้งตอนเข้าหน้าใหม่และกลับมาหน้าเดิม ให้ใช้ <code>NavigatorObserver</code> แทนการเรียกซ้ำใน <code>initState()</code> ของแต่ละหน้า ตัวอย่างนี้ใช้กับ <code>MaterialApp</code> / <code>Navigator</code> ที่มีชื่อ route โดยข้าม dialog และ popup ของแอป</p>
+<p>ก่อนตรวจ Attention ต้อง initialize PAM และได้รับ contact จาก API แล้ว ซึ่งอาจมาจาก tracking event ใดก็ได้ ไม่จำเป็นต้องผ่าน login หรือ consent โดยเฉพาะ หากยังไม่มี contact SDK จะข้ามการตรวจ Attention ครั้งนั้น</p>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:flutter/material.dart&#x27;</span>;
+<span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:pam_flutter/pam.dart&#x27;</span>;
+
+<span class="hljs-keyword">void</span> <span class="hljs-title function_">checkPamAttentionForPage</span>(
+  <span class="hljs-title class_">BuildContext</span> context, {
+  <span class="hljs-keyword">required</span> <span class="hljs-title class_">String</span> pageName,
+}) {
+  <span class="hljs-keyword">if</span> (!context.mounted) <span class="hljs-keyword">return</span>;
+  <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">appAttention</span>(context, pageName: pageName);
+}
+
+<span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PamAttentionNavigatorObserver</span> <span class="hljs-keyword">extends</span> <span class="hljs-title">NavigatorObserver</span> </span>{
+  <span class="hljs-built_in">int</span> _pageChangeVersion = <span class="hljs-number">0</span>;
+
+  <span class="hljs-meta">@override</span>
+  <span class="hljs-keyword">void</span> <span class="hljs-title function_">didPush</span>(<span class="hljs-title class_">Route</span>&lt;<span class="hljs-built_in">dynamic</span>&gt; route, <span class="hljs-title class_">Route</span>&lt;<span class="hljs-built_in">dynamic</span>&gt;? previousRoute) {
+    <span class="hljs-comment">// เข้าไปยังหน้าใหม่</span>
+    <span class="hljs-title function_">_checkCurrentPage</span>(route);
+  }
+
+  <span class="hljs-meta">@override</span>
+  <span class="hljs-keyword">void</span> <span class="hljs-title function_">didPop</span>(<span class="hljs-title class_">Route</span>&lt;<span class="hljs-built_in">dynamic</span>&gt; route, <span class="hljs-title class_">Route</span>&lt;<span class="hljs-built_in">dynamic</span>&gt;? previousRoute) {
+    <span class="hljs-comment">// กลับมายังหน้าก่อนหน้า: มีโอกาสตรวจ Attention ใหม่อีกครั้ง</span>
+    <span class="hljs-comment">// การปิด dialog ไม่ถือเป็นการกลับเข้าหน้าใหม่ในตัวอย่างนี้</span>
+    <span class="hljs-keyword">if</span> (route <span class="hljs-keyword">is</span> <span class="hljs-title class_">PageRoute</span>) <span class="hljs-title function_">_checkCurrentPage</span>(previousRoute);
+  }
+
+  <span class="hljs-meta">@override</span>
+  <span class="hljs-keyword">void</span> <span class="hljs-title function_">didReplace</span>({<span class="hljs-title class_">Route</span>&lt;<span class="hljs-built_in">dynamic</span>&gt;? newRoute, <span class="hljs-title class_">Route</span>&lt;<span class="hljs-built_in">dynamic</span>&gt;? oldRoute}) {
+    <span class="hljs-comment">// เปลี่ยนหน้าด้วย pushReplacement เป็นต้น</span>
+    <span class="hljs-title function_">_checkCurrentPage</span>(newRoute);
+  }
+
+  <span class="hljs-keyword">void</span> <span class="hljs-title function_">_checkCurrentPage</span>(<span class="hljs-title class_">Route</span>&lt;<span class="hljs-built_in">dynamic</span>&gt;? route) {
+    <span class="hljs-keyword">if</span> (route <span class="hljs-keyword">is</span>! <span class="hljs-title class_">PageRoute</span>) <span class="hljs-keyword">return</span>; <span class="hljs-comment">// ไม่ตรวจสำหรับ dialog หรือ popup ของแอป</span>
+    <span class="hljs-keyword">final</span> version = ++_pageChangeVersion;
+
+    <span class="hljs-comment">// รอให้หน้าปัจจุบันสร้างเสร็จก่อน จึงได้ context ของหน้านั้น</span>
+    <span class="hljs-title class_">WidgetsBinding</span>.instance.<span class="hljs-title function_">addPostFrameCallback</span>((_) {
+      <span class="hljs-keyword">if</span> (version != _pageChangeVersion || !route.isCurrent) <span class="hljs-keyword">return</span>;
+      <span class="hljs-keyword">final</span> context = route.subtreeContext;
+      <span class="hljs-keyword">final</span> routeName = route.settings.name;
+      <span class="hljs-keyword">if</span> (context == <span class="hljs-keyword">null</span> || !context.mounted || routeName == <span class="hljs-keyword">null</span>) <span class="hljs-keyword">return</span>;
+
+      <span class="hljs-keyword">final</span> pageName = routeName == <span class="hljs-string">&#x27;/&#x27;</span>
+          ? <span class="hljs-string">&#x27;home&#x27;</span>
+          : routeName.<span class="hljs-title function_">startsWith</span>(<span class="hljs-string">&#x27;/&#x27;</span>)
+          ? routeName.<span class="hljs-title function_">substring</span>(<span class="hljs-number">1</span>)
+          : routeName;
+      <span class="hljs-keyword">if</span> (pageName.isEmpty) <span class="hljs-keyword">return</span>;
+
+      <span class="hljs-title function_">checkPamAttentionForPage</span>(context, pageName: pageName);
+      <span class="hljs-comment">// ไม่มี Attention -&gt; ไม่แสดงอะไร และไม่ขัดจังหวะหน้าปัจจุบัน</span>
+      <span class="hljs-comment">// หากมีป๊อปอัปอื่นกำลังโหลด/แสดง SDK จะข้ามรอบนี้ ไม่เก็บคิว</span>
+    });
+  }
+}
+</code></pre><p>สร้าง observer ครั้งเดียว เช่น เป็น field ของ State ที่สร้าง <code>MaterialApp</code> แล้วลงทะเบียนผ่าน <code>navigatorObservers</code>:</p>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">final</span> pamAttentionObserver = <span class="hljs-title class_">PamAttentionNavigatorObserver</span>();
+
+<span class="hljs-comment">// ภายใน build() ของ State เดียวกัน</span>
+<span class="hljs-keyword">return</span> <span class="hljs-title class_">MaterialApp</span>(
+  navigatorObservers: [pamAttentionObserver],
+  <span class="hljs-comment">// กำหนด routes / onGenerateRoute ของแอปตามปกติ</span>
+);
+</code></pre><p>ตัวอย่างแปลง <code>/</code> เป็น <code>home</code> และ <code>/products</code> เป็น <code>products</code> ให้ปรับ mapping ให้ตรงกับชื่อหน้าใน PAM หากสร้าง <code>MaterialPageRoute</code> เองต้องกำหนด <code>RouteSettings(name: ...)</code> ด้วย หากใช้ router อื่นหรือสลับ tab โดยไม่เปลี่ยน route ให้เรียก <code>checkPamAttentionForPage()</code> จาก callback ของระบบนั้นแทน</p>
+<p>เลือกใช้ observer หรือการเรียกจากหน้าเพียงวิธีเดียวสำหรับหน้าเดียวกัน ระหว่าง Attention โหลดหรือแสดงอยู่ การเรียกใหม่จะถูกข้ามตามพฤติกรรมของ SDK</p>
 <p><a href="index.html">กลับหน้าแรก</a></p>
 
   </main>

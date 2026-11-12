@@ -40,6 +40,31 @@ final config = PamConfig(
 
 ---
 
+## ตรวจสอบการทำงานด้วย Log
+
+ตั้ง `enableLog` เป็น `true` เพื่อเปิด log ทุกหมวดของ SDK และตั้งเป็น `false` เพื่อปิดทุกระดับ การเรียกแบบเดิมยังใช้ได้ และเลือกหมวดกับระดับเพิ่มเติมได้:
+
+```dart
+Pam.log(['SDK ready']); // General / INFO
+Pam.log(
+  ['Failed to load consent'],
+  category: PamLogCategory.consent,
+  level: PamLogLevel.error,
+);
+```
+
+หมวด `PamLogCategory` มี `general`, `tracking`, `identity`, `consent`, `push`, `attention` และ `storage` ส่วน `PamLogLevel` มี `debug`, `info` (ค่าเริ่มต้น), `warning` และ `error` แต่ละบรรทัดมีรูปแบบ `[PAM][Consent][ERROR] ข้อความ` รวมถึง stack trace และข้อความยาวที่แบ่งเป็นหลายบรรทัด
+
+- **Android Studio Logcat:** กรองด้วย `tag:PAM`, `tag:PAM message:Consent` หรือ `tag:PAM level:ERROR`
+- **iOS Xcode / Console:** กรอง subsystem `ai.pams.flutter` และ category เช่น `Consent` หากต้องการรายละเอียดให้เปิดการแสดงข้อความระดับ info/debug ด้วย ระดับ warning ใช้ชนิด default ของ OSLog พร้อม `[WARN]` ในข้อความ
+- หากระบบ log ของ native ยังไม่พร้อม จะใช้ Flutter console แทน โดยค้นหา `[PAM]` ได้
+
+Log ของ API มี `request_id` สำหรับจับคู่คำขอกับผลลัพธ์ พร้อม HTTP status และ `duration_ms` ส่วน payload/response body อยู่ระดับ DEBUG ข้อผิดพลาดอยู่ระดับ ERROR นอกจากนี้มีเหตุผลที่ข้าม Attention, แหล่งค่าปุ่ม API/code/default, การเปลี่ยน session และผลการ reset เพื่อช่วยไล่ปัญหา
+
+หลังอัปเดต SDK ต้อง rebuild แอปเพื่อรวมโค้ด native ใหม่ การ hot reload อย่างเดียวไม่เพียงพอ
+
+---
+
 <a id="identity-matcher"></a>
 
 ## identityMatcher: เลือกข้อมูลที่ใช้ระบุตัวตน
@@ -66,7 +91,7 @@ final identityMatcher = PamIdentityMatcher.primary(
 
 หากผู้ใช้ไม่ได้ล็อกอิน ให้ส่งกลับ `PamUserState.anonymous()` และหากยังไม่ทราบสถานะ เช่น กำลังโหลด session ให้ส่งกลับ `PamUserState.unknown()`
 
-SDK จะนำข้อมูลนี้ไปเทียบกับตัวตนที่เก็บไว้ หากไม่ตรงกัน จะไม่ส่ง event นั้นและเรียก `onIdentityMismatch` หากกำหนดไว้ เพื่อให้แอปจัดการปรับสถานะให้ถูกต้อง
+SDK จะนำข้อมูลนี้ไปเทียบกับตัวตนที่เก็บไว้ หากมีตัวตนเดิมอยู่แล้วและไม่ตรงกัน จะไม่ส่ง event นั้นและเรียก `onIdentityMismatch` หากกำหนดไว้ เพื่อให้แอปจัดการปรับสถานะให้ถูกต้อง หากตัวตนเดิมเป็น `null` จะให้ event ทำงานต่อโดยไม่เรียก callback เพราะถือเป็นช่วงสร้าง identity ครั้งแรก การสร้าง contact แรกอาจเกิดจากการให้ consent เช่น `Pam.allowAllTrackingConsent()` ได้ โดยไม่จำเป็นต้องผ่าน `Pam.userLogin()`
 
 ### ตัวอย่างการใช้งาน
 
@@ -99,7 +124,7 @@ final identityProvider = () {
 
 ## onIdentityMismatch: จัดการเมื่อตัวตนไม่ตรงกัน
 
-`onIdentityMismatch` จะถูกเรียกเมื่อ PAM ตรวจพบว่าผู้ใช้ที่ SDK กำลังทำงานด้วยไม่ตรงกับผู้ใช้ปัจจุบันของแอป โดยอ้างอิงสถานะที่ได้จาก `identityProvider`
+`onIdentityMismatch` จะถูกเรียกเมื่อ PAM มี identity เดิมอยู่แล้ว และตรวจพบว่าไม่ตรงกับผู้ใช้ปัจจุบันของแอป โดยอ้างอิงสถานะที่ได้จาก `identityProvider` กรณี `oldIdentity` เป็น `null` จะไม่เรียก callback นี้
 
 ### ข้อมูลตัวตนที่ได้รับ
 
@@ -107,7 +132,7 @@ SDK ส่งออบเจ็กต์ `mismatch` ให้ callback โดย
 
 | ฟิลด์ | ความหมาย |
 |---|---|
-| `mismatch.oldIdentity` | ตัวตนที่ PAM SDK เก็บไว้ก่อนตรวจพบความคลาดเคลื่อน เป็น `null` หาก SDK อยู่ในสถานะผู้ใช้ไม่ระบุตัวตน |
+| `mismatch.oldIdentity` | ตัวตนที่ PAM SDK เก็บไว้ก่อนตรวจพบความคลาดเคลื่อน โดย SDK จะเรียก callback เฉพาะเมื่อค่านี้ไม่เป็น `null` |
 | `mismatch.newIdentity` | ตัวตนปัจจุบันของแอปที่อ่านจาก `identityProvider` เป็น `null` หากแอปส่งสถานะ `PamUserState.anonymous()` |
 
 ทั้งสองค่าเป็น `PamUserIdentity?` อ่านค่าระบุตัวตนได้ผ่าน `.value` เช่น หากกำหนด `identityMatcher` เป็น `customer` ค่านี้จะเป็นรหัสลูกค้า
@@ -180,7 +205,10 @@ SDK จะไม่ส่ง event ที่ตรวจพบความคล
 import 'package:pam_flutter/pam.dart';
 
 class PamConfigProvider {
-  static PamConfig getDevelopConfig() {
+  static PamConfig getDevelopConfig(
+    PamIdentityProvider identityProvider,
+    PamIdentityMismatchHandler onIdentityMismatch,
+  ) {
     // ค่าจำลองสำหรับพัฒนา: สอบถาม endpoint, publicDBAlias,
     // loginDBAlias และ trackingConsentMessageID ได้จากตัวแทน PAM
     return _createConfig(
@@ -189,10 +217,15 @@ class PamConfigProvider {
       loginDBAlias: 'dev-login',
       trackingConsentMessageID: 'DEV-TRACKING-CONSENT-MESSAGE-ID',
       enableLog: true,
+      identityProvider: identityProvider,
+      onIdentityMismatch: onIdentityMismatch,
     );
   }
 
-  static PamConfig getProductionConfig() {
+  static PamConfig getProductionConfig(
+    PamIdentityProvider identityProvider,
+    PamIdentityMismatchHandler onIdentityMismatch,
+  ) {
     // ค่าจำลองสำหรับใช้งานจริง: สอบถามข้อมูลของสภาพแวดล้อมนี้
     // จากตัวแทน PAM แยกจากค่าที่ใช้ระหว่างพัฒนา
     return _createConfig(
@@ -201,6 +234,8 @@ class PamConfigProvider {
       loginDBAlias: 'production-login',
       trackingConsentMessageID: 'PRODUCTION-TRACKING-CONSENT-MESSAGE-ID',
       enableLog: false,
+      identityProvider: identityProvider,
+      onIdentityMismatch: onIdentityMismatch,
     );
   }
 
@@ -210,6 +245,8 @@ class PamConfigProvider {
     required String loginDBAlias,
     required String trackingConsentMessageID,
     required bool enableLog,
+    required PamIdentityProvider identityProvider,
+    required PamIdentityMismatchHandler onIdentityMismatch,
   }) {
     return PamConfig(
       endpoint,
@@ -222,21 +259,8 @@ class PamConfigProvider {
       identityMatcher: PamIdentityMatcher.primary(
         PamPrimaryIdentityKey.customer,
       ),
-      identityProvider: () {
-        // สถานะจำลอง: ผู้ใช้ยังไม่ได้ล็อกอิน
-        // ในแอปจริง ให้อ่านสถานะปัจจุบันจากระบบจัดการผู้ใช้ของแอป
-        // แล้วคืน unknown(), anonymous() หรือ identified(customerId)
-        return const PamUserState.anonymous();
-      },
-      onIdentityMismatch: (mismatch) async {
-        // ตัวอย่างนี้เลือกปรับตัวตนใน PAM ให้ตรงกับแอป
-        final identity = mismatch.newIdentity;
-        if (identity == null) {
-          Pam.userLogout();
-        } else {
-          Pam.userLogin(identity.value);
-        }
-      },
+      identityProvider: identityProvider,
+      onIdentityMismatch: onIdentityMismatch,
     );
   }
 }
@@ -244,17 +268,37 @@ class PamConfigProvider {
 
 ### ไฟล์ `lib/main.dart`
 
-เลือก config แล้วรอให้ PAM เริ่มต้นเสร็จก่อนเรียก `runApp()` หากต้องการใช้สภาพแวดล้อมจริง ให้เปลี่ยนเป็น `PamConfigProvider.getProductionConfig()`
+เลือก config แล้วรอให้ PAM เริ่มต้นเสร็จก่อนเรียก `runApp()` หากต้องการใช้สภาพแวดล้อมจริง ให้เปลี่ยนเป็น `PamConfigProvider.getProductionConfig(identityProvider, onIdentityMismatch)`
 
 ```dart
 import 'package:flutter/material.dart';
 import 'package:pam_flutter/pam.dart';
 import 'pam_config_provider.dart';
 
+// ตัวอย่างเริ่มต้น: ยังโหลด session ไม่เสร็จ
+// เปลี่ยนให้อ่านสถานะที่แอปเก็บไว้จริงตามหัวข้อ identityProvider ด้านบน
+PamUserState identityProvider() {
+  return const PamUserState.unknown();
+  // โหลดเสร็จแต่ยังไม่ login: PamUserState.anonymous()
+  // login แล้ว: PamUserState.identified(user.customerId)
+}
+
+Future<void> onIdentityMismatch(PamIdentityMismatch mismatch) async {
+  final identity = mismatch.newIdentity;
+  if (identity == null) {
+    await Pam.userLogout();
+  } else {
+    await Pam.userLogin(identity.value);
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final config = PamConfigProvider.getDevelopConfig();
+  final config = PamConfigProvider.getDevelopConfig(
+    identityProvider,
+    onIdentityMismatch,
+  );
   await Pam.initialize(config);
 
   runApp(const MyApp());

@@ -3,9 +3,18 @@ import Flutter
 import UIKit
 
 public class PamFlutterPlugin: NSObject, FlutterPlugin {
+  private var activePopup: PopupViewController?
+  private let logger = PamLogger()
+  private var loggingChannel: FlutterMethodChannel?
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "pam_flutter", binaryMessenger: registrar.messenger())
     let instance = PamFlutterPlugin()
+    let loggingChannel = FlutterMethodChannel(
+      name: "pam_flutter/logging", binaryMessenger: registrar.messenger())
+    instance.loggingChannel = loggingChannel
+    loggingChannel.setMethodCallHandler { [logger = instance.logger] call, result in
+      logger.handle(call, result: result)
+    }
     registrar.addMethodCallDelegate(instance, channel: channel)
   }
 
@@ -41,17 +50,50 @@ public class PamFlutterPlugin: NSObject, FlutterPlugin {
   }
 
   private func showNativePopup(_ popup: [String: Any]?, result: @escaping FlutterResult) {
-    guard let popup = popup else { return }
-
-    DispatchQueue.main.async {
-      let popupVC = PopupViewController()
-      popupVC.result = result
-      popupVC.popupData = popup
-      popupVC.modalPresentationStyle = .overFullScreen  // ให้แสดงแบบเต็มจอ
-      UIApplication.shared.keyWindow?.rootViewController?.present(
-        popupVC, animated: false, completion: nil)
+    guard let popup = popup else {
+      result(FlutterError(code: "INVALID_ARGUMENTS", message: "Expected popup data", details: nil))
+      return
     }
-
+    DispatchQueue.main.async {
+      guard self.activePopup == nil else {
+        result(nil)
+        return
+      }
+      let windows = UIApplication.shared.connectedScenes
+        .compactMap { $0 as? UIWindowScene }
+        .filter { $0.activationState == .foregroundActive }
+        .flatMap { $0.windows }
+      guard let window = windows.first(where: { $0.isKeyWindow }),
+        var presenter = window.rootViewController
+      else {
+        result(FlutterError(code: "NO_PRESENTER", message: "No active window", details: nil))
+        return
+      }
+      while let presented = presenter.presentedViewController {
+        presenter = presented
+      }
+      guard presenter.viewIfLoaded?.window != nil,
+        !presenter.isBeingDismissed, !presenter.isBeingPresented,
+        presenter.transitionCoordinator == nil
+      else {
+        result(FlutterError(code: "NO_PRESENTER", message: "View is transitioning", details: nil))
+        return
+      }
+      let popupVC = PopupViewController()
+      popupVC.logger = self.logger
+      popupVC.result = { [weak self] value in
+        self?.activePopup = nil
+        result(value)
+      }
+      popupVC.popupData = popup
+      popupVC.modalPresentationStyle = .overFullScreen
+      self.activePopup = popupVC
+      presenter.present(popupVC, animated: false)
+      if popupVC.presentingViewController == nil {
+        popupVC.complete(FlutterError(
+          code: "POPUP_FAILED", message: "Could not present App Attention", details: nil))
+      }
+    }
   }
 
   private func identifierForVendor() -> String {

@@ -163,6 +163,41 @@ onPressed: () <span class="hljs-keyword">async</span> {
 },
 </code></pre><p><code>cartRepository.addItem()</code> เป็นตัวอย่างเมธอดของระบบตะกร้า ให้แทนด้วยโค้ดของแอป หากเพิ่มสินค้าไม่สำเร็จ ไม่ควรส่ง <code>add_to_cart</code></p>
 <hr>
+<h2>บันทึกคำสั่งซื้อและสินค้าแต่ละรายการ</h2>
+<p>หลังระบบคำสั่งซื้อยืนยันสำเร็จ สามารถส่ง <code>purchase</code> สำหรับยอดรวม และ <code>purchase_item</code> สำหรับสินค้าแต่ละรายการ โดยเชื่อมกันด้วย <code>order_id</code> ตัวอย่างใช้ค่าที่รับเข้ามาจริง ไม่กำหนด SKU ราคา หรือสกุลเงินตายตัวในเมธอด</p>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:pam_flutter/pam.dart&#x27;</span>;
+
+<span class="hljs-keyword">void</span> <span class="hljs-title function_">trackPurchase</span>({
+  <span class="hljs-keyword">required</span> <span class="hljs-title class_">String</span> orderId,
+  <span class="hljs-keyword">required</span> <span class="hljs-built_in">double</span> totalAmount,
+  <span class="hljs-keyword">required</span> <span class="hljs-title class_">String</span> currency,
+  <span class="hljs-keyword">required</span> <span class="hljs-title class_">List</span>&lt;<span class="hljs-title class_">Map</span>&lt;<span class="hljs-title class_">String</span>, <span class="hljs-built_in">dynamic</span>&gt;&gt; items,
+}) {
+  <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">track</span>(
+    <span class="hljs-string">&#x27;purchase&#x27;</span>,
+    payload: {
+      <span class="hljs-string">&#x27;order_id&#x27;</span>: orderId,
+      <span class="hljs-string">&#x27;total_amount&#x27;</span>: totalAmount,
+      <span class="hljs-string">&#x27;currency&#x27;</span>: currency,
+    },
+  );
+
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">final</span> item <span class="hljs-keyword">in</span> items) {
+    <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">track</span>(
+      <span class="hljs-string">&#x27;purchase_item&#x27;</span>,
+      payload: {
+        <span class="hljs-string">&#x27;order_id&#x27;</span>: orderId,
+        <span class="hljs-string">&#x27;sku&#x27;</span>: item[<span class="hljs-string">&#x27;sku&#x27;</span>],
+        <span class="hljs-string">&#x27;price&#x27;</span>: item[<span class="hljs-string">&#x27;price&#x27;</span>],
+        <span class="hljs-string">&#x27;quantity&#x27;</span>: item[<span class="hljs-string">&#x27;quantity&#x27;</span>],
+        <span class="hljs-string">&#x27;title&#x27;</span>: item[<span class="hljs-string">&#x27;title&#x27;</span>],
+        <span class="hljs-string">&#x27;currency&#x27;</span>: currency,
+      },
+    );
+  }
+}
+</code></pre><p>ให้ตกลงชื่อ event และ attributes กับทีม Data ก่อนใช้ เช่น เลือกใช้ <code>total</code> หรือ <code>total_amount</code> ให้สม่ำเสมอ แต่ละรายการต้องมี <code>sku</code>, <code>price</code>, <code>quantity</code> และ <code>title</code> ตามรูปแบบที่ตกลงไว้ คำขอแต่ละ event แยกจากกัน จึงไม่ใช่ธุรกรรมที่สำเร็จหรือล้มเหลวพร้อมกันทั้งหมด และควรเรียกจากจุดยืนยันคำสั่งซื้อเพียงครั้งเดียวเพื่อไม่ส่งซ้ำจากการสร้างหน้าจอใหม่</p>
+<hr>
 <h2>นำ Event ไปใช้สร้าง Segment</h2>
 <p>ข้อมูล event สามารถนำไปกำหนดกลุ่มลูกค้าใน PAM ได้ เช่น <strong>ลูกค้าที่เพิ่มสินค้า SKU-001 ลงตะกร้าภายใน 15 วันที่ผ่านมา</strong> โดยพิจารณาร่วมกันจาก:</p>
 <ul>

@@ -11,22 +11,25 @@ class MethodChannelPamFlutter extends PamFlutterPlatform {
 
   @override
   Future<String?> getPlatformVersion() async {
-    final version =
-        await methodChannel.invokeMethod<String>('getPlatformVersion');
+    final version = await methodChannel.invokeMethod<String>(
+      'getPlatformVersion',
+    );
     return version;
   }
 
   @override
   Future<int> getTrackingAuthorizationStatus() async {
-    final status =
-        await methodChannel.invokeMethod<int>('getTrackingAuthorizationStatus');
+    final status = await methodChannel.invokeMethod<int>(
+      'getTrackingAuthorizationStatus',
+    );
     return status!;
   }
 
   @override
   Future<int> requestTrackingAuthorization() async {
-    final status =
-        await methodChannel.invokeMethod<int>('requestTrackingAuthorization');
+    final status = await methodChannel.invokeMethod<int>(
+      'requestTrackingAuthorization',
+    );
     return status!;
   }
 
@@ -37,17 +40,21 @@ class MethodChannelPamFlutter extends PamFlutterPlatform {
 
   @override
   Future<Map<String, dynamic>?> appAttentionPopup(
-      Map<String, dynamic> params) async {
+    Map<String, dynamic> params,
+  ) async {
     final result = await methodChannel.invokeMethod<Map<dynamic, dynamic>?>(
-        'appAttentionPopup', params);
+      'appAttentionPopup',
+      params,
+    );
 
-    Pam.log(["RESULT----", result]);
+    Pam.log(
+      ["Popup completed", result],
+      category: PamLogCategory.attention,
+      level: PamLogLevel.debug,
+    );
 
     final Map<String, dynamic>? bannerData = result?.map(
-      (key, value) => MapEntry(
-        key.toString(),
-        value,
-      ),
+      (key, value) => MapEntry(key.toString(), value),
     );
 
     return bannerData;

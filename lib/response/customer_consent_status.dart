@@ -28,7 +28,11 @@ class CustomerConsentStatus {
     try {
       map = jsonDecode(jsonString);
     } catch (e, stackTrace) {
-      Pam.log(["CustomerConsentStatus.parse Error", stackTrace, e]);
+      Pam.log(
+        ["CustomerConsentStatus.parse Error", stackTrace, e],
+        category: PamLogCategory.consent,
+        level: PamLogLevel.error,
+      );
       return null;
     }
 

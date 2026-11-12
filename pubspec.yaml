@@ -1,28 +1,27 @@
 name: pam_flutter
 description: 'A Flutter plugin for integrating mobile Flutter app with PAM Real CDP. learn more about pam at https://pams.ai'
-version: 3.0.4
+version: 3.1.1
 homepage: https://pams.ai
 repository: https://github.com/3dsinteractive/pamflutter
 
 environment:
-  sdk: ^3.6.0
-  flutter: '>=3.3.0'
+  sdk: ^3.11.0
+  flutter: '>=3.41.0'
 
 dependencies:
-  android_id: ^0.4.0
   flutter:
     sdk: flutter
-  flutter_secure_storage: ^10.3.1
-  http: ^1.2.2
-  plugin_platform_interface: ^2.0.2
-  queue: ^3.1.0+2
-  shared_preferences: ^2.3.4
-  url_launcher: ^6.3.1
+  flutter_secure_storage: ^11.2.0
+  http: ^1.6.0
+  plugin_platform_interface: ^2.1.8
+  queue: ^3.4.0
+  shared_preferences: ^2.5.6
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

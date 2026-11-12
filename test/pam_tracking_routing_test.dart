@@ -98,6 +98,20 @@ class _ThrowingRemovePreference extends UserPreference {
   }
 }
 
+class _DelayedContactPreference extends UserPreference {
+  final readStarted = Completer<void>();
+  final releaseRead = Completer<void>();
+
+  @override
+  Future<String?> getString(SaveKey key) async {
+    if (key == SaveKey.contactID) {
+      if (!readStarted.isCompleted) readStarted.complete();
+      await releaseRead.future;
+    }
+    return super.getString(key);
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const channel = MethodChannel('pam_flutter');
@@ -141,7 +155,131 @@ void main() {
     Pam.databaseAlias = '';
   });
 
+  Map<String, dynamic> fieldsAt(int index) =>
+      tracker.requests[index]['form_fields'] as Map<String, dynamic>;
+
   tearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+  test(
+    'reset forgets user state and keeps configuration ready for the next event',
+    () async {
+      final config = pam.config!;
+      pam.isEnableLog = true;
+      for (final key in SaveKey.values) {
+        if (key == SaveKey.allowTracking) {
+          await pam.setAllowTracking(true);
+        } else {
+          await pam.pref.saveString('old-value', key);
+        }
+      }
+      pam
+        ..loginContact = 'old-login-contact'
+        ..custID = 'old-customer'
+        ..pushToken = 'old-token';
+      Pam.contactID = 'old-contact';
+      Pam.customerID = 'old-customer';
+      Pam.databaseAlias = 'login-db';
+      final oldSession = pam.getSessionID();
+      String? callbackToken;
+      Pam.onToken((token) => callbackToken = token);
+
+      await Pam.reset();
+
+      expect(pam.config, same(config));
+      expect(pam.trackerAPI, same(tracker));
+      expect(pam.isEnableLog, isTrue);
+      expect(Pam.contactID, isEmpty);
+      expect(Pam.customerID, isEmpty);
+      expect(Pam.databaseAlias, isEmpty);
+      expect(pam.publicContact, isNull);
+      expect(pam.loginContact, isNull);
+      expect(pam.deviceUDID, isNull);
+      expect(await pam.isUserLogin(), isFalse);
+      expect(await pam.getPushToken(), isNull);
+      expect(pam.allowTracking, isFalse);
+      expect(pam.sessionID, isEmpty);
+      expect(pam.getSessionID(), isNot(oldSession));
+      expect(await const FlutterSecureStorage().readAll(), isEmpty);
+      expect((await SharedPreferences.getInstance()).getKeys(), isEmpty);
+      await Pam.methodsHandler(const MethodCall('onToken', 'new-token'));
+      expect(callbackToken, 'new-token');
+      expect(tracker.requests, isEmpty);
+
+      expect(await pam.getDatabaseAlias(), 'public-db');
+      expect(await pam.getContactID(), isNull);
+      expect(pam.allowTracking, isFalse);
+      pam.deviceUDID = 'device-id';
+      await Pam.track('first-event');
+      expect(fieldsAt(0).containsKey('_contact_id'), isFalse);
+      expect(fieldsAt(0).containsKey('customer'), isFalse);
+      expect(fieldsAt(0)['_database'], 'public-db');
+
+      await Pam.reset();
+      await Pam.reset();
+      expect(await pam.getContactID(), isNull);
+    },
+  );
+
+  test(
+    'reset waits for queued tracking and clears its saved contact',
+    () async {
+      final gate = Completer<void>();
+      final pending = pam.queue.add(() => gate.future);
+      final tracking = Pam.track('pending-event');
+      var resetFinished = false;
+      final reset = Pam.reset().then((_) => resetFinished = true);
+      await Future<void>.delayed(Duration.zero);
+      expect(resetFinished, isFalse);
+      gate.complete();
+      await pending;
+      await tracking;
+      await reset;
+
+      expect(tracker.requests, hasLength(1));
+      expect(await pam.getContactID(), isNull);
+      expect(await pam.pref.getString(SaveKey.contactID), isNull);
+    },
+  );
+
+  test('reset clears memory and reports storage failures', () async {
+    final config = pam.config;
+    pam.pref = _ThrowingRemovePreference();
+    pam.custID = 'old-customer';
+    await expectLater(Pam.reset(), throwsStateError);
+    expect(pam.custID, isNull);
+    expect(pam.publicContact, isNull);
+    expect(pam.config, same(config));
+  });
+
+  test('reset waits for background consent sync without blocking initialize',
+      () async {
+    final preference = _DelayedContactPreference();
+    final config = pam.config;
+    pam.pref = preference;
+    pam.publicContact = null;
+    await Pam.initialize(pam.config!);
+    await preference.readStarted.future;
+
+    var resetFinished = false;
+    final reset = Pam.reset().then((_) => resetFinished = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(resetFinished, isFalse);
+    preference.releaseRead.complete();
+    await reset;
+
+    expect(pam.config, same(config));
+    expect(pam.allowTracking, isFalse);
+    expect(await pam.pref.getBool(SaveKey.allowTracking), isNull);
+  });
+
+  test('reset after queued consent leaves tracking disabled', () async {
+    final consent = Pam.allowAllTrackingConsent('consent-message');
+    final reset = Pam.reset();
+    await consent;
+    await reset;
+    expect(pam.allowTracking, isFalse);
+    expect(await pam.pref.getBool(SaveKey.allowTracking), isNull);
+  });
 
   test('session ID is a UUID v4 and is reused within the session', () {
     final sessionId = pam.getSessionID();
@@ -149,13 +287,11 @@ void main() {
     expect(
       sessionId,
       matches(
-          r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'),
+        r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+      ),
     );
     expect(pam.getSessionID(), sessionId);
   });
-
-  Map<String, dynamic> fieldsAt(int index) =>
-      tracker.requests[index]['form_fields'] as Map<String, dynamic>;
 
   void expectAllowAllConsentFields(
     Map<String, dynamic> fields,
@@ -201,47 +337,124 @@ void main() {
     );
   }
 
-  test('login deletes media from the previous destination before switching',
-      () async {
-    await Pam.userLogin('customer-a');
-    await Pam.track('purchase');
+  test(
+    'public-only tracks login once and stays in public DB after logout',
+    () async {
+      pam.config!.loginDBAlias = '';
+      await Pam.track('before');
+      await Pam.userLogin('customer-a');
+      await Pam.track('during');
+      await Pam.userLogout();
+      await Pam.track('after');
 
-    expect(tracker.requests.map((body) => body['event']), [
-      'delete_media',
-      'login',
-      'login',
-      'purchase',
-    ]);
+      expect(tracker.requests.map((body) => body['event']), [
+        'before',
+        'login',
+        'during',
+        'logout',
+        'after',
+      ]);
+      for (var i = 0; i < tracker.requests.length; i++) {
+        expect(fieldsAt(i)['_database'], 'public-db');
+      }
+      expect(fieldsAt(1)['customer'], 'customer-a');
+      expect(fieldsAt(2)['customer'], 'customer-a');
+      expect(fieldsAt(4).containsKey('customer'), isFalse);
+      expect(await pam.isUserLogin(), isFalse);
+    },
+  );
 
-    expect(fieldsAt(0), containsPair('_database', 'public-db'));
-    expect(fieldsAt(0), containsPair('os_version', 'Android: 15 (SDK 35)'));
-    expect(fieldsAt(0), containsPair('app_version', '1.0.0'));
-    expect(tracker.requests[0]['platform'],
-        'Android: 15 (SDK 35),  PAM Test: 1.0.0(1)');
-    expect(fieldsAt(0), containsPair('_contact_id', 'anonymous-contact'));
-    expect(fieldsAt(0).containsKey('customer'), isFalse);
-    expect(
-      fieldsAt(0)['_delete_media'],
-      anyOf(
-        equals({'ios_notification': ''}),
-        equals({'android_notification': ''}),
-      ),
-    );
+  test(
+    'login-only skips anonymous events and resumes after each login',
+    () async {
+      pam.config!.publicDBAlias = '';
+      final skipped = await Pam.track('before');
+      expect(skipped?.error?.code, 'TRACKING_DISABLED');
+      expect(tracker.requests, isEmpty);
+      await Pam.userLogin('customer-a');
+      await Pam.track('during');
+      await Pam.userLogout();
+      final countAfterLogout = tracker.requests.length;
+      await Pam.track('after');
+      expect(tracker.requests.length, countAfterLogout);
+      await Pam.userLogin('customer-b');
+      await Pam.track('again');
 
-    expect(fieldsAt(1), containsPair('_database', 'public-db'));
-    expect(fieldsAt(1), containsPair('customer', 'customer-a'));
-    expect(fieldsAt(1).containsKey('_contact_id'), isFalse);
+      expect(tracker.requests.map((body) => body['event']), [
+        'login',
+        'during',
+        'delete_media',
+        'logout',
+        'login',
+        'again',
+      ]);
+      for (var i = 0; i < tracker.requests.length; i++) {
+        expect(fieldsAt(i)['_database'], 'login-db');
+      }
+      expect(fieldsAt(5)['customer'], 'customer-b');
+    },
+  );
 
-    expect(fieldsAt(2), containsPair('_database', 'login-db'));
-    expect(fieldsAt(2), containsPair('customer', 'customer-a'));
+  test(
+    'empty aliases never submit requests even across login and logout',
+    () async {
+      pam.config!.publicDBAlias = '';
+      pam.config!.loginDBAlias = '';
+      await Pam.track('before');
+      await Pam.userLogin('customer-a');
+      await Pam.track('during');
+      await Pam.userLogout();
+      await Pam.track('after');
+      expect(tracker.requests, isEmpty);
+      expect(await pam.isUserLogin(), isFalse);
+    },
+  );
 
-    expect(fieldsAt(3), containsPair('_database', 'login-db'));
-    expect(
-      fieldsAt(3),
-      containsPair('_contact_id', 'login-contact-customer-a'),
-    );
-    expect(fieldsAt(3), containsPair('customer', 'customer-a'));
-  });
+  test(
+    'login deletes media from the previous destination before switching',
+    () async {
+      await Pam.userLogin('customer-a');
+      await Pam.track('purchase');
+
+      expect(tracker.requests.map((body) => body['event']), [
+        'delete_media',
+        'login',
+        'login',
+        'purchase',
+      ]);
+
+      expect(fieldsAt(0), containsPair('_database', 'public-db'));
+      expect(fieldsAt(0), containsPair('os_version', 'Android: 15 (SDK 35)'));
+      expect(fieldsAt(0), containsPair('app_version', '1.0.0'));
+      expect(
+        tracker.requests[0]['platform'],
+        'Android: 15 (SDK 35),  PAM Test: 1.0.0(1)',
+      );
+      expect(fieldsAt(0), containsPair('_contact_id', 'anonymous-contact'));
+      expect(fieldsAt(0).containsKey('customer'), isFalse);
+      expect(
+        fieldsAt(0)['_delete_media'],
+        anyOf(
+          equals({'ios_notification': ''}),
+          equals({'android_notification': ''}),
+        ),
+      );
+
+      expect(fieldsAt(1), containsPair('_database', 'public-db'));
+      expect(fieldsAt(1), containsPair('customer', 'customer-a'));
+      expect(fieldsAt(1).containsKey('_contact_id'), isFalse);
+
+      expect(fieldsAt(2), containsPair('_database', 'login-db'));
+      expect(fieldsAt(2), containsPair('customer', 'customer-a'));
+
+      expect(fieldsAt(3), containsPair('_database', 'login-db'));
+      expect(
+        fieldsAt(3),
+        containsPair('_contact_id', 'login-contact-customer-a'),
+      );
+      expect(fieldsAt(3), containsPair('customer', 'customer-a'));
+    },
+  );
 
   test('account switch deletes media from the old logged-in contact', () async {
     await Pam.userLogin('customer-a');
@@ -271,9 +484,7 @@ void main() {
   });
 
   test('primary matcher sends its configured CDP field', () async {
-    useIdentityMatcher(
-      PamIdentityMatcher.primary(PamPrimaryIdentityKey.sms),
-    );
+    useIdentityMatcher(PamIdentityMatcher.primary(PamPrimaryIdentityKey.sms));
 
     await Pam.userLogin('0811111111');
     await Pam.track('open_home');
@@ -298,29 +509,31 @@ void main() {
     }
   });
 
-  test('logout targets the logged-in contact before routing back to public',
-      () async {
-    await Pam.userLogin('customer-a');
-    tracker.requests.clear();
+  test(
+    'logout targets the logged-in contact before routing back to public',
+    () async {
+      await Pam.userLogin('customer-a');
+      tracker.requests.clear();
 
-    await Pam.userLogout();
-    await Pam.track('anonymous_event');
+      await Pam.userLogout();
+      await Pam.track('anonymous_event');
 
-    expect(tracker.requests.map((body) => body['event']), [
-      'delete_media',
-      'logout',
-      'anonymous_event',
-    ]);
-    expect(fieldsAt(0), containsPair('_database', 'login-db'));
-    expect(
-      fieldsAt(0),
-      containsPair('_contact_id', 'login-contact-customer-a'),
-    );
-    expect(fieldsAt(1), containsPair('_database', 'login-db'));
-    expect(fieldsAt(2), containsPair('_database', 'public-db'));
-    expect(fieldsAt(2), containsPair('_contact_id', 'public-contact'));
-    expect(fieldsAt(2).containsKey('customer'), isFalse);
-  });
+      expect(tracker.requests.map((body) => body['event']), [
+        'delete_media',
+        'logout',
+        'anonymous_event',
+      ]);
+      expect(fieldsAt(0), containsPair('_database', 'login-db'));
+      expect(
+        fieldsAt(0),
+        containsPair('_contact_id', 'login-contact-customer-a'),
+      );
+      expect(fieldsAt(1), containsPair('_database', 'login-db'));
+      expect(fieldsAt(2), containsPair('_database', 'public-db'));
+      expect(fieldsAt(2), containsPair('_contact_id', 'public-contact'));
+      expect(fieldsAt(2).containsKey('customer'), isFalse);
+    },
+  );
 
   test('logout does not re-register a saved push token', () async {
     await Pam.userLogin('customer-a');
@@ -335,25 +548,27 @@ void main() {
     ]);
   });
 
-  test('login is enqueued before a track call even when neither is awaited',
-      () async {
-    final loginFuture = Pam.userLogin('customer-a');
-    final trackFuture = Pam.track('open_home');
+  test(
+    'login is enqueued before a track call even when neither is awaited',
+    () async {
+      final loginFuture = Pam.userLogin('customer-a');
+      final trackFuture = Pam.track('open_home');
 
-    await Future.wait([loginFuture, trackFuture]);
+      await Future.wait([loginFuture, trackFuture]);
 
-    expect(tracker.requests.map((body) => body['event']), [
-      'delete_media',
-      'login',
-      'login',
-      'open_home',
-    ]);
-    expect(fieldsAt(3), containsPair('_database', 'login-db'));
-    expect(
-      fieldsAt(3),
-      containsPair('_contact_id', 'login-contact-customer-a'),
-    );
-  });
+      expect(tracker.requests.map((body) => body['event']), [
+        'delete_media',
+        'login',
+        'login',
+        'open_home',
+      ]);
+      expect(fieldsAt(3), containsPair('_database', 'login-db'));
+      expect(
+        fieldsAt(3),
+        containsPair('_contact_id', 'login-contact-customer-a'),
+      );
+    },
+  );
 
   test('a timeout error lets the next queued event continue', () async {
     final delayedTracker = _DelayedFailureTrackerAPI();
@@ -387,21 +602,22 @@ void main() {
     expect(response?.consentMessageID, 'consent-message-id');
   });
 
-  test('contact-not-found response pauses normal tracking temporarily',
-      () async {
-    final contactNotFoundTracker = _ContactNotFoundTrackerAPI();
-    pam.trackerAPI = contactNotFoundTracker;
+  test(
+    'contact-not-found response pauses normal tracking temporarily',
+    () async {
+      final contactNotFoundTracker = _ContactNotFoundTrackerAPI();
+      pam.trackerAPI = contactNotFoundTracker;
 
-    final firstResponse = await Pam.track('open_home');
-    final secondResponse = await Pam.track('purchase');
+      final firstResponse = await Pam.track('open_home');
+      final secondResponse = await Pam.track('purchase');
 
-    expect(firstResponse?.error?.code, 'CONTACT_NOT_FOUND');
-    expect(secondResponse?.error?.code, 'TRACKING_PAUSED');
-    expect(
-      contactNotFoundTracker.requests.map((body) => body['event']),
-      ['open_home'],
-    );
-  });
+      expect(firstResponse?.error?.code, 'CONTACT_NOT_FOUND');
+      expect(secondResponse?.error?.code, 'TRACKING_PAUSED');
+      expect(contactNotFoundTracker.requests.map((body) => body['event']), [
+        'open_home',
+      ]);
+    },
+  );
 
   test('whitelisted events can pass while normal tracking is paused', () async {
     final contactNotFoundTracker = _ContactNotFoundTrackerAPI();
@@ -413,10 +629,10 @@ void main() {
 
     expect(testResponse?.error, isNull);
     expect(normalResponse?.error?.code, 'TRACKING_PAUSED');
-    expect(
-      contactNotFoundTracker.requests.map((body) => body['event']),
-      ['open_home', 'test'],
-    );
+    expect(contactNotFoundTracker.requests.map((body) => body['event']), [
+      'open_home',
+      'test',
+    ]);
   });
 
   test('successful consent event unpauses normal tracking', () async {
@@ -429,51 +645,55 @@ void main() {
 
     expect(consentResponse?.error, isNull);
     expect(normalResponse?.error, isNull);
-    expect(
-      contactNotFoundTracker.requests.map((body) => body['event']),
-      ['open_home', 'allow_consent', 'purchase'],
-    );
-  });
-
-  test('allowAllTrackingConsent submits latest version and allows tracking',
-      () async {
-    pam.config = PamConfig(
-      pam.config!.pamServer,
-      pam.config!.publicDBAlias,
-      pam.config!.loginDBAlias,
-      'tracking-consent-message',
-      pam.config!.enableLog,
-      identityMatcher: pam.config!.identityMatcher,
-      blockEventsIfNoConsent: true,
-      identityProvider: pam.config!.identityProvider,
-      onIdentityMismatch: pam.config!.onIdentityMismatch,
-    );
-
-    final result =
-        await Pam.allowAllTrackingConsent('tracking-consent-message');
-    final normalResponse = await Pam.track('purchase');
-
-    expect(result, isNotNull);
-    expect(result?.result.keys, ['tracking-consent-message']);
-    expect(
-      result?.result['tracking-consent-message']?.consentMessageID,
-      'tracking-consent-message',
-    );
-    expect(
-      result?.result['tracking-consent-message']?.consentID,
-      'consent-record-id',
-    );
-    expect(pam.allowTracking, isTrue);
-    expect(normalResponse?.error, isNull);
-    expect(tracker.requests.map((body) => body['event']), [
+    expect(contactNotFoundTracker.requests.map((body) => body['event']), [
+      'open_home',
       'allow_consent',
       'purchase',
     ]);
-
-    final consentFields = fieldsAt(0);
-    expect(consentFields, containsPair('_database', 'public-db'));
-    expectAllowAllConsentFields(consentFields, 'tracking-consent-message');
   });
+
+  test(
+    'allowAllTrackingConsent submits latest version and allows tracking',
+    () async {
+      pam.config = PamConfig(
+        pam.config!.pamServer,
+        pam.config!.publicDBAlias,
+        pam.config!.loginDBAlias,
+        'tracking-consent-message',
+        pam.config!.enableLog,
+        identityMatcher: pam.config!.identityMatcher,
+        blockEventsIfNoConsent: true,
+        identityProvider: pam.config!.identityProvider,
+        onIdentityMismatch: pam.config!.onIdentityMismatch,
+      );
+
+      final result = await Pam.allowAllTrackingConsent(
+        'tracking-consent-message',
+      );
+      final normalResponse = await Pam.track('purchase');
+
+      expect(result, isNotNull);
+      expect(result?.result.keys, ['tracking-consent-message']);
+      expect(
+        result?.result['tracking-consent-message']?.consentMessageID,
+        'tracking-consent-message',
+      );
+      expect(
+        result?.result['tracking-consent-message']?.consentID,
+        'consent-record-id',
+      );
+      expect(pam.allowTracking, isTrue);
+      expect(normalResponse?.error, isNull);
+      expect(tracker.requests.map((body) => body['event']), [
+        'allow_consent',
+        'purchase',
+      ]);
+
+      final consentFields = fieldsAt(0);
+      expect(consentFields, containsPair('_database', 'public-db'));
+      expectAllowAllConsentFields(consentFields, 'tracking-consent-message');
+    },
+  );
 
   test('allowAllContactingConsent does not allow tracking', () async {
     pam.config = PamConfig(
@@ -560,20 +780,19 @@ void main() {
     expect(trackedFields, containsPair('customer', 'customer-a'));
   });
 
-  test('initialize does not automatically send a persisted push token',
-      () async {
-    pam.publicContact = null;
-    await pam.pref.saveString('persisted-token', SaveKey.pushKey);
+  test(
+    'initialize does not automatically send a persisted push token',
+    () async {
+      pam.publicContact = null;
+      await pam.pref.saveString('persisted-token', SaveKey.pushKey);
 
-    await pam.init(pam.config!, false);
-    await Future<void>.delayed(Duration.zero);
+      await pam.init(pam.config!, false);
+      await Future<void>.delayed(Duration.zero);
 
-    expect(pam.pushToken, isNull);
-    expect(
-      await pam.pref.getString(SaveKey.pushKey),
-      'persisted-token',
-    );
-  });
+      expect(pam.pushToken, isNull);
+      expect(await pam.pref.getString(SaveKey.pushKey), 'persisted-token');
+    },
+  );
 
   test('identity provider unknown state does not block tracking', () async {
     pam.config!.identityProvider = () => const PamUserState.unknown();
@@ -595,7 +814,94 @@ void main() {
     expect(tracker.requests.map((body) => body['event']), ['open_home']);
   });
 
+  test('initial identity allows tracking without notifying a mismatch', () async {
+    var mismatchCount = 0;
+    pam.config!.identityProvider = () => PamUserState.identified('customer-a');
+    pam.config!.onIdentityMismatch = (_) => mismatchCount++;
+
+    final firstResponse = await Pam.track('first_event');
+    final secondResponse = await Pam.track('second_event');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(firstResponse?.error, isNull);
+    expect(secondResponse?.error, isNull);
+    expect(tracker.requests.map((body) => body['event']), [
+      'first_event',
+      'second_event',
+    ]);
+    expect(mismatchCount, 0);
+
+    await Pam.userLogin('customer-a');
+    tracker.requests.clear();
+    final response = await Pam.track('after_login');
+    expect(response?.error, isNull);
+    expect(fieldsAt(0), containsPair('customer', 'customer-a'));
+    expect(mismatchCount, 0);
+  });
+
+  test('identity mismatch is checked even without a contact ID', () async {
+    pam.custID = 'customer-old';
+    pam.publicContact = null;
+    pam.loginContact = null;
+    pam.config!.identityProvider = () => PamUserState.identified('customer-new');
+    PamIdentityMismatch? reportedMismatch;
+    pam.config!.onIdentityMismatch = (mismatch) {
+      reportedMismatch = mismatch;
+    };
+
+    final response = await Pam.track('custom_event');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(response?.error?.code, 'IDENTITY_STATE_MISMATCH');
+    expect(tracker.requests, isEmpty);
+    expect(reportedMismatch?.type, PamIdentityMismatchType.accountSwitchRequired);
+    expect(reportedMismatch?.oldIdentity?.value, 'customer-old');
+    expect(reportedMismatch?.newIdentity?.value, 'customer-new');
+  });
+
+  test('first consent creates a contact and allows tracking without login', () async {
+    pam.publicContact = null;
+    pam.config!.blockEventsIfNoConsent = true;
+    pam.config!.identityProvider = () => PamUserState.identified('customer-a');
+    var mismatchCount = 0;
+    pam.config!.onIdentityMismatch = (_) => mismatchCount++;
+
+    final consent = await Pam.allowAllTrackingConsent('consent-message');
+
+    expect(consent, isNotNull);
+    expect(fieldsAt(0).containsKey('_contact_id'), isFalse);
+    expect(pam.publicContact, 'public-contact');
+    expect(await pam.pref.getString(SaveKey.contactID), 'public-contact');
+
+    final response = await Pam.track('after_consent');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(response?.error, isNull);
+    expect(tracker.requests.map((body) => body['event']), [
+      'allow_consent',
+      'after_consent',
+    ]);
+    expect(fieldsAt(1), containsPair('_contact_id', 'public-contact'));
+    expect(mismatchCount, 0);
+    expect(await pam.isUserLogin(), isFalse);
+  });
+
+  test('anonymous identity allows tracking without notifying a mismatch', () async {
+    var mismatchCount = 0;
+    pam.config!.identityProvider = () => const PamUserState.anonymous();
+    pam.config!.onIdentityMismatch = (_) => mismatchCount++;
+
+    final response = await Pam.track('open_home');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(response?.error, isNull);
+    expect(tracker.requests.map((body) => body['event']), ['open_home']);
+    expect(mismatchCount, 0);
+  });
+
   test('identity mismatch drops events and notifies only once', () async {
+    await Pam.userLogin('customer-old');
+    tracker.requests.clear();
     var mismatchCount = 0;
     PamIdentityMismatch? reportedMismatch;
     pam.config!.identityProvider = () => PamUserState.identified('customer-a');
@@ -612,8 +918,8 @@ void main() {
     expect(secondResponse?.error?.code, 'IDENTITY_STATE_MISMATCH');
     expect(tracker.requests, isEmpty);
     expect(mismatchCount, 1);
-    expect(reportedMismatch?.type, PamIdentityMismatchType.loginRequired);
-    expect(reportedMismatch?.oldIdentity, isNull);
+    expect(reportedMismatch?.type, PamIdentityMismatchType.accountSwitchRequired);
+    expect(reportedMismatch?.oldIdentity?.value, 'customer-old');
     expect(reportedMismatch?.newIdentity?.value, 'customer-a');
     expect(reportedMismatch?.event, 'first_event');
   });
@@ -638,23 +944,47 @@ void main() {
     );
   });
 
-  test('central mismatch handler can resolve identity for the next event',
-      () async {
-    final resolved = Completer<void>();
-    pam.config!.identityProvider = () => PamUserState.identified('0818888888');
-    pam.config!.onIdentityMismatch = (mismatch) async {
-      await Pam.userLogin(mismatch.newIdentity!.value);
-      resolved.complete();
+  test(
+    'central mismatch handler can resolve identity for the next event',
+    () async {
+      final resolved = Completer<void>();
+      await Pam.userLogin('customer-old');
+      tracker.requests.clear();
+      pam.config!.identityProvider =
+          () => PamUserState.identified('0818888888');
+      pam.config!.onIdentityMismatch = (mismatch) async {
+        await Pam.userLogin(mismatch.newIdentity!.value);
+        resolved.complete();
+      };
+
+      final mismatchedResponse = await Pam.track('before_login');
+      await resolved.future;
+      tracker.requests.clear();
+      final nextResponse = await Pam.track('after_login');
+
+      expect(mismatchedResponse?.error?.code, 'IDENTITY_STATE_MISMATCH');
+      expect(nextResponse?.error, isNull);
+      expect(tracker.requests.map((body) => body['event']), ['after_login']);
+    },
+  );
+
+  test('existing identity with anonymous app state still requires logout', () async {
+    await Pam.userLogin('customer-a');
+    tracker.requests.clear();
+    PamIdentityMismatch? reportedMismatch;
+    pam.config!.identityProvider = () => const PamUserState.anonymous();
+    pam.config!.onIdentityMismatch = (mismatch) {
+      reportedMismatch = mismatch;
     };
 
-    final mismatchedResponse = await Pam.track('before_login');
-    await resolved.future;
-    tracker.requests.clear();
-    final nextResponse = await Pam.track('after_login');
+    final response = await Pam.track('open_home');
+    await Future<void>.delayed(Duration.zero);
 
-    expect(mismatchedResponse?.error?.code, 'IDENTITY_STATE_MISMATCH');
-    expect(nextResponse?.error, isNull);
-    expect(tracker.requests.map((body) => body['event']), ['after_login']);
+    expect(response?.error?.code, 'IDENTITY_STATE_MISMATCH');
+    expect(tracker.requests, isEmpty);
+    expect(reportedMismatch?.type, PamIdentityMismatchType.logoutRequired);
+    expect(reportedMismatch?.oldIdentity?.value, 'customer-a');
+    expect(reportedMismatch?.newIdentity, isNull);
   });
 
   test('identity provider errors drop the event without throwing', () async {
@@ -687,21 +1017,21 @@ void main() {
     ]);
   });
 
-  test('platform token callback does not register the token automatically',
-      () async {
-    String? receivedToken;
-    Pam.onToken((token) {
-      receivedToken = token;
-    });
+  test(
+    'platform token callback does not register the token automatically',
+    () async {
+      String? receivedToken;
+      Pam.onToken((token) {
+        receivedToken = token;
+      });
 
-    await Pam.methodsHandler(
-      const MethodCall('onToken', 'developer-token'),
-    );
+      await Pam.methodsHandler(const MethodCall('onToken', 'developer-token'));
 
-    expect(receivedToken, 'developer-token');
-    expect(pam.pushToken, isNull);
-    expect(tracker.requests, isEmpty);
-  });
+      expect(receivedToken, 'developer-token');
+      expect(pam.pushToken, isNull);
+      expect(tracker.requests, isEmpty);
+    },
+  );
 
   test('push helpers accept a PAM data map without Firebase types', () {
     final data = <String, dynamic>{

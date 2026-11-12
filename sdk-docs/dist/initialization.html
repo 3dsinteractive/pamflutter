@@ -116,6 +116,23 @@ code {
 </tr>
 </tbody></table>
 <hr>
+<h2>ตรวจสอบการทำงานด้วย Log</h2>
+<p>ตั้ง <code>enableLog</code> เป็น <code>true</code> เพื่อเปิด log ทุกหมวดของ SDK และตั้งเป็น <code>false</code> เพื่อปิดทุกระดับ การเรียกแบบเดิมยังใช้ได้ และเลือกหมวดกับระดับเพิ่มเติมได้:</p>
+<pre><code class="hljs language-dart"><span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">log</span>([<span class="hljs-string">&#x27;SDK ready&#x27;</span>]); <span class="hljs-comment">// General / INFO</span>
+<span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">log</span>(
+  [<span class="hljs-string">&#x27;Failed to load consent&#x27;</span>],
+  category: <span class="hljs-title class_">PamLogCategory</span>.consent,
+  level: <span class="hljs-title class_">PamLogLevel</span>.error,
+);
+</code></pre><p>หมวด <code>PamLogCategory</code> มี <code>general</code>, <code>tracking</code>, <code>identity</code>, <code>consent</code>, <code>push</code>, <code>attention</code> และ <code>storage</code> ส่วน <code>PamLogLevel</code> มี <code>debug</code>, <code>info</code> (ค่าเริ่มต้น), <code>warning</code> และ <code>error</code> แต่ละบรรทัดมีรูปแบบ <code>[PAM][Consent][ERROR] ข้อความ</code> รวมถึง stack trace และข้อความยาวที่แบ่งเป็นหลายบรรทัด</p>
+<ul>
+<li><strong>Android Studio Logcat:</strong> กรองด้วย <code>tag:PAM</code>, <code>tag:PAM message:Consent</code> หรือ <code>tag:PAM level:ERROR</code></li>
+<li><strong>iOS Xcode / Console:</strong> กรอง subsystem <code>ai.pams.flutter</code> และ category เช่น <code>Consent</code> หากต้องการรายละเอียดให้เปิดการแสดงข้อความระดับ info/debug ด้วย ระดับ warning ใช้ชนิด default ของ OSLog พร้อม <code>[WARN]</code> ในข้อความ</li>
+<li>หากระบบ log ของ native ยังไม่พร้อม จะใช้ Flutter console แทน โดยค้นหา <code>[PAM]</code> ได้</li>
+</ul>
+<p>Log ของ API มี <code>request_id</code> สำหรับจับคู่คำขอกับผลลัพธ์ พร้อม HTTP status และ <code>duration_ms</code> ส่วน payload/response body อยู่ระดับ DEBUG ข้อผิดพลาดอยู่ระดับ ERROR นอกจากนี้มีเหตุผลที่ข้าม Attention, แหล่งค่าปุ่ม API/code/default, การเปลี่ยน session และผลการ reset เพื่อช่วยไล่ปัญหา</p>
+<p>หลังอัปเดต SDK ต้อง rebuild แอปเพื่อรวมโค้ด native ใหม่ การ hot reload อย่างเดียวไม่เพียงพอ</p>
+<hr>
 <p><a id="identity-matcher"></a></p>
 <h2>identityMatcher: เลือกข้อมูลที่ใช้ระบุตัวตน</h2>
 <p>เลือกฟิลด์ให้ตรงกับคีย์ของฐานข้อมูลใน PAM เช่น หากใช้รหัสลูกค้า ให้กำหนดดังนี้:</p>
@@ -129,7 +146,7 @@ code {
 <p><code>identityProvider</code> คือฟังก์ชันที่ PAM SDK เรียกเมื่อต้องการตรวจสอบว่า ขณะนี้ผู้ใช้ในแอปล็อกอินเป็นใครอยู่ โดยแอปต้องส่งกลับสถานะผู้ใช้ปัจจุบัน พร้อมข้อมูลระบุตัวตนที่ตรงกับ <code>identityMatcher</code> ที่ตั้งค่าไว้</p>
 <p>ตัวอย่าง หากกำหนด <code>identityMatcher</code> เป็น <code>customer</code> ให้ส่งกลับ <code>PamUserState.identified(user.customerId)</code> หากกำหนดเป็น <code>email</code> ให้ส่งกลับ <code>PamUserState.identified(user.email)</code></p>
 <p>หากผู้ใช้ไม่ได้ล็อกอิน ให้ส่งกลับ <code>PamUserState.anonymous()</code> และหากยังไม่ทราบสถานะ เช่น กำลังโหลด session ให้ส่งกลับ <code>PamUserState.unknown()</code></p>
-<p>SDK จะนำข้อมูลนี้ไปเทียบกับตัวตนที่เก็บไว้ หากไม่ตรงกัน จะไม่ส่ง event นั้นและเรียก <code>onIdentityMismatch</code> หากกำหนดไว้ เพื่อให้แอปจัดการปรับสถานะให้ถูกต้อง</p>
+<p>SDK จะนำข้อมูลนี้ไปเทียบกับตัวตนที่เก็บไว้ หากมีตัวตนเดิมอยู่แล้วและไม่ตรงกัน จะไม่ส่ง event นั้นและเรียก <code>onIdentityMismatch</code> หากกำหนดไว้ เพื่อให้แอปจัดการปรับสถานะให้ถูกต้อง หากตัวตนเดิมเป็น <code>null</code> จะให้ event ทำงานต่อโดยไม่เรียก callback เพราะถือเป็นช่วงสร้าง identity ครั้งแรก การสร้าง contact แรกอาจเกิดจากการให้ consent เช่น <code>Pam.allowAllTrackingConsent()</code> ได้ โดยไม่จำเป็นต้องผ่าน <code>Pam.userLogin()</code></p>
 <h3>ตัวอย่างการใช้งาน</h3>
 <p>ตัวอย่างนี้ใช้คู่กับ <code>identityMatcher</code> แบบ <code>customer</code> โดย <code>authRepository</code> หมายถึงส่วนจัดการสถานะผู้ใช้ของแอป ให้แทนด้วยระบบที่แอปใช้งานจริง</p>
 <pre><code class="hljs language-dart"><span class="hljs-keyword">final</span> identityProvider = () {
@@ -152,7 +169,7 @@ code {
 <hr>
 <p><a id="identity-mismatch"></a></p>
 <h2>onIdentityMismatch: จัดการเมื่อตัวตนไม่ตรงกัน</h2>
-<p><code>onIdentityMismatch</code> จะถูกเรียกเมื่อ PAM ตรวจพบว่าผู้ใช้ที่ SDK กำลังทำงานด้วยไม่ตรงกับผู้ใช้ปัจจุบันของแอป โดยอ้างอิงสถานะที่ได้จาก <code>identityProvider</code></p>
+<p><code>onIdentityMismatch</code> จะถูกเรียกเมื่อ PAM มี identity เดิมอยู่แล้ว และตรวจพบว่าไม่ตรงกับผู้ใช้ปัจจุบันของแอป โดยอ้างอิงสถานะที่ได้จาก <code>identityProvider</code> กรณี <code>oldIdentity</code> เป็น <code>null</code> จะไม่เรียก callback นี้</p>
 <h3>ข้อมูลตัวตนที่ได้รับ</h3>
 <p>SDK ส่งออบเจ็กต์ <code>mismatch</code> ให้ callback โดยมีข้อมูลตัวตนสองค่าที่แอปสามารถนำไปตรวจสอบเพิ่มเติมก่อนตัดสินใจ:</p>
 <table>
@@ -164,7 +181,7 @@ code {
 </thead>
 <tbody><tr>
 <td><code>mismatch.oldIdentity</code></td>
-<td>ตัวตนที่ PAM SDK เก็บไว้ก่อนตรวจพบความคลาดเคลื่อน เป็น <code>null</code> หาก SDK อยู่ในสถานะผู้ใช้ไม่ระบุตัวตน</td>
+<td>ตัวตนที่ PAM SDK เก็บไว้ก่อนตรวจพบความคลาดเคลื่อน โดย SDK จะเรียก callback เฉพาะเมื่อค่านี้ไม่เป็น <code>null</code></td>
 </tr>
 <tr>
 <td><code>mismatch.newIdentity</code></td>
@@ -217,7 +234,10 @@ code {
 <pre><code class="hljs language-dart"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:pam_flutter/pam.dart&#x27;</span>;
 
 <span class="hljs-class"><span class="hljs-keyword">class</span> <span class="hljs-title">PamConfigProvider</span> </span>{
-  <span class="hljs-keyword">static</span> <span class="hljs-title class_">PamConfig</span> <span class="hljs-title function_">getDevelopConfig</span>() {
+  <span class="hljs-keyword">static</span> <span class="hljs-title class_">PamConfig</span> <span class="hljs-title function_">getDevelopConfig</span>(
+    <span class="hljs-title class_">PamIdentityProvider</span> identityProvider,
+    <span class="hljs-title class_">PamIdentityMismatchHandler</span> onIdentityMismatch,
+  ) {
     <span class="hljs-comment">// ค่าจำลองสำหรับพัฒนา: สอบถาม endpoint, publicDBAlias,</span>
     <span class="hljs-comment">// loginDBAlias และ trackingConsentMessageID ได้จากตัวแทน PAM</span>
     <span class="hljs-keyword">return</span> <span class="hljs-title function_">_createConfig</span>(
@@ -226,10 +246,15 @@ code {
       loginDBAlias: <span class="hljs-string">&#x27;dev-login&#x27;</span>,
       trackingConsentMessageID: <span class="hljs-string">&#x27;DEV-TRACKING-CONSENT-MESSAGE-ID&#x27;</span>,
       enableLog: <span class="hljs-keyword">true</span>,
+      identityProvider: identityProvider,
+      onIdentityMismatch: onIdentityMismatch,
     );
   }
 
-  <span class="hljs-keyword">static</span> <span class="hljs-title class_">PamConfig</span> <span class="hljs-title function_">getProductionConfig</span>() {
+  <span class="hljs-keyword">static</span> <span class="hljs-title class_">PamConfig</span> <span class="hljs-title function_">getProductionConfig</span>(
+    <span class="hljs-title class_">PamIdentityProvider</span> identityProvider,
+    <span class="hljs-title class_">PamIdentityMismatchHandler</span> onIdentityMismatch,
+  ) {
     <span class="hljs-comment">// ค่าจำลองสำหรับใช้งานจริง: สอบถามข้อมูลของสภาพแวดล้อมนี้</span>
     <span class="hljs-comment">// จากตัวแทน PAM แยกจากค่าที่ใช้ระหว่างพัฒนา</span>
     <span class="hljs-keyword">return</span> <span class="hljs-title function_">_createConfig</span>(
@@ -238,6 +263,8 @@ code {
       loginDBAlias: <span class="hljs-string">&#x27;production-login&#x27;</span>,
       trackingConsentMessageID: <span class="hljs-string">&#x27;PRODUCTION-TRACKING-CONSENT-MESSAGE-ID&#x27;</span>,
       enableLog: <span class="hljs-keyword">false</span>,
+      identityProvider: identityProvider,
+      onIdentityMismatch: onIdentityMismatch,
     );
   }
 
@@ -247,6 +274,8 @@ code {
     <span class="hljs-keyword">required</span> <span class="hljs-title class_">String</span> loginDBAlias,
     <span class="hljs-keyword">required</span> <span class="hljs-title class_">String</span> trackingConsentMessageID,
     <span class="hljs-keyword">required</span> <span class="hljs-built_in">bool</span> enableLog,
+    <span class="hljs-keyword">required</span> <span class="hljs-title class_">PamIdentityProvider</span> identityProvider,
+    <span class="hljs-keyword">required</span> <span class="hljs-title class_">PamIdentityMismatchHandler</span> onIdentityMismatch,
   }) {
     <span class="hljs-keyword">return</span> <span class="hljs-title class_">PamConfig</span>(
       endpoint,
@@ -259,34 +288,41 @@ code {
       identityMatcher: <span class="hljs-title class_">PamIdentityMatcher</span>.<span class="hljs-title function_">primary</span>(
         <span class="hljs-title class_">PamPrimaryIdentityKey</span>.customer,
       ),
-      identityProvider: () {
-        <span class="hljs-comment">// สถานะจำลอง: ผู้ใช้ยังไม่ได้ล็อกอิน</span>
-        <span class="hljs-comment">// ในแอปจริง ให้อ่านสถานะปัจจุบันจากระบบจัดการผู้ใช้ของแอป</span>
-        <span class="hljs-comment">// แล้วคืน unknown(), anonymous() หรือ identified(customerId)</span>
-        <span class="hljs-keyword">return</span> <span class="hljs-keyword">const</span> <span class="hljs-title class_">PamUserState</span>.<span class="hljs-title function_">anonymous</span>();
-      },
-      onIdentityMismatch: (mismatch) <span class="hljs-keyword">async</span> {
-        <span class="hljs-comment">// ตัวอย่างนี้เลือกปรับตัวตนใน PAM ให้ตรงกับแอป</span>
-        <span class="hljs-keyword">final</span> identity = mismatch.newIdentity;
-        <span class="hljs-keyword">if</span> (identity == <span class="hljs-keyword">null</span>) {
-          <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">userLogout</span>();
-        } <span class="hljs-keyword">else</span> {
-          <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">userLogin</span>(identity.value);
-        }
-      },
+      identityProvider: identityProvider,
+      onIdentityMismatch: onIdentityMismatch,
     );
   }
 }
 </code></pre><h3>ไฟล์ <code>lib/main.dart</code></h3>
-<p>เลือก config แล้วรอให้ PAM เริ่มต้นเสร็จก่อนเรียก <code>runApp()</code> หากต้องการใช้สภาพแวดล้อมจริง ให้เปลี่ยนเป็น <code>PamConfigProvider.getProductionConfig()</code></p>
+<p>เลือก config แล้วรอให้ PAM เริ่มต้นเสร็จก่อนเรียก <code>runApp()</code> หากต้องการใช้สภาพแวดล้อมจริง ให้เปลี่ยนเป็น <code>PamConfigProvider.getProductionConfig(identityProvider, onIdentityMismatch)</code></p>
 <pre><code class="hljs language-dart"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:flutter/material.dart&#x27;</span>;
 <span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:pam_flutter/pam.dart&#x27;</span>;
 <span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;pam_config_provider.dart&#x27;</span>;
 
+<span class="hljs-comment">// ตัวอย่างเริ่มต้น: ยังโหลด session ไม่เสร็จ</span>
+<span class="hljs-comment">// เปลี่ยนให้อ่านสถานะที่แอปเก็บไว้จริงตามหัวข้อ identityProvider ด้านบน</span>
+<span class="hljs-title class_">PamUserState</span> <span class="hljs-title function_">identityProvider</span>() {
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">const</span> <span class="hljs-title class_">PamUserState</span>.<span class="hljs-title function_">unknown</span>();
+  <span class="hljs-comment">// โหลดเสร็จแต่ยังไม่ login: PamUserState.anonymous()</span>
+  <span class="hljs-comment">// login แล้ว: PamUserState.identified(user.customerId)</span>
+}
+
+<span class="hljs-title class_">Future</span>&lt;<span class="hljs-keyword">void</span>&gt; <span class="hljs-title function_">onIdentityMismatch</span>(<span class="hljs-title class_">PamIdentityMismatch</span> mismatch) <span class="hljs-keyword">async</span> {
+  <span class="hljs-keyword">final</span> identity = mismatch.newIdentity;
+  <span class="hljs-keyword">if</span> (identity == <span class="hljs-keyword">null</span>) {
+    <span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">userLogout</span>();
+  } <span class="hljs-keyword">else</span> {
+    <span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">userLogin</span>(identity.value);
+  }
+}
+
 <span class="hljs-title class_">Future</span>&lt;<span class="hljs-keyword">void</span>&gt; <span class="hljs-title function_">main</span>() <span class="hljs-keyword">async</span> {
   <span class="hljs-title class_">WidgetsFlutterBinding</span>.<span class="hljs-title function_">ensureInitialized</span>();
 
-  <span class="hljs-keyword">final</span> config = <span class="hljs-title class_">PamConfigProvider</span>.<span class="hljs-title function_">getDevelopConfig</span>();
+  <span class="hljs-keyword">final</span> config = <span class="hljs-title class_">PamConfigProvider</span>.<span class="hljs-title function_">getDevelopConfig</span>(
+    identityProvider,
+    onIdentityMismatch,
+  );
   <span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">initialize</span>(config);
 
   <span class="hljs-title function_">runApp</span>(<span class="hljs-keyword">const</span> <span class="hljs-title class_">MyApp</span>());
