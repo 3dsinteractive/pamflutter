@@ -1,0 +1,95 @@
+วิธีใช้ PrivacyInfo.xcprivacy สำหรับแอปที่ใช้ PAM
+
+1. ไฟล์นี้คืออะไร
+
+PrivacyInfo.xcprivacy ใช้แจ้ง Apple ว่าแอปเก็บข้อมูลประเภทใด ใช้เพื่ออะไร
+ข้อมูลเชื่อมกับผู้ใช้หรือไม่ มีการใช้เพื่อ tracking หรือไม่
+และใช้ API ที่ Apple กำหนดให้ชี้แจงเหตุผลอะไรบ้าง
+
+ชุดนี้เป็นต้นแบบให้แก้ผ่าน Xcode มีตัวอย่างเปิดไว้แล้ว:
+รหัสสมาชิก, Email, ประวัติซื้อสินค้า และการใช้ UserDefaults
+
+2. วางไฟล์ที่ไหน
+
+สำหรับ Flutter ให้วางในโปรเจกต์แอปที่:
+  ios/Runner/PrivacyInfo.xcprivacy
+
+ก่อนวางไฟล์ Backup PrivacyInfo.xcprivacy เดิมออกนอกโฟลเดอร์โปรเจกต์ก่อน
+หากมีไฟล์เดิม ให้เปิดเทียบและรวมรายการที่มีอยู่ด้วย
+
+1) เปิด ios/Runner.xcworkspace ด้วย Xcode
+2) คลิกขวากลุ่ม Runner > Add Files to "Runner" แล้วเลือกไฟล์นี้
+3) เลือก Target Membership เป็น Runner (หรือชื่อ app target ที่ใช้งานจริง)
+4) ตรวจ Runner > Build Phases > Copy Bundle Resources ว่ามีไฟล์นี้หนึ่งรายการ
+5) เปิด PrivacyInfo.xcprivacy แล้วแก้ค่าผ่านหน้าตารางของ Xcode
+   หากต้องการเห็นชื่อคีย์ตรงกับคู่มือนี้ เลือก Editor > Raw Keys and Values
+
+3. คีย์หลักหมายถึงอะไร
+
+NSPrivacyCollectedDataTypes
+  รายการประเภทข้อมูลที่แอปเก็บ เช่น Email ที่แอปส่งเข้า PAM
+  แต่ละ Item เป็นข้อมูลหนึ่งประเภท และมี 4 คีย์ให้กำหนดตามตัวอย่างในข้อ 4
+
+NSPrivacyTracking
+  แอปใช้ข้อมูลเพื่อ tracking ตามนิยาม ATT หรือไม่: Yes/true หรือ No/false
+  tracking คือการเชื่อมข้อมูลจากแอปกับข้อมูลของบริษัทอื่นเพื่อเลือกกลุ่ม
+  หรือวัดผลโฆษณา หรือการส่งข้อมูลให้ data broker
+  ตัวอย่างนี้ตั้งเป็น false
+
+NSPrivacyTrackingDomains
+  รายชื่อ domains ที่แอปติดต่อซึ่งเกี่ยวข้องกับ tracking
+  ตัวอย่างนี้เป็นรายการว่าง
+
+NSPrivacyAccessedAPITypes
+  รายการ API ที่ Apple กำหนดให้ระบุเหตุผลในการใช้
+  NSPrivacyAccessedAPIType = หมวด API
+  NSPrivacyAccessedAPITypeReasons = รหัสเหตุผลของ Apple
+  ตัวอย่างในไฟล์คือ UserDefaults และ CA92.1 สำหรับการอ่าน/เขียนค่าที่เข้าถึง
+  ได้เฉพาะแอปเอง ให้ทีมพัฒนาปรับรายการนี้ตาม API ที่แอปใช้
+
+4. ตัวอย่าง: แอปเก็บ Email ส่งเข้า PAM เพื่อส่งข้อความการตลาด
+
+เปิด NSPrivacyCollectedDataTypes ใน Xcode แล้วเลือก Item ของ Email ที่มีให้
+หรือกด + เพิ่ม Item ชนิด Dictionary แล้วกำหนด 4 คีย์นี้:
+
+NSPrivacyCollectedDataType
+  ใช้ระบุว่าเก็บข้อมูลประเภทใด
+  สำหรับ Email ใส่ NSPrivacyCollectedDataTypeEmailAddress
+
+NSPrivacyCollectedDataTypeLinked
+  ข้อมูลเชื่อมกับผู้ใช้ บัญชี หรืออุปกรณ์ได้หรือไม่
+  ตัวอย่าง Email ของสมาชิก: Yes/true
+
+NSPrivacyCollectedDataTypeTracking
+  Email นี้ใช้เพื่อ tracking ตามนิยาม ATT หรือไม่
+  ตัวอย่างใช้ส่งข้อความการตลาดของบริษัทเอง: No/false
+
+NSPrivacyCollectedDataTypePurposes
+  ข้อมูลนี้ใช้ทำอะไร เป็น Array ที่เพิ่มได้หลายค่า
+  ตัวอย่างส่งข้อความการตลาด: NSPrivacyCollectedDataTypePurposeDeveloperAdvertising
+  หากใช้สำหรับบัญชีหรือเข้าสู่ระบบด้วย ให้เพิ่ม
+  NSPrivacyCollectedDataTypePurposeAppFunctionality
+
+หากเก็บข้อมูลชนิดอื่น ให้เพิ่ม Item แบบเดียวกัน แล้วเลือกประเภทดังนี้:
+- ชื่อ–นามสกุล: NSPrivacyCollectedDataTypeName
+- เบอร์โทร: NSPrivacyCollectedDataTypePhoneNumber
+- รหัสสมาชิก: NSPrivacyCollectedDataTypeUserID
+- ประวัติซื้อสินค้า: NSPrivacyCollectedDataTypePurchaseHistory
+- การกด/ดูเนื้อหาในแอป: NSPrivacyCollectedDataTypeProductInteraction
+
+วัตถุประสงค์ที่เลือกได้ เช่น:
+- วิเคราะห์ลูกค้า เช่น RFM: NSPrivacyCollectedDataTypePurposeAnalytics
+- บัญชี/consent/การทำงานของแอป: NSPrivacyCollectedDataTypePurposeAppFunctionality
+- การตลาดของเจ้าของแอป: NSPrivacyCollectedDataTypePurposeDeveloperAdvertising
+- ปรับเนื้อหาตามผู้ใช้: NSPrivacyCollectedDataTypePurposeProductPersonalization
+
+5. หลังแก้เสร็จ
+
+สร้าง archive ใน Xcode แล้วเลือก Generate Privacy Report ใน Organizer
+เพื่อตรวจข้อมูลที่ประกาศรวมกับ SDK ต่าง ๆ
+ส่วน App Privacy ให้กรอกแยกใน App Store Connect > แอป > App Privacy
+
+อ้างอิง Apple:
+https://developer.apple.com/documentation/bundleresources/privacy-manifest-files
+https://developer.apple.com/documentation/bundleresources/describing-data-use-in-privacy-manifests
+https://developer.apple.com/app-store/app-privacy-details/

@@ -1,3 +1,10 @@
+# 3.1.2
+
+## Fixed
+
+- Disable theme-provided background dimming on the Android App Attention dialog so it does not stack with the existing 70% black overlay. Match the iOS backdrop opacity without changing the host app's theme or Activity window.
+- Rebuild the Android app after upgrading to include this native change; hot reload alone is insufficient.
+
 # 3.1.1
 
 ## Fixed

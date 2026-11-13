@@ -54,6 +54,10 @@ class PopupDialog(
                 WindowManager.LayoutParams.MATCH_PARENT
             )
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            // The layout already supplies a 70% black overlay, matching iOS.
+            // Disable theme-provided dimming on this dialog's window only.
+            clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            setDimAmount(0f)
         }
 
         // ตั้งค่า Title
