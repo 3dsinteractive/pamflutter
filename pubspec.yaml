@@ -1,6 +1,6 @@
 name: pam_flutter
 description: 'A Flutter plugin for integrating mobile Flutter app with PAM Real CDP. learn more about pam at https://pams.ai'
-version: 3.1.2
+version: 3.2.0
 homepage: https://pams.ai
 repository: https://github.com/3dsinteractive/pamflutter
 
@@ -11,6 +11,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_widget_from_html_core: ^0.17.4
   flutter_secure_storage: ^11.2.0
   http: ^1.6.0
   plugin_platform_interface: ^2.1.8
@@ -28,6 +29,7 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  uses-material-design: true
   # This section identifies this Flutter project as a plugin project.
   # The 'pluginClass' specifies the class (in Java, Kotlin, Swift, Objective-C, etc.)
   # which should be registered in the plugin registry. This is required for

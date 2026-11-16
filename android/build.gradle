@@ -1,5 +1,5 @@
 group = "ai.pams.pam_flutter"
-version = "3.1.2"
+version = "3.2.0"
 
 buildscript {
     ext.kotlin_version = "1.8.22"
@@ -27,7 +27,7 @@ apply plugin: "kotlin-android"
 android {
     namespace = "ai.pams.pam_flutter"
 
-    compileSdk = 35
+    compileSdk = 36
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

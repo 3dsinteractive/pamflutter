@@ -53,6 +53,7 @@ code {
       <li><a href="tracking.html">5. การส่ง Event Tracking</a></li>
       <li><a href="push-notification.html">6. Push Notification</a></li>
       <li><a href="app-attention.html">7. App Attention</a></li>
+      <li><a href="example.html">8. แอปตัวอย่างและปุ่มทดสอบ API</a></li>
     </ul>
   </nav>
   <main>
@@ -167,37 +168,56 @@ onPressed: () <span class="hljs-keyword">async</span> {
 <p>หลังระบบคำสั่งซื้อยืนยันสำเร็จ สามารถส่ง <code>purchase</code> สำหรับยอดรวม และ <code>purchase_item</code> สำหรับสินค้าแต่ละรายการ โดยเชื่อมกันด้วย <code>order_id</code> ตัวอย่างใช้ค่าที่รับเข้ามาจริง ไม่กำหนด SKU ราคา หรือสกุลเงินตายตัวในเมธอด</p>
 <pre><code class="hljs language-dart"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:pam_flutter/pam.dart&#x27;</span>;
 
-<span class="hljs-keyword">void</span> <span class="hljs-title function_">trackPurchase</span>({
+<span class="hljs-title class_">Future</span>&lt;<span class="hljs-title class_">PamBatchResponse</span>?&gt; <span class="hljs-title function_">trackPurchase</span>({
   <span class="hljs-keyword">required</span> <span class="hljs-title class_">String</span> orderId,
   <span class="hljs-keyword">required</span> <span class="hljs-built_in">double</span> totalAmount,
   <span class="hljs-keyword">required</span> <span class="hljs-title class_">String</span> currency,
   <span class="hljs-keyword">required</span> <span class="hljs-title class_">List</span>&lt;<span class="hljs-title class_">Map</span>&lt;<span class="hljs-title class_">String</span>, <span class="hljs-built_in">dynamic</span>&gt;&gt; items,
 }) {
-  <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">track</span>(
-    <span class="hljs-string">&#x27;purchase&#x27;</span>,
-    payload: {
-      <span class="hljs-string">&#x27;order_id&#x27;</span>: orderId,
-      <span class="hljs-string">&#x27;total_amount&#x27;</span>: totalAmount,
-      <span class="hljs-string">&#x27;currency&#x27;</span>: currency,
-    },
-  );
-
-  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">final</span> item <span class="hljs-keyword">in</span> items) {
-    <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">track</span>(
-      <span class="hljs-string">&#x27;purchase_item&#x27;</span>,
+  <span class="hljs-keyword">return</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">trackBatch</span>([
+    <span class="hljs-title class_">PamTrackEvent</span>(
+      event: <span class="hljs-string">&#x27;purchase&#x27;</span>,
       payload: {
         <span class="hljs-string">&#x27;order_id&#x27;</span>: orderId,
-        <span class="hljs-string">&#x27;sku&#x27;</span>: item[<span class="hljs-string">&#x27;sku&#x27;</span>],
-        <span class="hljs-string">&#x27;price&#x27;</span>: item[<span class="hljs-string">&#x27;price&#x27;</span>],
-        <span class="hljs-string">&#x27;quantity&#x27;</span>: item[<span class="hljs-string">&#x27;quantity&#x27;</span>],
-        <span class="hljs-string">&#x27;title&#x27;</span>: item[<span class="hljs-string">&#x27;title&#x27;</span>],
+        <span class="hljs-string">&#x27;total_amount&#x27;</span>: totalAmount,
         <span class="hljs-string">&#x27;currency&#x27;</span>: currency,
       },
-    );
-  }
+    ),
+    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">final</span> item <span class="hljs-keyword">in</span> items)
+      <span class="hljs-title class_">PamTrackEvent</span>(
+        event: <span class="hljs-string">&#x27;purchase_item&#x27;</span>,
+        payload: {
+          <span class="hljs-string">&#x27;order_id&#x27;</span>: orderId,
+          <span class="hljs-string">&#x27;sku&#x27;</span>: item[<span class="hljs-string">&#x27;sku&#x27;</span>],
+          <span class="hljs-string">&#x27;price&#x27;</span>: item[<span class="hljs-string">&#x27;price&#x27;</span>],
+          <span class="hljs-string">&#x27;quantity&#x27;</span>: item[<span class="hljs-string">&#x27;quantity&#x27;</span>],
+          <span class="hljs-string">&#x27;title&#x27;</span>: item[<span class="hljs-string">&#x27;title&#x27;</span>],
+          <span class="hljs-string">&#x27;currency&#x27;</span>: currency,
+        },
+      ),
+  ]);
 }
-</code></pre><p>ให้ตกลงชื่อ event และ attributes กับทีม Data ก่อนใช้ เช่น เลือกใช้ <code>total</code> หรือ <code>total_amount</code> ให้สม่ำเสมอ แต่ละรายการต้องมี <code>sku</code>, <code>price</code>, <code>quantity</code> และ <code>title</code> ตามรูปแบบที่ตกลงไว้ คำขอแต่ละ event แยกจากกัน จึงไม่ใช่ธุรกรรมที่สำเร็จหรือล้มเหลวพร้อมกันทั้งหมด และควรเรียกจากจุดยืนยันคำสั่งซื้อเพียงครั้งเดียวเพื่อไม่ส่งซ้ำจากการสร้างหน้าจอใหม่</p>
-<hr>
+</code></pre><p>ให้ตกลงชื่อ event และ attributes กับทีม Data ก่อนใช้ เช่น เลือกใช้ <code>total</code> หรือ <code>total_amount</code> ให้สม่ำเสมอ แต่ละรายการต้องมี <code>sku</code>, <code>price</code>, <code>quantity</code> และ <code>title</code> ตามรูปแบบที่ตกลงไว้ SDK รวมทุก event เป็นคำขอเดียว แต่ไม่ใช่ธุรกรรมที่สำเร็จหรือล้มเหลวพร้อมกันทั้งหมด และควรเรียกจากจุดยืนยันคำสั่งซื้อเพียงครั้งเดียวเพื่อไม่ส่งซ้ำจากการสร้างหน้าจอใหม่</p>
+<h3>พฤติกรรมของ <code>Pam.trackBatch()</code></h3>
+<ul>
+<li>ทุก event ต้องเป็นของผู้ใช้เดียวกัน SDK เติม database, contact ID, identity และข้อมูล session ให้แต่ละ event โดยใช้สถานะเมื่อถึงคิวส่ง</li>
+<li>หากยังไม่มี contact ID จะเปิด <code>_use_first_contact_id_for_all_events</code> อัตโนมัติ ให้ server ใช้ contact จาก event แรกกับรายการถัดไป</li>
+<li>payload ที่เปลี่ยน contact, database หรือ identity จากผู้ใช้ปัจจุบันจะได้ error <code>BATCH_IDENTITY_CONFLICT</code> และไม่ส่งคำขอ</li>
+<li>ถ้า server ส่ง contact ID ขัดแย้งกันหรือไม่ตรงกับ contact เดิม SDK จะคืน <code>BATCH_IDENTITY_CONFLICT</code> และไม่เขียนทับ contact ที่เก็บไว้ ผลตอบกลับจากผู้ใช้หรือ session เก่าจะไม่เปลี่ยนสถานะปัจจุบัน</li>
+<li>ตรวจ consent แยกแต่ละ event ตามกติกาเดียวกับ <code>track()</code> หากถูกบล็อกทั้งหมดจะคืน <code>null</code> โดยไม่ส่งคำขอ</li>
+<li><code>events</code> ต้องไม่ว่าง และชื่อ event ต้องไม่เป็นค่าว่าง มิฉะนั้นจะเกิด <code>ArgumentError</code></li>
+<li>ผลลัพธ์เป็น <code>PamBatchResponse</code> โดย <code>error</code> เป็นข้อผิดพลาดระดับ batch และ <code>results</code> เป็นผลที่ server ส่งกลับมา ซึ่งอาจมี error รายรายการ จำนวนผลลัพธ์อาจไม่ครบและห้ามจับคู่ด้วยลำดับ index การไม่มี error ระดับ batch ไม่ได้ยืนยันว่าทุก event สำเร็จ</li>
+<li>ไม่มี automatic retry หากส่งสำเร็จบางส่วนแล้ว อย่าส่งซ้ำทั้งชุดโดยอัตโนมัติ</li>
+</ul>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">final</span> response = <span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">trackBatch</span>([
+  <span class="hljs-keyword">const</span> <span class="hljs-title class_">PamTrackEvent</span>(event: <span class="hljs-string">&#x27;view_product&#x27;</span>, payload: {<span class="hljs-string">&#x27;sku&#x27;</span>: <span class="hljs-string">&#x27;SKU-001&#x27;</span>}),
+  <span class="hljs-keyword">const</span> <span class="hljs-title class_">PamTrackEvent</span>(event: <span class="hljs-string">&#x27;add_to_cart&#x27;</span>, payload: {<span class="hljs-string">&#x27;sku&#x27;</span>: <span class="hljs-string">&#x27;SKU-001&#x27;</span>}),
+]);
+
+<span class="hljs-keyword">if</span> (response?.error != <span class="hljs-keyword">null</span>) {
+  <span class="hljs-title function_">print</span>(response!.error!.errorMessage);
+}
+</code></pre><hr>
 <h2>นำ Event ไปใช้สร้าง Segment</h2>
 <p>ข้อมูล event สามารถนำไปกำหนดกลุ่มลูกค้าใน PAM ได้ เช่น <strong>ลูกค้าที่เพิ่มสินค้า SKU-001 ลงตะกร้าภายใน 15 วันที่ผ่านมา</strong> โดยพิจารณาร่วมกันจาก:</p>
 <ul>

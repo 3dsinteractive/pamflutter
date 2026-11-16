@@ -1,26 +1,37 @@
 import 'package:pam_flutter/pam.dart';
 
 class PamConfigProvider {
-  static PamConfig getDevelopConfig(PamIdentityProvider? identityProvider,
-      PamIdentityMismatchHandler? onIdentityMismatch) {
+  // Edit this file, then restart the example. Runtime uses getDevelopConfig only.
+  static const endpoint = 'https://[example].pams.ai';
+  static const publicDatabase = 'database-develop';
+  static const loginDatabase = '';
+  static const trackingMessageId = '';
+  static const contactingMessageId = '';
+
+  static PamConfig getDevelopConfig(
+    PamIdentityProvider? identityProvider,
+    PamIdentityMismatchHandler? onIdentityMismatch,
+  ) {
     return _createConfig(
-      endpoint: 'https://[example].pams.ai',
-      publicDBAlias: 'database-develop',
-      loginDBAlias: '',
-      trackingConsentMessageID: '..',
+      endpoint: endpoint,
+      publicDBAlias: publicDatabase,
+      loginDBAlias: loginDatabase,
+      trackingConsentMessageID: trackingMessageId,
       enableLog: true,
       identityProvider: identityProvider,
       onIdentityMismatch: onIdentityMismatch,
     );
   }
 
-  static PamConfig getProductionConfig(PamIdentityProvider? identityProvider,
-      PamIdentityMismatchHandler? onIdentityMismatch) {
+  static PamConfig getProductionConfig(
+    PamIdentityProvider? identityProvider,
+    PamIdentityMismatchHandler? onIdentityMismatch,
+  ) {
     return _createConfig(
-      endpoint: 'https://[example].pams.ai',
+      endpoint: endpoint,
       publicDBAlias: 'database',
-      loginDBAlias: '',
-      trackingConsentMessageID: '..',
+      loginDBAlias: loginDatabase,
+      trackingConsentMessageID: trackingMessageId,
       enableLog: false,
       identityProvider: identityProvider,
       onIdentityMismatch: onIdentityMismatch,
@@ -36,12 +47,17 @@ class PamConfigProvider {
     required PamIdentityProvider? identityProvider,
     required PamIdentityMismatchHandler? onIdentityMismatch,
   }) {
-    return PamConfig(endpoint, publicDBAlias, loginDBAlias,
-        trackingConsentMessageID, enableLog,
-        identityMatcher: PamIdentityMatcher.primary(
-          PamPrimaryIdentityKey.customer,
-        ),
-        identityProvider: identityProvider,
-        onIdentityMismatch: onIdentityMismatch);
+    return PamConfig(
+      endpoint,
+      publicDBAlias,
+      loginDBAlias,
+      trackingConsentMessageID,
+      enableLog,
+      identityMatcher: PamIdentityMatcher.primary(
+        PamPrimaryIdentityKey.customer,
+      ),
+      identityProvider: identityProvider,
+      onIdentityMismatch: onIdentityMismatch,
+    );
   }
 }

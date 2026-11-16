@@ -1,3 +1,29 @@
+# 3.2.0
+
+## Added
+
+- `Pam.trackBatch()` with `PamTrackEvent` and `PamBatchResponse` to send multiple events for the current user in one request. Reuse one contact and database across the batch; automatically enable `_use_first_contact_id_for_all_events` when no contact ID is available. Apply consent filtering and existing identity and tracking-pause checks. Results may be incomplete and cannot be matched to input events by index; no automatic retry is performed.
+- `Pam.showConsent()` with an adaptive consent screen for tracking and contacting permissions, HTML descriptions, language selection, required permissions, and saved or dismissed outcomes through `PamConsentResult`. Preserve choices after save failures, reload details when consent review is required, and prevent duplicate screens or submissions. Dismissal does not save consent.
+- `Pam.saveConsent()` with typed `TrackingConsent`, `ContactingConsent`, and `ConsentVersion` selections. Support `fromStatus()` and `copyWith()` to reuse valid stored choices, validate required permissions, and reject selections belonging to a different contact or requiring review. Update local tracking permission only after a successful save of the configured tracking consent message with a returned consent record ID.
+- Japanese consent content using PAM's `jp` key and Flutter's `ja` locale, alongside Thai and English. Fall back to available content in Thai, English, then Japanese order.
+
+## Fixed
+
+- Reject batch payloads that override the current contact, database, or identity. Preserve the stored contact when server results contain conflicting IDs or databases, and prevent late batch responses from changing a newer user session's contact or tracking-pause state.
+- Accept both direct and `data`-wrapped consent messages, handle missing localized text and optional settings, and fall back safely for invalid consent colors. Read background opacity and button background color from their corresponding settings.
+- Parse `latest_version` separately from `last_consent_version`, and support contacting permission responses using `push_notification` with `web_push` as a fallback.
+- Only parse consent details and status from successful HTTP responses. Serialize consent saves with startup consent synchronization and queued tracking, and reject stale consent screens after the active session changes.
+
+## Examples and documentation
+
+- Expand the example app with API controls, simulated REST authentication, login/logout and resume synchronization, identity mismatch handling, consent flows, and automated tests. The simulated authentication service is for demonstration only.
+- Update consent, initialization, authentication, batch purchase tracking, and example documentation.
+
+## Compatibility and upgrade notes
+
+- Add `flutter_widget_from_html_core` for consent HTML rendering and enable Material icons. `Pam.showConsent()` requires a Material app with a Navigator; existing consent and single-event tracking APIs remain available.
+- Raise the plugin's Android compile SDK to 36. Update the example app to Gradle 9.1.0, Android Gradle Plugin 9.0.1, Kotlin 2.3.20, and Java target 17.
+
 # 3.1.2
 
 ## Fixed

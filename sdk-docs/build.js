@@ -82,6 +82,7 @@ const htmlTemplate = (title, content) => `<!DOCTYPE html>
       <li><a href="tracking.html">5. การส่ง Event Tracking</a></li>
       <li><a href="push-notification.html">6. Push Notification</a></li>
       <li><a href="app-attention.html">7. App Attention</a></li>
+      <li><a href="example.html">8. แอปตัวอย่างและปุ่มทดสอบ API</a></li>
     </ul>
   </nav>
   <main>

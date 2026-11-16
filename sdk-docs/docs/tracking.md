@@ -120,38 +120,60 @@ onPressed: () async {
 ```dart
 import 'package:pam_flutter/pam.dart';
 
-void trackPurchase({
+Future<PamBatchResponse?> trackPurchase({
   required String orderId,
   required double totalAmount,
   required String currency,
   required List<Map<String, dynamic>> items,
 }) {
-  Pam.track(
-    'purchase',
-    payload: {
-      'order_id': orderId,
-      'total_amount': totalAmount,
-      'currency': currency,
-    },
-  );
-
-  for (final item in items) {
-    Pam.track(
-      'purchase_item',
+  return Pam.trackBatch([
+    PamTrackEvent(
+      event: 'purchase',
       payload: {
         'order_id': orderId,
-        'sku': item['sku'],
-        'price': item['price'],
-        'quantity': item['quantity'],
-        'title': item['title'],
+        'total_amount': totalAmount,
         'currency': currency,
       },
-    );
-  }
+    ),
+    for (final item in items)
+      PamTrackEvent(
+        event: 'purchase_item',
+        payload: {
+          'order_id': orderId,
+          'sku': item['sku'],
+          'price': item['price'],
+          'quantity': item['quantity'],
+          'title': item['title'],
+          'currency': currency,
+        },
+      ),
+  ]);
 }
 ```
 
-ให้ตกลงชื่อ event และ attributes กับทีม Data ก่อนใช้ เช่น เลือกใช้ `total` หรือ `total_amount` ให้สม่ำเสมอ แต่ละรายการต้องมี `sku`, `price`, `quantity` และ `title` ตามรูปแบบที่ตกลงไว้ คำขอแต่ละ event แยกจากกัน จึงไม่ใช่ธุรกรรมที่สำเร็จหรือล้มเหลวพร้อมกันทั้งหมด และควรเรียกจากจุดยืนยันคำสั่งซื้อเพียงครั้งเดียวเพื่อไม่ส่งซ้ำจากการสร้างหน้าจอใหม่
+ให้ตกลงชื่อ event และ attributes กับทีม Data ก่อนใช้ เช่น เลือกใช้ `total` หรือ `total_amount` ให้สม่ำเสมอ แต่ละรายการต้องมี `sku`, `price`, `quantity` และ `title` ตามรูปแบบที่ตกลงไว้ SDK รวมทุก event เป็นคำขอเดียว แต่ไม่ใช่ธุรกรรมที่สำเร็จหรือล้มเหลวพร้อมกันทั้งหมด และควรเรียกจากจุดยืนยันคำสั่งซื้อเพียงครั้งเดียวเพื่อไม่ส่งซ้ำจากการสร้างหน้าจอใหม่
+
+### พฤติกรรมของ `Pam.trackBatch()`
+
+- ทุก event ต้องเป็นของผู้ใช้เดียวกัน SDK เติม database, contact ID, identity และข้อมูล session ให้แต่ละ event โดยใช้สถานะเมื่อถึงคิวส่ง
+- หากยังไม่มี contact ID จะเปิด `_use_first_contact_id_for_all_events` อัตโนมัติ ให้ server ใช้ contact จาก event แรกกับรายการถัดไป
+- payload ที่เปลี่ยน contact, database หรือ identity จากผู้ใช้ปัจจุบันจะได้ error `BATCH_IDENTITY_CONFLICT` และไม่ส่งคำขอ
+- ถ้า server ส่ง contact ID ขัดแย้งกันหรือไม่ตรงกับ contact เดิม SDK จะคืน `BATCH_IDENTITY_CONFLICT` และไม่เขียนทับ contact ที่เก็บไว้ ผลตอบกลับจากผู้ใช้หรือ session เก่าจะไม่เปลี่ยนสถานะปัจจุบัน
+- ตรวจ consent แยกแต่ละ event ตามกติกาเดียวกับ `track()` หากถูกบล็อกทั้งหมดจะคืน `null` โดยไม่ส่งคำขอ
+- `events` ต้องไม่ว่าง และชื่อ event ต้องไม่เป็นค่าว่าง มิฉะนั้นจะเกิด `ArgumentError`
+- ผลลัพธ์เป็น `PamBatchResponse` โดย `error` เป็นข้อผิดพลาดระดับ batch และ `results` เป็นผลที่ server ส่งกลับมา ซึ่งอาจมี error รายรายการ จำนวนผลลัพธ์อาจไม่ครบและห้ามจับคู่ด้วยลำดับ index การไม่มี error ระดับ batch ไม่ได้ยืนยันว่าทุก event สำเร็จ
+- ไม่มี automatic retry หากส่งสำเร็จบางส่วนแล้ว อย่าส่งซ้ำทั้งชุดโดยอัตโนมัติ
+
+```dart
+final response = await Pam.trackBatch([
+  const PamTrackEvent(event: 'view_product', payload: {'sku': 'SKU-001'}),
+  const PamTrackEvent(event: 'add_to_cart', payload: {'sku': 'SKU-001'}),
+]);
+
+if (response?.error != null) {
+  print(response!.error!.errorMessage);
+}
+```
 
 ---
 

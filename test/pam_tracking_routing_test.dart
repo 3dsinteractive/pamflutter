@@ -8,13 +8,15 @@ import 'package:pam_flutter/api/tracker_api.dart';
 import 'package:pam_flutter/pam.dart';
 import 'package:pam_flutter/preferences.dart';
 import 'package:pam_flutter/response/pam_response.dart';
+import 'package:pam_flutter/response/customer_consent_status.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _RecordingTrackerAPI extends TrackerAPI {
   final List<Map<String, dynamic>> requests = [];
   final bool failFirstRequest;
+  final bool omitConsentId;
 
-  _RecordingTrackerAPI({this.failFirstRequest = false})
+  _RecordingTrackerAPI({this.failFirstRequest = false, this.omitConsentId = false})
       : super('https://example.invalid');
 
   @override
@@ -40,7 +42,7 @@ class _RecordingTrackerAPI extends TrackerAPI {
           : 'login-contact-$customer';
     if (body['event'] == 'allow_consent') {
       response
-        ..consentID = 'consent-record-id'
+        ..consentID = omitConsentId ? null : 'consent-record-id'
         ..consentMessageID = fields['_consent_message_id'] as String?;
     }
     return response;
@@ -159,6 +161,154 @@ void main() {
       tracker.requests[index]['form_fields'] as Map<String, dynamic>;
 
   tearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+  test(
+    'saveConsent sends only tracking fields and applies actual choices',
+    () async {
+      const consent = TrackingConsent(
+        messageId: 'consent-message',
+        termsAndConditions: true,
+        privacyOverview: true,
+        necessaryCookies: true,
+        preferencesCookies: true,
+        analyticsCookies: true,
+      );
+      final result = await Pam.saveConsent(consent);
+      expect(result.consentID, 'consent-record-id');
+      expect(fieldsAt(0)['_database'], 'public-db');
+      expect(fieldsAt(0)['_version'], 'latest');
+      expect(fieldsAt(0)['_allow_analytics_cookies'], isTrue);
+      expect(fieldsAt(0)['_allow_marketing_cookies'], isFalse);
+      expect(fieldsAt(0).containsKey('_allow_sms'), isFalse);
+      expect(pam.allowTracking, isTrue);
+
+      await Pam.saveConsent(consent.copyWith(preferencesCookies: false));
+      expect(pam.allowTracking, isFalse);
+    },
+  );
+
+  test(
+    'contacting save preserves tracking and uses the login database',
+    () async {
+      await Pam.userLogin('customer-a');
+      await pam.setAllowTracking(true);
+      const consent = ContactingConsent(
+        messageId: 'contacting-message',
+        termsAndConditions: true,
+        privacyOverview: true,
+        sms: true,
+      );
+      await Pam.saveConsent(consent);
+      final fields = fieldsAt(tracker.requests.length - 1);
+      expect(fields['_database'], 'login-db');
+      expect(fields['_allow_sms'], isTrue);
+      expect(fields['_allow_email'], isFalse);
+      expect(fields.containsKey('_allow_necessary_cookies'), isFalse);
+      expect(pam.allowTracking, isTrue);
+    },
+  );
+
+  test('failed consent save does not enable local tracking', () async {
+    final failing = _RecordingTrackerAPI(failFirstRequest: true);
+    pam.trackerAPI = failing;
+    await expectLater(
+      Pam.saveConsent(
+        const TrackingConsent(
+          messageId: 'consent-message',
+          termsAndConditions: true,
+          privacyOverview: true,
+          necessaryCookies: true,
+          preferencesCookies: true,
+        ),
+      ),
+      throwsA(isA<ConsentSaveException>()),
+    );
+    expect(pam.allowTracking, isFalse);
+  });
+
+  test('invalid selections do not send consent requests', () async {
+    await expectLater(
+      Pam.saveConsent(
+        const ContactingConsent(
+          messageId: 'message',
+          termsAndConditions: false,
+          privacyOverview: true,
+        ),
+      ),
+      throwsArgumentError,
+    );
+    expect(tracker.requests, isEmpty);
+  });
+
+  test('stored selections save the merged choices for the same contact', () async {
+    final status = CustomerConsentStatus.parse(jsonEncode({
+      'consent_id': 'old-consent',
+      'consent_message_id': 'contacting-message',
+      'contact_id': 'anonymous-contact',
+      'consent_message_type': 'contacting_type',
+      'need_consent_review': false,
+      'contacting_permission': {
+        'terms_and_conditions': true,
+        'privacy_overview': true,
+        'email': true,
+        'sms': false,
+        'line': true,
+        'push_notification': true,
+      },
+    }))!;
+    final consent = ContactingConsent.fromStatus(status).copyWith(sms: true);
+    await Pam.saveConsent(consent);
+    expect(fieldsAt(0)['_allow_sms'], isTrue);
+    expect(fieldsAt(0)['_allow_email'], isTrue);
+    expect(fieldsAt(0)['_allow_line'], isTrue);
+    expect(fieldsAt(0)['_allow_push_notification'], isTrue);
+
+    // A login changes the destination; the old user's choices must not be sent.
+    await Pam.userLogin('another-customer');
+    final count = tracker.requests.length;
+    await expectLater(Pam.saveConsent(consent), throwsStateError);
+    expect(tracker.requests, hasLength(count));
+  });
+
+  test('response without a consent record cannot enable local tracking', () async {
+    pam.trackerAPI = _RecordingTrackerAPI(omitConsentId: true);
+    await expectLater(Pam.saveConsent(const TrackingConsent(
+      messageId: 'consent-message',
+      termsAndConditions: true,
+      privacyOverview: true,
+      necessaryCookies: true,
+      preferencesCookies: true,
+    )), throwsA(isA<ConsentSaveException>().having(
+      (error) => error.code, 'code', 'MISSING_CONSENT_ID',
+    )));
+    expect(pam.allowTracking, isFalse);
+  });
+
+  test('failed save does not revoke tracking already granted', () async {
+    await pam.setAllowTracking(true);
+    pam.trackerAPI = _RecordingTrackerAPI(failFirstRequest: true);
+    await expectLater(Pam.saveConsent(const TrackingConsent(
+      messageId: 'consent-message',
+      termsAndConditions: true,
+      privacyOverview: true,
+      necessaryCookies: true,
+      preferencesCookies: false,
+    )), throwsA(isA<ConsentSaveException>().having(
+      (error) => error.code, 'code', 'TIMEOUT',
+    )));
+    expect(pam.allowTracking, isTrue);
+  });
+
+  test('another tracking message does not change the configured tracking gate', () async {
+    await Pam.saveConsent(const TrackingConsent(
+      messageId: 'another-tracking-message',
+      termsAndConditions: true,
+      privacyOverview: true,
+      necessaryCookies: true,
+      preferencesCookies: true,
+    ));
+    expect(pam.allowTracking, isFalse);
+  });
 
   test(
     'reset forgets user state and keeps configuration ready for the next event',

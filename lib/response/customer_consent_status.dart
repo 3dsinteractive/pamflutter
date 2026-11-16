@@ -53,7 +53,7 @@ class CustomerConsentStatus {
     model.createdAt = map['created_at'];
     model.updatedAt = map['updated_at'];
     model.lastConsentVersion = map['last_consent_version'];
-    model.lastConsentVersion = map['latest_version'];
+    model.latestVersion = map['latest_version']?.toString();
     model.lastConsentAt = map['last_consent_at'];
     model.needConsentReview = map['need_consent_review'] ?? true;
 
@@ -68,13 +68,14 @@ class CustomerConsentStatus {
         bool marketingCookies = _getBool(perms, "marketing_cookies");
         bool socialMediaCookies = _getBool(perms, "social_media_cookies");
         model.trackingPermission = TrackingPermission(
-            termsAndConditions: termsAndConditions,
-            privacyOverview: privacyOverview,
-            necessaryCookies: necessaryCookies,
-            preferencesCookies: preferencesCookies,
-            analyticsCookies: analyticsCookies,
-            marketingCookies: marketingCookies,
-            socialMediaCookies: socialMediaCookies);
+          termsAndConditions: termsAndConditions,
+          privacyOverview: privacyOverview,
+          necessaryCookies: necessaryCookies,
+          preferencesCookies: preferencesCookies,
+          analyticsCookies: analyticsCookies,
+          marketingCookies: marketingCookies,
+          socialMediaCookies: socialMediaCookies,
+        );
       }
     }
 
@@ -88,16 +89,20 @@ class CustomerConsentStatus {
         bool sms = _getBool(perms, "sms");
         bool line = _getBool(perms, "line");
         bool facebookMessenger = _getBool(perms, "facebook_messenger");
-        bool webPush = _getBool(perms, "web_push");
+        // Prefer the event API key; retain compatibility with older responses.
+        bool webPush = perms.containsKey('push_notification')
+            ? _getBool(perms, 'push_notification')
+            : _getBool(perms, 'web_push');
 
         model.contactingPermission = ContactingPermission(
-            termsAndConditions: termsAndConditions,
-            privacyOverview: privacyOverview,
-            email: email,
-            sms: sms,
-            line: line,
-            facebookMessenger: facebookMessenger,
-            webPush: webPush);
+          termsAndConditions: termsAndConditions,
+          privacyOverview: privacyOverview,
+          email: email,
+          sms: sms,
+          line: line,
+          facebookMessenger: facebookMessenger,
+          webPush: webPush,
+        );
       }
     }
 

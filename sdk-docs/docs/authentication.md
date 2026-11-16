@@ -87,4 +87,10 @@ Pam.userLogin('CUST-002');
 
 เมื่อเริ่มทำงานกับบัญชีใหม่ SDK จะใช้ `loginDBAlias` พร้อมตัวตนของผู้ใช้คนใหม่สำหรับกิจกรรมถัดไป
 
+## ลอง flow กับ REST API จำลอง
+
+แอป `example/` มีช่อง Customer ID และปุ่ม login/logout ที่รอ REST auth จำลองสำเร็จก่อนอัปเดต session และแจ้ง PAM พร้อม `identityProvider` ที่อ่าน cache, callback แก้ mismatch และ observer สำหรับโหลด session ใหม่เมื่อกลับเข้าแอป Config มาจาก `getDevelopConfig()` ในโค้ดตั้งแต่ startup
+
+ดูวิธีจำลอง session หมดอายุ เปลี่ยนบัญชี หรือแอปลืมแจ้ง PAM ใน [คู่มือแอปตัวอย่าง](example.html)
+
 [กลับหน้าแรก](index.html)

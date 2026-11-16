@@ -10,6 +10,11 @@ import './api/consent_api.dart';
 import './api/crm_api.dart';
 import './response/allow_consent.dart';
 import './response/consent_message.dart';
+import './response/consent_selection.dart';
+import './response/pam_consent_result.dart';
+import './ui/pam_consent_dialog.dart';
+export './response/pam_consent_result.dart';
+export './response/consent_selection.dart';
 import './response/customer_consent_status.dart';
 import './response/pam_response.dart';
 import './api/push_notification_api.dart';
@@ -26,6 +31,11 @@ import 'pam_logging.dart';
 import 'src/pam_log_writer.dart';
 export 'pam_logging.dart' show PamLogCategory, PamLogLevel;
 import 'package:url_launcher/url_launcher.dart';
+
+import 'pam_track_event.dart';
+import 'response/pam_batch_response.dart';
+export 'pam_track_event.dart';
+export 'response/pam_batch_response.dart';
 
 typedef TrackerCallBack = Function(PamResponse);
 typedef PamIdentityProvider = PamUserState Function();
@@ -271,6 +281,127 @@ class Pam {
     return null;
   }
 
+  bool _consentScreenOpen = false;
+
+  /// Opens the SDK's adaptive consent UI and saves only after confirmation.
+  /// Status errors are treated as first consent; detail errors allow retry.
+  /// Requires a Material app with a Navigator. Existing APIs are unchanged.
+  static Future<PamConsentResult> showConsent(
+    BuildContext context, {
+    required String messageId,
+    Locale? locale,
+  }) async {
+    final owner = shared;
+    final config = owner.config;
+    if (config == null) {
+      throw StateError('Initialize PAM before showing consent.');
+    }
+    if (messageId.trim().isEmpty) {
+      throw ArgumentError.value(messageId, 'messageId');
+    }
+    if (!context.mounted) throw StateError('The page is no longer mounted.');
+    if (owner._consentScreenOpen) {
+      throw StateError('A consent screen is already open.');
+    }
+    final sessionVersion = owner._sessionVersion;
+    bool isCurrent() =>
+        identical(shared, owner) &&
+        identical(owner.config, config) &&
+        owner._sessionVersion == sessionVersion;
+    owner._consentScreenOpen = true;
+    try {
+      return await presentPamConsent(
+        context,
+        messageId: messageId,
+        locale: locale,
+        getContactId: owner.getContactID,
+        loadStatus: () => owner._loadConsentStatus(messageId),
+        loadMessage: () =>
+            ConsentAPI(config.pamServer).loadConsentMessage(messageId),
+        isSessionCurrent: isCurrent,
+        save: (selection, sourceContactId) => owner._saveConsentSelection(
+          selection,
+          isSessionCurrent: isCurrent,
+          sourceContactId: sourceContactId,
+        ),
+      );
+    } finally {
+      owner._consentScreenOpen = false;
+    }
+  }
+
+  /// Saves selected permissions without loading the consent message first.
+  /// Existing allow/submit APIs retain their original behavior.
+  /// Throws on invalid choices, stale contact state, or a rejected request.
+  static Future<SubmitConsentResult> saveConsent(ConsentSelection consent) =>
+      shared._saveConsentSelection(consent);
+
+  Future<SubmitConsentResult> _saveConsentSelection(
+    ConsentSelection consent, {
+    bool Function()? isSessionCurrent,
+    String? sourceContactId,
+  }) {
+    final pam = this;
+    return pam.queue.add(() async {
+      void checkSession() {
+        if (isSessionCurrent != null && !isSessionCurrent()) {
+          throw const ConsentSaveException(
+            'SESSION_CHANGED',
+            'The active user has changed.',
+          );
+        }
+      }
+
+      // Initialization synchronizes consent in the background. Finish it before
+      // saving so a late startup response cannot overwrite the new permission.
+      await pam._consentSync;
+      checkSession();
+      if (pam.config == null) {
+        throw StateError('Initialize PAM before saving consent.');
+      }
+      consent.validate();
+      final contactId = await pam.getContactID();
+      consent.validateForContact(contactId);
+      if (sourceContactId != null && sourceContactId != contactId) {
+        throw const ConsentSaveException(
+          'SESSION_CHANGED',
+          'The active contact has changed.',
+        );
+      }
+      checkSession();
+      final response = await pam.postTracker(
+        'allow_consent',
+        consent.toFormFields(),
+      );
+      checkSession();
+      if (response.error != null) {
+        throw ConsentSaveException(
+          response.error!.code,
+          response.error!.errorMessage,
+        );
+      }
+      if (response.consentID == null || response.consentID!.isEmpty) {
+        throw const ConsentSaveException(
+          'MISSING_CONSENT_ID',
+          'PAM did not return a consent record ID.',
+        );
+      }
+      if (consent is TrackingConsent &&
+          consent.messageId == pam.config!.trackingConsentMessageID) {
+        await pam.setAllowTracking(consent.preferencesCookies);
+      }
+      final result = AllowConsentResult(
+        response.contactID,
+        response.database,
+        response.consentID,
+        response.consentMessageID,
+      );
+      return SubmitConsentResult({
+        consent.messageId: result,
+      }, response.consentID!);
+    });
+  }
+
   static Future<SubmitConsentResult?> allowConsent(
     String consentMessageId,
   ) async {
@@ -379,6 +510,185 @@ class Pam {
       var result = await _track(event, payload: payload, callback: callback);
       return result;
     });
+  }
+
+  /// Sends events for one current user in one request, without automatic retry.
+  /// Returned results may be incomplete and must not be matched by index.
+  /// Identity and database fields cannot override the current SDK destination.
+  static Future<PamBatchResponse?> trackBatch(
+    List<PamTrackEvent> events, {
+    void Function(PamBatchResponse response)? callback,
+  }) async {
+    if (events.isEmpty) {
+      throw ArgumentError.value(events, 'events', 'Cannot be empty.');
+    }
+    final snapshot = events
+        .map(
+          (entry) => PamTrackEvent(
+            event: entry.event,
+            payload: entry.payload == null
+                ? null
+                : Map<String, dynamic>.from(entry.payload!),
+          ),
+        )
+        .toList();
+    if (snapshot.any((entry) => entry.event.trim().isEmpty)) {
+      throw ArgumentError('Event names cannot be empty.');
+    }
+    return shared.queue.add(() async {
+      final pam = shared;
+      final allowed = snapshot
+          .where(
+            (entry) =>
+                pam.config?.blockEventsIfNoConsent != true ||
+                pam.allowTracking ||
+                _isWhitelistEvent(entry.event),
+          )
+          .toList();
+      if (allowed.isEmpty) return null;
+      final result = await pam._trackBatch(allowed);
+      callback?.call(result);
+      return result;
+    });
+  }
+
+  Future<PamBatchResponse> _trackBatch(List<PamTrackEvent> events) async {
+    try {
+      for (final entry in events) {
+        final failure =
+            _createPausedTrackingResponse(entry.event) ??
+            await _validateIdentityForTrack(entry.event);
+        if (failure != null) return PamBatchResponse(error: failure.error);
+      }
+      final destination = await _createTrackingDestination();
+      if (!isNotEmpty(destination.databaseAlias)) {
+        return PamBatchResponse.failure(
+          'TRACKING_DISABLED',
+          'No database alias configured for the current session.',
+        );
+      }
+      Future<bool> destinationIsCurrent() async {
+        final current = await _createTrackingDestination();
+        return current.sessionVersion == destination.sessionVersion &&
+            current.sessionType == destination.sessionType &&
+            current.customerID == destination.customerID &&
+            current.databaseAlias == destination.databaseAlias &&
+            current.contactID == destination.contactID;
+      }
+
+      final bodies = <Map<String, dynamic>>[];
+      final identityFields = <String, dynamic>{
+        '_database': destination.databaseAlias,
+        if (isNotEmpty(destination.contactID))
+          '_contact_id': destination.contactID,
+        if (isNotEmpty(destination.customerID))
+          ..._createIdentityPayload(destination.customerID!),
+      };
+      final protectedKeys = {
+        '_contact_id',
+        '_database',
+        'customer',
+        'email',
+        'sms',
+        '_key_name',
+        '_key_value',
+        '_force_create',
+        config!.identityMatcher.key,
+      };
+      for (final entry in events) {
+        for (final key in protectedKeys) {
+          if (entry.payload?.containsKey(key) == true &&
+              (!identityFields.containsKey(key) ||
+                  entry.payload![key] != identityFields[key])) {
+            return PamBatchResponse.failure(
+              'BATCH_IDENTITY_CONFLICT',
+              'Batch payload cannot override $key. Use the current SDK user.',
+            );
+          }
+        }
+        final body = await _createTrackingBodyForDestination(
+          entry.event,
+          entry.payload,
+          destination,
+        );
+        (body['form_fields'] as Map<String, dynamic>).addAll(identityFields);
+        bodies.add(body);
+      }
+      if (!await destinationIsCurrent()) {
+        return PamBatchResponse.failure(
+          'IDENTITY_STATE_MISMATCH',
+          'The SDK user changed while preparing the batch.',
+        );
+      }
+      final response =
+          await trackerAPI?.postTrackerBatch({
+            'form_fields': {'_database': destination.databaseAlias},
+            if (!isNotEmpty(destination.contactID))
+              '_use_first_contact_id_for_all_events': true,
+            'events': bodies,
+          }) ??
+          PamBatchResponse.failure(
+            'EMPTY_RESPONSE',
+            'PAM return empty response.',
+          );
+
+      // A partial response must never make the SDK switch between contacts.
+      final ids = response.results
+          .map((result) => result.contactID)
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
+          .toSet();
+      final databaseConflict = response.results.any(
+        (result) =>
+            isNotEmpty(result.database) &&
+            result.database != destination.databaseAlias,
+      );
+      if (databaseConflict ||
+          ids.length > 1 ||
+          (isNotEmpty(destination.contactID) &&
+              ids.any((id) => id != destination.contactID))) {
+        return PamBatchResponse(
+          results: response.results,
+          error: PamErrorResponse(
+            code: 'BATCH_IDENTITY_CONFLICT',
+            errorMessage:
+                'Server returned conflicting contacts or databases. SDK contact was preserved.',
+          ),
+        );
+      }
+      // Late responses must not alter either identity or pause state of a new user.
+      if (!await destinationIsCurrent()) return response;
+      final failures = [
+        if (response.error != null) response.error!,
+        ...response.results
+            .where((result) => result.error != null)
+            .map((result) => result.error!),
+      ];
+      // Apply errors last so a partial success cannot clear a tracking pause.
+      for (final result in response.results.where(
+        (result) => result.error == null,
+      )) {
+        _applyTrackingResponsePolicy('batch', result);
+      }
+      for (final failure in failures) {
+        _applyTrackingResponsePolicy('batch', PamResponse()..error = failure);
+      }
+      if (response.error == null &&
+          ids.length == 1 &&
+          response.results.any(
+            (result) => result.error == null && result.contactID == ids.single,
+          )) {
+        await _saveContactID(ids.single, destination);
+      }
+      return response;
+    } catch (error, stackTrace) {
+      final failure = _createInternalErrorResponse(
+        'BATCH TRACKING ERROR',
+        error,
+        stackTrace,
+      );
+      return PamBatchResponse(error: failure.error);
+    }
   }
 
   static Future<PamResponse> _track(

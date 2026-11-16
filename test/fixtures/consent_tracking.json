@@ -1,0 +1,164 @@
+{
+  "consent_message_id": "2XyFHQ2Wu6grbSAk1Rp26edDxtJ",
+  "consent_message_type": "tracking_type",
+  "name": "pure-tracking-test",
+  "description": "",
+  "style_configuration": {
+    "bar_background_color": "#37BEB0",
+    "bar_text_color": "#FFFFFF",
+    "bar_background_opacity_percentage": 100,
+    "button_background_color": "#0C6170",
+    "button_text_color": "#FFFFFF",
+    "consent_detail": {
+      "popup_main_icon": "pdpa",
+      "primary_color": "#37BEB0",
+      "secondary_color": "#0C6170",
+      "button_text_color": "#FFFFFF",
+      "text_color": "#FFFFFF"
+    }
+  },
+  "setting": {
+    "version": 1,
+    "revision": 1,
+    "updated_at": "2026-11-16 04:27:33",
+    "updated_by": {
+      "id": "1r4IofG3hr2o6xWnpaWV0AVoQ9Z",
+      "name": "admin"
+    },
+    "display_text": {
+      "th": "บริษัทใช้คุกกี้เพื่อเพิ่มประสบการณ์และความพึงพอใจในการใช้งานเว็บไซต์ ให้สามารถเข้าถึงง่าย สะดวกในการใช้งาน และมีประสิทธิภาพยิ่งขึ้น การกด “ยอมรับ” ถือว่าคุณได้อนุญาตให้เราใช้คุกกี้ ตามนโยบายคุกกี้ของบริษัท"
+    },
+    "accept_button_text": {
+      "th": "ยอมรับ"
+    },
+    "consent_detail_title": {
+      "th": "Demo Tracking - Cookie Consent Detail"
+    },
+    "available_languages": [
+      "th"
+    ],
+    "default_language": "th",
+    "terms_and_conditions": {
+      "is_enabled": true,
+      "brief_description": {
+        "th": "Pure - Tracking Cookie Consent - Terms & Conditions"
+      },
+      "is_full_description_enabled": true,
+      "full_description": {
+        "th": "<p>Pure - Tracking Cookie Consent - Terms &amp; Conditions</p>"
+      }
+    },
+    "privacy_overview": {
+      "is_enabled": true,
+      "brief_description": {
+        "th": "Pure - Tracking Cookie Consent - Privacy Overview"
+      },
+      "is_full_description_enabled": true,
+      "full_description": {
+        "th": "<p>Pure - Tracking Cookie Consent - Privacy Overview</p>"
+      }
+    },
+    "more_info": {
+      "is_custom_url_enabled": false,
+      "custom_url": {
+        "th": ""
+      },
+      "display_text": {
+        "th": "อ่านเพิ่มเติม"
+      }
+    },
+    "necessary_cookies": {
+      "is_enabled": true,
+      "brief_description": {
+        "th": "Pure - Tracking Cookie Consent - Necessary Cookies"
+      },
+      "is_full_description_enabled": true,
+      "full_description": {
+        "th": "<p>Pure - Tracking Cookie Consent - Necessary Cookies</p>"
+      }
+    },
+    "preferences_cookies": {
+      "is_enabled": true,
+      "brief_description": {
+        "th": "Pure - Tracking Cookie Consent - Preferences Cookies"
+      },
+      "is_full_description_enabled": true,
+      "full_description": {
+        "th": "<p>Pure - Tracking Cookie Consent - Preferences Cookies</p>"
+      }
+    },
+    "analytics_cookies": {
+      "is_enabled": true,
+      "brief_description": {
+        "th": "Pure - Tracking Cookie Consent - Analytics Cookies"
+      },
+      "is_full_description_enabled": true,
+      "full_description": {
+        "th": "<p>Pure - Tracking Cookie Consent - Analytics Cookies</p>"
+      },
+      "tracking_collection": {
+        "google_tag_id": []
+      }
+    },
+    "marketing_cookies": {
+      "is_enabled": true,
+      "brief_description": {
+        "th": "Pure - Tracking Cookie Consent - Marketing Media Cookies"
+      },
+      "is_full_description_enabled": true,
+      "full_description": {
+        "th": "<p>Pure - Tracking Cookie Consent - Marketing Media Cookies</p>"
+      },
+      "tracking_collection": {
+        "marketing_script": []
+      }
+    },
+    "social_media_cookies": {
+      "is_enabled": true,
+      "brief_description": {
+        "th": "Pure - Tracking Cookie Consent - Social Media Cookies"
+      },
+      "is_full_description_enabled": true,
+      "full_description": {
+        "th": "<p>Pure - Tracking Cookie Consent - Social Media Cookies</p>"
+      },
+      "tracking_collection": {
+        "facebook_pixel_id": []
+      }
+    },
+    "email": {
+      "is_enabled": false,
+      "brief_description": {},
+      "is_full_description_enabled": false,
+      "full_description": {}
+    },
+    "sms": {
+      "is_enabled": false,
+      "brief_description": {},
+      "is_full_description_enabled": false,
+      "full_description": {}
+    },
+    "line": {
+      "is_enabled": false,
+      "brief_description": {},
+      "is_full_description_enabled": false,
+      "full_description": {}
+    },
+    "facebook_messenger": {
+      "is_enabled": false,
+      "brief_description": {},
+      "is_full_description_enabled": false,
+      "full_description": {}
+    },
+    "push_notification": {
+      "is_enabled": false,
+      "brief_description": {},
+      "is_full_description_enabled": false,
+      "full_description": {}
+    }
+  },
+  "latest_version": 1,
+  "latest_revision": 1,
+  "created_at": "2023-11-10 05:15:24",
+  "updated_at": "2026-11-16 04:27:33"
+}

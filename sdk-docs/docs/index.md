@@ -38,3 +38,5 @@ import 'package:pam_flutter/pam.dart';
 5. [การส่ง Event Tracking](tracking.html)
 6. [Push Notification](push-notification.html)
 7. [App Attention](app-attention.html)
+
+8. [แอปตัวอย่างพร้อมปุ่มทดสอบ API](example.html)
