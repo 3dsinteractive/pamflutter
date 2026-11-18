@@ -1,10 +1,10 @@
 # PAM Flutter SDK Example
 
-แอป Android/iOS พร้อมปุ่มทดสอบ API และ REST auth จำลองสำหรับ login/logout, `identityProvider`, `onIdentityMismatch` และ lifecycle
+ตัวอย่างแอปดูสินค้า ให้ลองใช้งานตามเส้นทางผู้เยี่ยมชม → สมาชิก → ออกจากระบบ โดยไม่ต้องกรอกหรืออ่าน JSON บนหน้าจอ ดูคำสั่งของแต่ละปุ่มและผลการเรียก SDK ผ่าน Log ใน Debug Console / Android Studio / Xcode
 
-## แก้ config ใน Code แล้วรัน
+## ตั้งค่าแล้วรัน
 
-แก้ `lib/pam_config.dart`: endpoint, database aliases, Tracking / Contacting Consent Message IDs และตัวเลือกของ PamConfig จากนั้น:
+แก้ `lib/pam_config.dart`: endpoint, database aliases และ Tracking Consent Message ID ถ้ามี Contacting Consent ให้ใส่ ID เพิ่ม แล้วรัน:
 
 ```bash
 cd example
@@ -12,69 +12,55 @@ flutter pub get
 flutter run
 ```
 
-ใช้ Flutter 3.41+ / Dart 3.11+ Runtime เรียก **getDevelopConfig เท่านั้น** ส่วน getProductionConfig เก็บเป็นตัวอย่างอ้างอิง ไม่มี UI แก้ config หรือปุ่ม initialize ต้อง restart แอปหลังเปลี่ยน config
+ใช้ Flutter 3.41+ / Dart 3.11+ โดย `main` เรียก `getDevelopConfig` และรอ `Pam.initialize` ก่อนเปิดแอป ต้อง restart หลังเปลี่ยน config ค่า develop เปิด SDK Log ไว้ ส่วน `getProductionConfig` เป็นตัวอย่างอ้างอิง
 
-```dart
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  final auth = DemoAuthController();
-  final config = PamConfigProvider.getDevelopConfig(
-    auth.identityProvider,
-    auth.onIdentityMismatch,
-  );
-  await Pam.initialize(config);
-  runApp(MyApp(auth: auth));
-}
-```
+PAM ติดต่อ server จริงตาม config ส่วน REST auth เป็น server จำลองภายในแอป เก็บ session ในหน่วยความจำ ไม่ใช่ระบบ authentication สำหรับ production
 
-PAM ใช้ server จริงจาก config ส่วน auth server จำลองรับส่ง JSON ภายในแอป ไม่มี request ออกไปยัง auth server ภายนอก และไม่ใช่ระบบ authentication สำหรับ production
+## ทดลองตามลำดับ
+
+1. **ลองใช้แอปก่อน Login:** ดูรายละเอียดสินค้าเรียก `Pam.track("view_product")` ส่วนกด/ยกเลิกรายการที่ชอบเรียก `Pam.track("favorite_product")` พร้อม `is_favorite: true/false` ไม่บังคับ Login เพื่อใช้งาน และการส่ง Event ยังเป็นไปตาม Consent/config ของ SDK
+2. **เลือก Consent ก่อน Login:** เปิด `Pam.showConsent` เพื่ออ่านข้อความจริง เลือกและยืนยันเอง ปิดหน้าต่างโดยไม่บันทึกได้
+3. **ส่ง Event ก่อน Login:** กดส่ง `view_product` พร้อมข้อมูลสินค้าตัวอย่างในฐานะ guest ถ้า SDK ไม่ส่ง เช่นถูกบล็อกด้วย Consent หน้าจอจะไม่อ้างว่าส่งสำเร็จ
+4. **พร้อมแล้วค่อย Login:** ใส่ Customer ID → REST login จำลองสำเร็จ → เก็บ app session → `Pam.userLogin` ไม่บังคับให้ผ่านขั้นก่อนหน้าครบ
+5. **ตรวจสอบหรือปรับ Consent หลัง Login:** ใช้ `Pam.loadConsentStatus` โหลดสถานะสมาชิกใหม่ แสดงตัวเลือกเป็นข้อความและป้ายอนุญาต/ไม่อนุญาต เปิด `Pam.showConsent` อีกครั้งเพื่อแก้ไข หากตั้ง Contacting ID จะมีตัวเลือกสำหรับการติดต่อด้วย
+6. **ส่ง Event หลัง Login:** ส่ง `view_product` เดิมพร้อม `demo_stage: member` หรือกดจำลองซื้อสินค้าเพื่อเรียก `Pam.trackBatch([purchase_order, ...purchase_order_item])` โดยรวมคำสั่งซื้อกับสินค้า 2 รายการในคำขอเดียว ใช้ `order_id` เดียวกัน ยอดรวม 1,090 THB กดแต่ละครั้งสร้างคำสั่งซื้อจำลองใหม่ ผลแสดงใต้ปุ่ม และรายละเอียดดูได้ใน Log ผล Batch อาจไม่ครบและไม่ใช่ธุรกรรมที่สำเร็จพร้อมกันทั้งหมด
+7. **ทดสอบ App Attention:** กรอก PageName (ค่าเริ่มต้น `home`) แล้วกด `Pam.appAttention` ใช้ได้ทั้ง guest และสมาชิก ต้องมี Campaign ที่ตรงกับ PageName และผู้ใช้ปัจจุบัน ผลแสดงใต้ปุ่มและรายละเอียดอยู่ใน Log
+8. **Logout และเริ่มใหม่:** REST logout → app เป็น anonymous → `Pam.userLogout` → `Pam.reset` → ล้างรายการที่ชอบ รายละเอียดสินค้า และสถานะ Consent บนหน้าจอ ไม่มีการนำ session สมาชิกเดิมกลับมา sync
+
+Reset ล้างข้อมูล SDK ในเครื่อง รวมถึง contact, identity, token และสถานะ tracking ไม่ได้ลบข้อมูลที่ส่งไปยัง server แล้ว จึงอาจพบ Consent เดิมอีกเมื่อระบุตัวตนเดิมในภายหลัง
+
+แต่ละปุ่มบันทึก `Example button:` พร้อมชื่อคำสั่งลง SDK Log อ่านโค้ดที่ `sdk_demo_page.dart` เพื่อดูการเรียกจริงและ payload ตัวอย่าง ไม่ต้องคัดลอก JSON จากหน้าจอ
+
+## Session และการกลับเข้าแอป
+
+เปิดแอปหรือ resume จะเรียก `GET /auth/session` → อัปเดต cache → sync PAM ก่อนเปิดปุ่มที่ต้องใช้ SDK โดย `identityProvider` อ่าน cache เท่านั้น: `unknown` ระหว่างโหลด, `anonymous` สำหรับ guest และ `identified` สำหรับสมาชิก
+
+- Session ตอบ `401` หมายถึง guest ส่วน `500` หรือ network error หมายถึงยังไม่ทราบสถานะ จึงไม่เดาว่า logout
+- REST login/logout ล้มเหลวจะไม่เปลี่ยน session เดิม
+- PAM ล้มเหลวหลัง REST login สำเร็จจะเก็บ app session ไว้และมีปุ่มเชื่อมต่อ PAM อีกครั้ง
+- สถานะ Consent บนหน้าจอจะถูกล้างเมื่อเปลี่ยนบัญชี เพื่อไม่ใช้ข้อมูลของตัวตนก่อนหน้า
+- `onIdentityMismatch` sync ตัวตนล่าสุดโดยไม่ replay Event ที่ถูกทิ้ง
+- `Pam.userLogout` คืน `Future<void>` ให้ดูผลเครือข่ายใน SDK Log เพิ่มเติม
 
 ## Android Sync / Build
 
-เปิด Flutter project ที่ `example/` หรือ Gradle project ที่ `example/android/` ตัวอย่างใช้ Gradle 9.1.0 / AGP 9.0.1 / Kotlin 2.3.20, Java target 17 และ minSdk 24 เพื่อรองรับเครื่องมือ Flutter และ Android Studio ปัจจุบัน หากพบ `Unsupported class file major version 69` ให้ Sync wrapper รุ่นใหม่ก่อน
+เปิด Flutter project ที่ `example/` หรือ Gradle project ที่ `example/android/` ตัวอย่างใช้ Gradle 9.1.0 / AGP 9.0.1 / Kotlin 2.3.20, Java target 17 และ minSdk 24
 
 ```bash
 flutter build apk --debug
 ```
 
-## Login / Logout และ lifecycle
-
-เปิดหมวด **ตัวตนผู้ใช้** แล้วกรอก Customer ID เอง:
-
-- Login: `POST /auth/login` สำเร็จ → เก็บ app session → `Pam.userLogin(customerId)`
-- Logout: `POST /auth/logout` สำเร็จ → app เป็น anonymous → `Pam.userLogout()`
-- เปิดแอป / resume: `GET /auth/session` → อัปเดต cache → sync PAM ก่อนเปิดปุ่ม API อื่น
-- Provider อ่าน cache ทันที: `unknown` ขณะโหลด, `anonymous` เมื่อ guest, `identified` พร้อม Customer ID เมื่อ login
-- `401` จาก session หมายถึง guest แต่ `500` / network error หมายถึงยังไม่ทราบสถานะ จึงไม่ logout โดยเดา
-- หาก PAM ล้มเหลวหลัง REST สำเร็จ จะคง app session ไว้และให้ retry sync
-
-ปุ่ม refresh ใช้ flow เดียวกับ `WidgetsBindingObserver` เมื่อ `AppLifecycleState.resumed` Token และ session จำลองอยู่ในหน่วยความจำ เมื่อเริ่ม process ใหม่จะเริ่มเป็น guest
-
-## ทดลอง mismatch callback
-
-1. Login เป็น A ให้ PAM มี identity ก่อน
-2. จำลอง server เปลี่ยนบัญชีเป็น B หรือทำให้ session หมดอายุ
-3. กด **โหลด session แต่ยังไม่แจ้ง PAM** เพื่อจงใจจำลองแอปลืมแจ้ง SDK
-4. กด **Pam.track(test) → ตรวจ identity mismatch** แล้วดูลำดับเหตุการณ์และการ sync ใน callback
-
-Event ที่ mismatch ถูกทิ้งและไม่ replay อัตโนมัติ Callback อ่าน session ล่าสุดหลัง REST operation ที่ค้างจบ เพื่อไม่ใช้ identity เก่าทับบัญชีใหม่ เมื่อ SDK ยังไม่มี identity เดิมจะไม่เกิด callback ตามกติกาของ SDK
-
-## API อื่น
-
-ยังมีปุ่ม Consent ทั้ง API ใหม่/เดิม, UI กลาง, fromStatus/copyWith, Tracking พร้อม JSON payload, Push และ App Attention / อุปกรณ์ ภาษา Consent ใช้ `th → en → jp` เป็น fallback และแปลง `Locale('ja')` ไปอ่าน key `jp`
-
-Push ต้องนำ token จริงจากระบบ Push ของแอปมาใส่ ตัวอย่างไม่ได้ตั้งค่า Firebase ให้ ส่วน App Attention ต้องมี Campaign เข้าเงื่อนไข และ ATT ต้องตั้งค่า native บน iOS
-
 ## โครงสร้างและการทดสอบ
 
-- `lib/main.dart`: startup และ getDevelopConfig
-- `lib/demo_auth_api.dart`: REST client และ server จำลอง
-- `lib/demo_auth_controller.dart`: session, provider, mismatch และ lifecycle flow
-- `lib/sdk_demo_page.dart`: ปุ่มทดสอบและ WidgetsBindingObserver
-- `lib/demo_results.dart`: แสดงผล API เป็น JSON
+- `lib/main.dart`: initialize SDK ก่อนเปิดแอป
+- `lib/pam_config.dart`: config สำหรับ develop / production
+- `lib/demo_auth_api.dart`: REST client และ auth server จำลอง
+- `lib/demo_auth_controller.dart`: session, provider, mismatch และลำดับ logout/reset
+- `lib/sdk_demo_page.dart`: หน้าลองสินค้าและ flow 8 ขั้น พร้อม lifecycle observer
 
 ```bash
+flutter analyze
 flutter test
 ```
 
-Tests ไม่ส่งข้อมูลไปยัง PAM จริง ดู flow และตาราง API เพิ่มใน [sdk-docs](../sdk-docs/docs/example.md)
+Tests ใช้ SDK และ HTTP จำลอง ไม่ส่งข้อมูลไปยัง PAM จริง

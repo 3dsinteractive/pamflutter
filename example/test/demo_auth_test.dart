@@ -13,6 +13,15 @@ import 'package:pam_flutter_example/demo_auth_controller.dart';
 
 class _MemoryPreference extends UserPreference {
   final values = <SaveKey, Object>{};
+  bool failClear = false;
+  int clearAttempts = 0;
+  @override
+  Future<void> clear() async {
+    clearAttempts++;
+    if (failClear) throw StateError('Storage unavailable');
+    values.clear();
+  }
+
   @override
   Future<String?> getString(SaveKey key) async => values[key] as String?;
   @override
@@ -269,6 +278,45 @@ void main() {
         tracker.requests.any((r) => r['form_fields']['customer'] == 'CUST-B'),
         isFalse,
       );
+    },
+  );
+
+  test(
+    'logout and reset clears storage and SDK identity without restoring the member',
+    () async {
+      await auth.login('CUST-A');
+      final storage = Pam.shared.pref as _MemoryPreference;
+      storage.values[SaveKey.pushKey] = 'token';
+      await auth.logoutAndReset();
+      expect(auth.session, isNull);
+      expect(await auth.api.loadSession(), isNull);
+      expect(await Pam.getCustID(), isNull);
+      expect(storage.values, isEmpty);
+      expect(storage.clearAttempts, 1);
+      expect(Pam.shared.allowTracking, isFalse);
+      expect(auth.canUsePam, isTrue);
+      expect(
+        tracker.requests.where((r) => r['event'] == 'login'),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
+    'failed reset remains pending and sync retries storage cleanup',
+    () async {
+      await auth.login('CUST-A');
+      final storage = Pam.shared.pref as _MemoryPreference;
+      storage.failClear = true;
+      await expectLater(auth.logoutAndReset(), throwsStateError);
+      expect(auth.session, isNull);
+      expect(auth.requiresPamSync, isTrue);
+      expect(auth.canUsePam, isFalse);
+      storage.failClear = false;
+      await auth.synchronizePam();
+      expect(storage.clearAttempts, 2);
+      expect(auth.canUsePam, isTrue);
+      expect(await Pam.getCustID(), isNull);
     },
   );
 

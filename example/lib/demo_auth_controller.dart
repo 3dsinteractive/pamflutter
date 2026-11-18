@@ -14,6 +14,8 @@ class DemoAuthController extends ChangeNotifier {
   bool requiresPamSync = false;
   bool _loadingSession = true;
   bool _pamSyncFailed = false;
+  bool _resetPending = false;
+  int resetRevision = 0;
   int _pending = 0;
   int _sequence = 0;
   Future<void>? _tail;
@@ -38,6 +40,7 @@ class DemoAuthController extends ChangeNotifier {
   };
 
   void record(String message) {
+    Pam.log(['Example auth: $message'], category: PamLogCategory.identity);
     _events.add('${++_sequence}. $message');
     if (_events.length > 40) _events.removeAt(0);
     notifyListeners();
@@ -107,6 +110,13 @@ class DemoAuthController extends ChangeNotifier {
     if (await Pam.getCustID() != target) {
       throw StateError('PAM identity ยังไม่ตรงกับ app session');
     }
+    if (_resetPending) {
+      record('Pam.reset()');
+      await Pam.reset();
+      _resetPending = false;
+      resetRevision++;
+      record('ล้างข้อมูล PAM ในเครื่องแล้ว พร้อมเริ่มเป็น guest');
+    }
     _pamSyncFailed = false;
     requiresPamSync = false;
     record('PAM identity ตรงกับ app session แล้ว');
@@ -131,6 +141,16 @@ class DemoAuthController extends ChangeNotifier {
     _publish(null);
     await _syncPamNow();
   }, loadingSession: true);
+
+  /// End the app session before clearing PAM; never restore the old identity.
+  /// Keep reset failure recoverable even when logout has already succeeded.
+  Future<void> logoutAndReset() =>
+      _operation('Logout และ Reset ข้อมูลในเครื่อง', () async {
+        await api.logout();
+        _publish(null);
+        _resetPending = true;
+        await _syncPamNow();
+      }, loadingSession: true);
 
   Future<void> _loadSession({required bool synchronizePam}) async {
     try {

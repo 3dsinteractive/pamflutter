@@ -54,268 +54,87 @@ code {
       <li><a href="push-notification.html">6. Push Notification</a></li>
       <li><a href="app-attention.html">7. App Attention</a></li>
       <li><a href="example.html">8. แอปตัวอย่างและปุ่มทดสอบ API</a></li>
+      <li><a href="changelog.html">9. ประวัติการเปลี่ยนแปลง (Changelog)</a></li>
     </ul>
   </nav>
   <main>
-    <h1>แอปตัวอย่างพร้อมปุ่มทดสอบ API</h1>
-<p>โฟลเดอร์ <code>example/</code> เป็นแอป Android/iOS สำหรับทดลอง PAM Flutter SDK เปิดแอปแล้ว initialize จากโค้ดทันที ไม่มีฟอร์มหรือปุ่มแก้ config ใน UI ส่วน Consent, Tracking, Push และ App Attention ยังมีปุ่มให้ทดลองพร้อมผลลัพธ์และข้อผิดพลาด</p>
-<p>ตัวอย่างมี REST API สำหรับระบบสมาชิกจำลองภายในแอป เพื่อสาธิต <code>identityProvider</code>, <code>onIdentityMismatch</code> และ lifecycle โดยไม่ต้องตั้ง auth server แยก ส่วนคำขอ PAM ยังคงใช้ server จริงจาก config</p>
-<h2>ตั้งค่าใน Code แล้วรัน</h2>
-<p>แก้ <code>example/lib/pam_config.dart</code> ก่อนรัน:</p>
-<ul>
-<li><code>endpoint</code>, <code>publicDatabase</code>, <code>loginDatabase</code>: ค่า PAM environment สำหรับทดสอบ ต้องมี database alias อย่างน้อยหนึ่งฐานข้อมูล</li>
-<li><code>trackingMessageId</code>, <code>contactingMessageId</code>: รหัส Consent ให้ตรงกับประเภท</li>
-<li>ปรับ log หรือ <code>blockEventsIfNoConsent</code> ในโค้ดสร้าง <code>PamConfig</code> ตามการใช้งาน</li>
-</ul>
-<p>Runtime เรียก <strong><code>getDevelopConfig()</code> เท่านั้น</strong> ส่วน <code>getProductionConfig()</code> เก็บเป็นโค้ดอ้างอิง ไม่ได้ถูกเลือกจาก UI เมื่อเปลี่ยน config ให้ restart แอปเพื่อรัน <code>main()</code> ใหม่ ไม่ใช้เพียง hot reload</p>
+    <h1>Example App</h1>
+<p>ตัวอย่าง Flutter เป็นแอปดูสินค้าที่เริ่มใช้งานได้ก่อน Login และพาเดินตามขั้นตอนที่พบในแอปจริง หน้าจอแสดงสถานะด้วยข้อความ ไม่แสดง JSON คำสั่งของแต่ละปุ่มและรายละเอียด response ดูได้จาก SDK Log</p>
+<h2>ตั้งค่าและเปิดแอป</h2>
+<p>แก้ <code>example/lib/pam_config.dart</code> ให้ตรงกับ server, database และ Tracking Consent Message ID ของคุณ หากใช้ Contacting Consent ให้ใส่ ID เพิ่ม แล้วรัน:</p>
 <pre><code class="hljs language-bash"><span class="hljs-built_in">cd</span> example
 flutter pub get
 flutter run
-</code></pre><p>ใช้ Flutter/Dart ตามข้อกำหนด SDK และเลือกอุปกรณ์ Android หรือ iOS ส่วนโครงสร้าง startup ใน <code>main.dart</code> เป็นดังนี้:</p>
-<pre><code class="hljs language-dart"><span class="hljs-title class_">Future</span>&lt;<span class="hljs-keyword">void</span>&gt; <span class="hljs-title function_">main</span>() <span class="hljs-keyword">async</span> {
-  <span class="hljs-title class_">WidgetsFlutterBinding</span>.<span class="hljs-title function_">ensureInitialized</span>();
-
-  <span class="hljs-keyword">final</span> auth = <span class="hljs-title class_">DemoAuthController</span>();
-  <span class="hljs-keyword">final</span> config = <span class="hljs-title class_">PamConfigProvider</span>.<span class="hljs-title function_">getDevelopConfig</span>(
-    auth.identityProvider,
-    auth.onIdentityMismatch,
-  );
-  <span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">initialize</span>(config);
-
-  <span class="hljs-title function_">runApp</span>(<span class="hljs-title class_">MyApp</span>(auth: auth));
-}
-</code></pre><p>หลังเปิด UI จะโหลด session จำลองใน frame แรก ระหว่างโหลด <code>identityProvider</code> คืน <code>unknown</code> และปุ่ม API ที่ต้องใช้ตัวตนจะยังไม่เปิด เมื่อทราบ session และ sync PAM แล้วจึงพร้อมทดสอบ ไม่มีการยอมรับ Consent หรือเปิด App Attention เอง</p>
-<p>หมวด <strong>การเริ่มต้น / Session</strong> แสดง config แบบอ่านอย่างเดียว และมีปุ่ม refresh session, retry sync และ reset ข้อมูล PAM การ reset ไม่ได้ logout ระบบสมาชิก ตัวอย่างจึง sync ตัวตนกลับให้ตรงกับ app session หลัง reset</p>
-<h2>Sync และ Build บน Android</h2>
-<p>เปิดโฟลเดอร์ <code>example/</code> เป็น Flutter project หรือเปิด <code>example/android/</code> เมื่อต้องการตรวจ Gradle โดยตรง โฟลเดอร์ <code>android/</code> ที่ root ของ repository เป็นโมดูล SDK ไม่ใช่แอปตัวอย่าง</p>
-<p>ชุด build ของ example ใช้ Gradle 9.1.0, Android Gradle Plugin 9.0.1 และ Kotlin 2.3.20 โดยกำหนด Java/Kotlin target 17 และ minSdk 24 ชุดนี้ตรงกับรุ่นที่ Flutter ในการตรวจสอบใช้อยู่ และ Gradle 9.1 รองรับ Java 25 ที่มากับ Android Studio รุ่นใหม่ ตาม <a href="https://docs.gradle.org/current/userguide/compatibility.html">ตารางความเข้ากันได้ของ Gradle</a></p>
-<pre><code class="hljs language-bash"><span class="hljs-built_in">cd</span> example
-flutter pub get
-flutter build apk --debug
-</code></pre><p>หากพบ <code>Unsupported class file major version 69</code> ให้ตรวจว่า Sync ด้วย wrapper ของ <code>example/android/</code> รุ่นใหม่แล้ว ไม่ได้ใช้ Gradle 8.2.1 เดิม ส่วน <code>android.builtInKotlin=false</code> และ <code>android.newDsl=false</code> ใน example เป็นค่ารองรับ Flutter/plugin ที่ยังใช้ Kotlin plugin และ Android DSL แบบเดิม</p>
-<p>โมดูล SDK ใช้ <code>compileSdk 36</code> ให้ตรงกับข้อกำหนดของ <code>flutter_secure_storage</code> โดยยังคง <code>minSdk 24</code> จึงไม่ได้เพิ่มเวอร์ชัน Android ขั้นต่ำของอุปกรณ์</p>
-<p>ใช้ <code>flutter doctor -v</code> ตรวจ Android SDK และอุปกรณ์ หากขาด SDK component ให้ติดตั้งจาก Android Studio &gt; SDK Manager ตามข้อความ build ไม่ต้องเปลี่ยนค่าการเชื่อมต่อ PAM ใน UI</p>
-<h2>จำลอง Login, Logout และ lifecycle</h2>
-<p>เปิดหมวด <strong>ตัวตนผู้ใช้</strong> แล้วกรอก Customer ID ได้เอง เช่น <code>CUSTOMER-A</code> ไม่ต้องแก้ Customer ID ในโค้ด ตัวอย่างใช้ <code>identityMatcher</code> แบบ <code>customer</code> จึงส่งรหัสเดียวกันให้ทั้ง provider และ <code>Pam.userLogin()</code></p>
-<p>REST API จำลองรับส่ง JSON ผ่าน HTTP client ที่ทำงานในหน่วยความจำ ไม่มี socket หรือ request ไปยัง <code>demo-auth.invalid</code> จริง:</p>
+</code></pre><p><code>main</code> ใช้ <code>getDevelopConfig</code> และรอ <code>Pam.initialize</code> ก่อนเปิดแอป ค่า develop เปิด Log ไว้ ต้อง restart หลังเปลี่ยน config ส่วน REST auth เป็น server จำลองในแอป PAM ใช้ server จริงตาม config</p>
+<h2>เส้นทางการลองใช้งาน</h2>
 <table>
 <thead>
 <tr>
-<th>Endpoint จำลอง</th>
+<th>ขั้นตอน</th>
+<th>สิ่งที่ผู้ใช้ลอง</th>
 <th>การทำงาน</th>
 </tr>
 </thead>
 <tbody><tr>
-<td><code>POST /auth/login</code></td>
-<td>รับ <code>{ &quot;customer_id&quot;: &quot;CUSTOMER-A&quot; }</code> แล้วคืน session และ token จำลอง</td>
+<td>1. ลองใช้ก่อน Login</td>
+<td>ดูสินค้าและเก็บรายการที่ชอบ</td>
+<td><code>Pam.track(&quot;view_product&quot;)</code> และ <code>Pam.track(&quot;favorite_product&quot;)</code> พร้อม <code>is_favorite</code> ตามสถานะที่เลือก</td>
 </tr>
 <tr>
-<td><code>POST /auth/logout</code></td>
-<td>ยกเลิก token ของ session ปัจจุบัน</td>
+<td>2. เลือก Consent ก่อน Login</td>
+<td>อ่านและเลือกสิทธิ์ด้วยตัวเอง</td>
+<td><code>Pam.showConsent</code> ใช้ตัวตน guest ปิดโดยไม่บันทึกได้</td>
 </tr>
 <tr>
-<td><code>GET /auth/session</code></td>
-<td>คืน Customer ID ปัจจุบัน หรือ <code>401</code> เมื่อยังไม่ login / session หมดอายุ</td>
+<td>3. Track ก่อน Login</td>
+<td>ส่งเหตุการณ์ดูสินค้า</td>
+<td><code>Pam.track(&#39;view_product&#39;, payload: ...)</code> พร้อม <code>demo_stage: guest</code></td>
 </tr>
 <tr>
-<td><code>POST /demo/expire</code></td>
-<td>จำลอง session หมดอายุเฉพาะฝั่ง server</td>
+<td>4. Login เมื่อพร้อม</td>
+<td>กรอก Customer ID จำลอง</td>
+<td>REST login → เก็บ session → <code>Pam.userLogin</code></td>
 </tr>
 <tr>
-<td><code>POST /demo/switch-customer</code></td>
-<td>จำลองการเปลี่ยน Customer ID ฝั่ง server โดยยังไม่เปลี่ยน cache ในแอป</td>
+<td>5. ตรวจและปรับ Consent</td>
+<td>โหลดสถานะสมาชิกและแก้ตัวเลือก</td>
+<td><code>Pam.loadConsentStatus</code> และ <code>Pam.showConsent</code></td>
+</tr>
+<tr>
+<td>6. Track หลัง Login</td>
+<td>ดูสินค้าหรือจำลองซื้อสินค้า</td>
+<td><code>view_product</code> หรือ <code>Pam.trackBatch</code> ที่รวม <code>purchase_order</code> และ <code>purchase_order_item</code> ของสินค้า 2 รายการ โดยใช้ <code>order_id</code> เดียวกัน</td>
+</tr>
+<tr>
+<td>7. App Attention</td>
+<td>กรอก PageName แล้วตรวจสอบ Popup ได้ทั้งก่อนและหลัง Login</td>
+<td><code>Pam.appAttention(context, pageName: pageName)</code> ต้องมี Campaign เข้าเงื่อนไข</td>
+</tr>
+<tr>
+<td>8. Logout และเริ่มใหม่</td>
+<td>เริ่มรอบทดสอบใหม่เป็น guest</td>
+<td>REST logout → <code>Pam.userLogout</code> → <code>Pam.reset</code> → ล้าง state บนหน้าจอ</td>
 </tr>
 </tbody></table>
-<p>ลำดับการทำงานปกติ:</p>
-<ol>
-<li><strong>เปิดแอป:</strong> initialize PAM → <code>GET /auth/session</code> → เก็บ session ในแอป → sync ตัวตนกับ PAM</li>
-<li><strong>Login:</strong> กด <code>POST /auth/login → Pam.userLogin</code> → รอ REST สำเร็จ → เก็บ Customer ID ใน app session → แจ้ง PAM ด้วยรหัสเดียวกัน</li>
-<li><strong>Logout:</strong> กด <code>POST /auth/logout → Pam.userLogout</code> → รอ REST สำเร็จ → เปลี่ยน app session เป็น anonymous → แจ้ง PAM</li>
-<li><strong>กลับเข้าแอป:</strong> <code>WidgetsBindingObserver</code> รับ <code>AppLifecycleState.resumed</code> → โหลด session อีกครั้ง → หาก Customer ID เปลี่ยนหรือกลายเป็น guest จะ sync PAM ก่อนเปิดปุ่ม API อื่น</li>
-</ol>
-<p>ปุ่ม <strong>GET /auth/session → sync PAM (resume)</strong> เรียกเส้นทางเดียวกับ lifecycle จริง ใช้ทดลองได้โดยไม่ต้องสลับออกจากแอป การ refresh ซ้ำขณะกำลังโหลดจะรวมเป็นงานเดียว และการเปลี่ยน session จะเรียงลำดับเพื่อป้องกันผลลัพธ์เก่าทับบัญชีใหม่</p>
-<p><code>identityProvider</code> อ่านเฉพาะ cache แบบ synchronous ไม่เรียก REST เอง:</p>
-<pre><code class="hljs language-dart"><span class="hljs-title class_">PamUserState</span> <span class="hljs-title function_">identityProvider</span>() {
-  <span class="hljs-keyword">if</span> (_loadingSession || !sessionKnown) {
-    <span class="hljs-keyword">return</span> <span class="hljs-keyword">const</span> <span class="hljs-title class_">PamUserState</span>.<span class="hljs-title function_">unknown</span>();
-  }
-  <span class="hljs-keyword">final</span> current = session;
-  <span class="hljs-keyword">return</span> current == <span class="hljs-keyword">null</span>
-      ? <span class="hljs-keyword">const</span> <span class="hljs-title class_">PamUserState</span>.<span class="hljs-title function_">anonymous</span>()
-      : <span class="hljs-title class_">PamUserState</span>.<span class="hljs-title function_">identified</span>(current.customerId);
-}
-</code></pre><p>โค้ดนี้อยู่ใน <code>demo_auth_controller.dart</code> โดย <code>unknown</code> ของ SDK ไม่ได้พัก event ให้อัตโนมัติ ดังนั้น example จึงปิดปุ่มที่ต้องใช้ตัวตนระหว่างโหลดหรือรอ sync เพิ่มเติมเอง</p>
-<h2>ทดลอง onIdentityMismatch ให้เกิดจริง</h2>
-<p>Flow ปกติ sync PAM อยู่แล้ว จึงมีปุ่มสำหรับจงใจจำลองกรณีแอปลืมแจ้ง PAM แยกต่างหาก:</p>
-<ol>
-<li>Login ด้วย <code>CUSTOMER-A</code> ให้ PAM มี identity เดิมก่อน</li>
-<li>เปลี่ยนช่อง Customer ID เป็น <code>CUSTOMER-B</code> แล้วกด <strong>จำลอง server: เปลี่ยน Customer ID</strong></li>
-<li>กด <strong>ทดสอบ: โหลด session แต่ยังไม่แจ้ง PAM</strong> ตอนนี้ app session เป็น B แต่ PAM ยังเป็น A ปุ่ม API ปกติจะปิดไว้</li>
-<li>กด <strong>Pam.track(test) → ตรวจ identity mismatch</strong> SDK จะทิ้ง event นี้และเรียก callback</li>
-<li>ดู <strong>ลำดับเหตุการณ์ Auth / PAM</strong> จะเห็น A → B และการเรียก <code>Pam.userLogin(B)</code> เพื่อแก้สถานะ</li>
-<li>กดทดสอบ event อีกครั้งเมื่อตัวตนตรงกัน โดย SDK ไม่ส่ง event เก่าซ้ำให้เอง</li>
-</ol>
-<p>หากต้องการทดลอง logout mismatch ให้ใช้ปุ่ม <strong>จำลอง server: session หมดอายุ</strong> แทนการเปลี่ยนบัญชี แล้วทำข้อ 3–4 จะได้ callback จาก A → anonymous และเรียก <code>Pam.userLogout()</code></p>
-<p>Callback รอ REST operation ที่ยังค้าง แล้วอ่าน app session ล่าสุดใหม่ก่อน sync จึงไม่ใช้ <code>mismatch.newIdentity</code> เก่าทับผู้ใช้ที่เพิ่งเปลี่ยนอีกครั้ง หาก SDK ยังไม่มี identity เดิม จะไม่เรียก callback ตามกติกาของ SDK ตัวอย่างจึงให้ Login ก่อนทดสอบ</p>
-<p><code>test</code> ใช้ตรวจตัวตนและผ่าน gate Consent/ช่วงพักของ SDK เพื่อให้ทดลองได้ แต่การส่งไป PAM จริงยังขึ้นอยู่กับ config และผลตอบกลับของ server</p>
-<h3>กรณีผิดพลาด</h3>
+<p>Login ไม่บังคับให้ทำขั้นก่อนหน้าครบ ปุ่ม Event ก่อน Login ใช้ได้เฉพาะ guest ส่วนปุ่มหลัง Login ใช้ได้เฉพาะสมาชิก การส่ง Event ขึ้นอยู่กับ Consent และ config ของ SDK ถ้า SDK คืน <code>null</code> หน้าจอจะแจ้งว่ายังไม่ได้ส่ง และให้ตรวจ Log</p>
+<p>Consent ใช้ UI ของ SDK เพื่อโหลดข้อความจริง ไม่ยอมรับแทนผู้ใช้ การปิดหน้าต่างไม่เปลี่ยน Consent เมื่อเปลี่ยนตัวตนจะล้างสถานะที่แสดงไว้และให้โหลดใหม่ตามบัญชีปัจจุบัน หากกำหนด Contacting ID จะมีส่วนจัดการ Consent สำหรับการติดต่อหลัง Login ด้วย</p>
+<p>Reset ล้างข้อมูล PAM ในเครื่อง รวมถึง contact, identity, token และสถานะ tracking พร้อมล้างสินค้าและสถานะบนหน้าจอ ไม่ลบข้อมูลบน server และไม่นำ session สมาชิกเดิมกลับมา sync จึงเริ่มลองใหม่ได้ในฐานะ guest</p>
+<h2>ดูคำสั่งจาก Log และโค้ด</h2>
+<p>เปิด Debug Console / Android Studio / Xcode แล้วมองหา <code>Example button:</code> ซึ่งระบุคำสั่งที่ปุ่มเรียก ตามด้วย Log ของ SDK เช่น consent, identity, tracking และ storage โค้ดใน <code>example/lib/sdk_demo_page.dart</code> แสดงการเรียก API และข้อมูลสินค้าตัวอย่างโดยตรง</p>
+<h2>Session และ lifecycle</h2>
+<p>เปิดแอปหรือกลับเข้าแอปจะโหลด <code>GET /auth/session</code> อัปเดต cache แล้ว sync PAM โดย provider ไม่เรียก HTTP เอง ระหว่างโหลดเป็น <code>unknown</code> เมื่อไม่ Login เป็น <code>anonymous</code> และเมื่อ Login เป็น <code>identified</code></p>
+<p>Session ตอบ <code>401</code> หมายถึง guest แต่ server/network error ไม่ใช่ logout ถ้า REST สำเร็จแต่ PAM ไม่สำเร็จ แอปเก็บ session ที่สำเร็จไว้และมีปุ่มเชื่อมต่อ PAM ใหม่ ส่วน <code>onIdentityMismatch</code> ใช้ session ล่าสุดเพื่อ sync และไม่ replay Event ที่ถูกทิ้ง</p>
+<p>Auth จำลองเก็บ session ในหน่วยความจำ เมื่อเริ่ม process ใหม่จะเริ่มเป็น guest แอป production ต้องใช้ auth API และการเก็บ session ของตนเอง</p>
+<h2>ซอร์สและการทดสอบ</h2>
 <ul>
-<li>REST login/logout ไม่สำเร็จ: ไม่เปลี่ยน app session และไม่แจ้งการเปลี่ยนตัวตนให้ PAM</li>
-<li>โหลด session ได้ <code>401</code>: ถือว่า guest แล้ว sync logout ตามสถานะจริง</li>
-<li>โหลด session ล้มเหลว เช่น <code>500</code>: คืน <code>unknown</code> และไม่เดาว่าเป็น logout ให้ลอง refresh ใหม่</li>
-<li>REST สำเร็จแต่ PAM login ล้มเหลว: เก็บ session ที่สำเร็จของแอปไว้ ปิดปุ่มที่ต้องใช้ PAM และให้กด <strong>Sync PAM กับ session ล่าสุด</strong> เพื่อ retry แม้ SDK จะเปลี่ยน identity ในเครื่องไปแล้ว</li>
-<li><code>Pam.userLogout()</code> คืน <code>Future&lt;void&gt;</code> ตัวอย่างตรวจ identity ในเครื่องหลังเรียก แต่ผลเครือข่ายฝั่ง PAM ให้ดู SDK log เพิ่มเติม</li>
+<li><code>main.dart</code>: เริ่ม SDK จาก config</li>
+<li><code>pam_config.dart</code>: config ที่แก้ก่อน restart</li>
+<li><code>demo_auth_api.dart</code>: REST client และ auth server จำลอง</li>
+<li><code>demo_auth_controller.dart</code>: session, identity provider, callback และ logout/reset</li>
+<li><code>sdk_demo_page.dart</code>: flow 8 ขั้นและ lifecycle observer</li>
 </ul>
-<p>Auth จำลองเก็บ token และ session ในหน่วยความจำเท่านั้น เมื่อปิด process แล้วเริ่มใหม่จะเริ่มเป็น guest ไม่ใช่ระบบ authentication สำหรับ production แอปจริงต้องแทนด้วย API และการเก็บ session ของตนเอง</p>
-<h2>API ที่มีปุ่มให้ทดสอบ</h2>
-<table>
-<thead>
-<tr>
-<th>หมวด</th>
-<th>API / ตัวอย่าง</th>
-<th>ผลลัพธ์ที่ดูได้</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>การเริ่มต้น / Session</td>
-<td><code>Pam.initialize</code> ใน main, <code>Pam.reset</code>, refresh / retry sync</td>
-<td>Config จาก Code และสถานะ app session</td>
-</tr>
-<tr>
-<td>Consent — UI กลาง</td>
-<td><code>Pam.showConsent</code> แยกปุ่ม Tracking / Contacting</td>
-<td>หน้าจอจากข้อความจริง และผล <code>saved</code> หรือ <code>dismissed</code></td>
-</tr>
-<tr>
-<td>Consent — อ่านข้อมูล</td>
-<td><code>Pam.loadConsentMessage</code>, <code>Pam.loadConsentStatus</code>, <code>Pam.loadConsentMessages</code></td>
-<td>ประเภท เวอร์ชัน ภาษา permission และสถานะเดิม</td>
-</tr>
-<tr>
-<td>Consent — เลือกบางรายการ</td>
-<td><code>TrackingConsent</code>, <code>ContactingConsent</code>, <code>Pam.saveConsent</code></td>
-<td>consent ID และผลรายข้อความ</td>
-</tr>
-<tr>
-<td>Consent — แก้สถานะเดิม</td>
-<td><code>TrackingConsent.fromStatus</code>, <code>ContactingConsent.fromStatus</code>, <code>copyWith</code></td>
-<td>โหลดค่าเดิมลง switch แล้วเปลี่ยนเฉพาะรายการที่ต้องการ</td>
-</tr>
-<tr>
-<td>Consent — API เดิม</td>
-<td><code>Pam.allowConsent</code>, <code>Pam.allowAllTrackingConsent</code>, <code>Pam.allowAllContactingConsent</code>, <code>Pam.submitConsent</code>, <code>Pam.submitConsents</code></td>
-<td>ผลการบันทึกด้วยรูปแบบเดิม</td>
-</tr>
-<tr>
-<td>ตัวตนผู้ใช้</td>
-<td>REST login/logout จำลอง, <code>identityProvider</code>, <code>onIdentityMismatch</code>, <code>Pam.userLogin</code>, <code>Pam.userLogout</code>, <code>Pam.getCustID</code></td>
-<td>สถานะทั้งแอปและ SDK พร้อมลำดับเหตุการณ์</td>
-</tr>
-<tr>
-<td>Tracking</td>
-<td><code>Pam.track</code>, <code>Pam.log</code></td>
-<td>response จาก event หรือ log ของแพลตฟอร์ม</td>
-</tr>
-<tr>
-<td>Push — token</td>
-<td><code>Pam.setPushNotificationToken</code>, <code>Pam.onToken</code></td>
-<td>ผลส่ง token และ callback เมื่อได้รับ token</td>
-</tr>
-<tr>
-<td>Push — ประวัติ</td>
-<td><code>Pam.loadPushNotifications</code>, <code>Pam.loadPushNotificationsFromEmail</code>, <code>Pam.loadPushNotificationsFromMobile</code>, <code>Pam.loadPushNotificationsFromCustomerID</code></td>
-<td>รายการข้อความที่นำไปเลือกทดสอบ read/click ได้</td>
-</tr>
-<tr>
-<td>Push — payload / tracking</td>
-<td><code>Pam.isPushNotiFromPam</code>, <code>Pam.convertToPamPushMessage</code>, <code>PamPushMessage.trackRead</code>, <code>PamPushMessage.trackPushUrlClick</code></td>
-<td>ผลตรวจ payload ข้อความที่แปลงแล้ว และการเรียก read/click pixel</td>
-</tr>
-<tr>
-<td>App Attention / อุปกรณ์</td>
-<td><code>Pam.appAttention</code>, <code>Pam.getPlatformVersion</code>, <code>Pam.identifierForVendor</code>, <code>Pam.trackingAuthorizationStatus</code>, <code>Pam.requestTrackingAuthorization</code></td>
-<td>popup ที่เข้าเงื่อนไข ข้อมูลอุปกรณ์ และสถานะ ATT</td>
-</tr>
-</tbody></table>
-<p>ตัวอย่างจะแสดง field ที่อ่านได้จริงแทนข้อความ <code>Instance of ...</code> และแสดงข้อผิดพลาดบนหน้าจอ ระหว่างทำงานจะป้องกันการกดปุ่มซ้ำและการแก้ค่าที่กำลังใช้งาน</p>
-<h2>ทดลอง Consent ตามลำดับ</h2>
-<h3>เปิด UI กลาง</h3>
-<p>เลือกหมวด <strong>Consent</strong> ตั้งภาษาเริ่มต้นเป็นอัตโนมัติ ไทย อังกฤษ หรือญี่ปุ่น แล้วกด <strong>Pam.showConsent — Tracking</strong> หรือ <strong>Contacting</strong></p>
-<pre><code class="hljs language-dart"><span class="hljs-keyword">final</span> result = <span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">showConsent</span>(
-  context,
-  messageId: trackingConsentMessageId,
-  <span class="hljs-comment">// ไม่ส่ง locale: เลือก th → en → jp</span>
-);
-
-<span class="hljs-keyword">if</span> (result.outcome == <span class="hljs-title class_">PamConsentOutcome</span>.saved) {
-  <span class="hljs-title function_">print</span>(result.submission!.consentID);
-}
-</code></pre><p>หากเลือกญี่ปุ่นใน example จะส่ง <code>Locale(&#39;ja&#39;)</code> ให้ SDK ไปอ่านข้อความจาก key <code>jp</code> กรณีภาษาที่เลือกไม่มีข้อความจะ fallback ตาม <code>th</code> → <code>en</code> → <code>jp</code> ผู้ใช้เปลี่ยนภาษาในหน้าจอ Consent ได้โดยไม่ล้างตัวเลือก อ่านเงื่อนไขเพิ่มเติมที่ <a href="consent.html">การจัดการ Consent</a></p>
-<h3>เลือกบางรายการด้วย API</h3>
-<p>กดโหลด message เพื่อดูรายละเอียดก่อน จากนั้นปรับ switch ใต้ประเภทที่ต้องการ แล้วกด <strong>Pam.saveConsent</strong> รายการบังคับจะเปิดและล็อกไว้ ส่วนรายการเสริมเริ่มเป็นปิด ปุ่มบันทึกคือการยืนยันตัวเลือกในแบบฟอร์มทดสอบนี้</p>
-<pre><code class="hljs language-dart"><span class="hljs-keyword">final</span> consent = <span class="hljs-title class_">ContactingConsent</span>(
-  messageId: contactingConsentMessageId,
-  termsAndConditions: <span class="hljs-keyword">true</span>,
-  privacyOverview: <span class="hljs-keyword">true</span>,
-  email: <span class="hljs-keyword">true</span>,
-  sms: <span class="hljs-keyword">false</span>,
-);
-<span class="hljs-keyword">final</span> result = <span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">saveConsent</span>(consent);
-</code></pre><p>แบบฟอร์มนี้สาธิตการเรียก API ระดับล่างและไม่ได้แทนหน้าจอขอความยินยอมสำหรับลูกค้าจริง แอปจริงต้องแสดงข้อความตามวัตถุประสงค์ก่อนให้ยืนยัน หรือใช้ <code>Pam.showConsent()</code> ซึ่งโหลดรายละเอียดมาแสดงให้</p>
-<h3>เปลี่ยนจากสถานะเดิม</h3>
-<p>กด <strong>TrackingConsent.fromStatus → copyWith</strong> หรือ <strong>ContactingConsent.fromStatus → copyWith</strong> เพื่อโหลดค่าที่เคยยืนยันลง switch แล้วแก้เฉพาะรายการที่ต้องการและกด <strong>Pam.saveConsent</strong></p>
-<pre><code class="hljs language-dart"><span class="hljs-keyword">final</span> status = <span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">loadConsentStatus</span>(contactingConsentMessageId);
-<span class="hljs-keyword">final</span> current = <span class="hljs-title class_">ContactingConsent</span>.<span class="hljs-title function_">fromStatus</span>(status);
-<span class="hljs-keyword">final</span> updated = current.<span class="hljs-title function_">copyWith</span>(sms: <span class="hljs-keyword">true</span>);
-<span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">saveConsent</span>(updated);
-</code></pre><p>หากยังไม่เคยยอมรับ โหลดสถานะไม่สำเร็จ หรือต้องทบทวน จะเห็นข้อผิดพลาดจาก factory ให้ใช้ปุ่ม UI กลางเพื่อโหลดข้อความและขอการยืนยันใหม่ ตัวอย่างจะทิ้ง draft เดิมเมื่อ app session เปลี่ยนบัญชี และนำตัวเลือกที่เพิ่งบันทึกจาก UI กลางกลับมาแสดงใน switch</p>
-<h3>เปรียบเทียบกับ API เดิม</h3>
-<ul>
-<li><code>allowConsent</code> และ <code>allowAll...</code> ยอมรับทุกรายการเมื่อกดปุ่ม โดยไม่ใช้ค่าจาก switch</li>
-<li><code>submitConsent</code> โหลดข้อความแล้วกำหนด <code>setPermission()</code> ตาม switch ก่อนส่งเวอร์ชันที่โหลดมา</li>
-<li><code>submitConsents</code> โหลดทั้งสองข้อความให้สำเร็จก่อนส่ง แต่การบันทึกหลายข้อความไม่ใช่ธุรกรรมที่สำเร็จพร้อมกันทั้งหมด ให้ตรวจผลรายข้อความ</li>
-<li><code>loadConsentMessages</code> โหลดหลายข้อความเพื่อดูผล โดยไม่ส่ง Consent</li>
-</ul>
-<p>API เดิมยังคงใช้งานได้ เลือกวิธีให้ตรงกับรูปแบบ UI ของแอป</p>
-<h2>หมวดอื่น ๆ</h2>
-<p><strong>ตัวตนผู้ใช้:</strong> ใช้ REST API จำลองและ lifecycle ตามหัวข้อข้างต้น โค้ดรอผลเพื่อให้เห็นแต่ละขั้นตอนชัดเจน อ่านกติกาของ SDK เพิ่มที่ <a href="authentication.html">การเข้าสู่ระบบ</a> และ <a href="initialization.html">Identity Provider</a></p>
-<p><strong>Tracking:</strong> กรอกชื่อ event และ JSON object เช่น <code>{&quot;sku&quot;:&quot;DEMO-SKU-001&quot;,&quot;price&quot;:590}</code> แล้วกด <code>Pam.track</code> หากเปิด block และยังไม่ยอมรับ Tracking Consent อาจได้ <code>null</code> โดยไม่มีการส่ง event ดู <a href="tracking.html">Event Tracking</a></p>
-<p><strong>Push:</strong> กรอก token ที่ได้จากระบบ Push ของแอปเอง ตัวอย่างไม่ได้ติดตั้ง Firebase Messaging หรือขอสิทธิ์ notification ให้อัตโนมัติ โหลดประวัติก่อนเลือกข้อความที่จะกด read/click การโหลดรายการหรือแปลง payload ไม่เรียก <code>trackRead()</code> เอง การเรียก pixel ส่งแบบไม่รอผล ให้ดู SDK log สำหรับผลเครือข่าย ดู <a href="push-notification.html">Push Notification</a></p>
-<p><strong>App Attention:</strong> กรอก <code>pageName</code> ที่ตรงกับ Campaign แล้วกดปุ่ม หากไม่มีข้อความเข้าเงื่อนไขจะไม่แสดง popup ไม่ได้หมายความว่าเรียก API ผิด ดู <a href="app-attention.html">App Attention</a></p>
-<p><strong>ATT:</strong> ทดสอบการขอสิทธิ์บน iOS เท่านั้น โดยมี <code>NSUserTrackingUsageDescription</code> ใน <code>Info.plist</code> ของแอป แพลตฟอร์มอื่นคืน <code>notSupported</code> สิทธิ์นี้แยกจาก PAM Consent</p>
-<h2>โครงสร้างซอร์สตัวอย่าง</h2>
-<table>
-<thead>
-<tr>
-<th>ไฟล์</th>
-<th>หน้าที่</th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>example/lib/main.dart</code></td>
-<td>เรียก getDevelopConfig และ await Pam.initialize ก่อน runApp</td>
-</tr>
-<tr>
-<td><code>example/lib/pam_config.dart</code></td>
-<td>แหล่ง config ที่แก้ใน Code ก่อน restart แอป</td>
-</tr>
-<tr>
-<td><code>example/lib/demo_auth_api.dart</code></td>
-<td>REST client และ auth server จำลองภายในแอป</td>
-</tr>
-<tr>
-<td><code>example/lib/demo_auth_controller.dart</code></td>
-<td>Cache session, provider, mismatch callback และลำดับ login/logout/refresh</td>
-</tr>
-<tr>
-<td><code>example/lib/sdk_demo_page.dart</code></td>
-<td>แบบฟอร์ม ปุ่ม และโค้ดเรียก API จริง แยกตามเมธอด <code>_overview</code>, <code>_consents</code>, <code>_identity</code>, <code>_tracking</code>, <code>_push</code>, <code>_device</code></td>
-</tr>
-<tr>
-<td><code>example/lib/demo_results.dart</code></td>
-<td>แปลง field ของผลลัพธ์เป็น JSON สำหรับแสดงบนหน้าจอ</td>
-</tr>
-</tbody></table>
+<p>รัน <code>flutter analyze</code> และ <code>flutter test</code> จาก <code>example/</code> การทดสอบไม่ส่งข้อมูลไปยัง PAM จริง</p>
+<p>อ่านเพิ่มเติม: <a href="consent.html">Consent</a>, <a href="authentication.html">Login / Logout</a>, <a href="tracking.html">Event Tracking</a></p>
 <p><a href="index.html">กลับหน้าแรก</a></p>
 
   </main>

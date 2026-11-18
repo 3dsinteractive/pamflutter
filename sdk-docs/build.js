@@ -23,6 +23,16 @@ const outDir = './dist';
 // สร้างโฟลเดอร์ dist
 if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 
+// ใช้ changelog ของแพ็กเกจเป็นต้นฉบับ เพื่อให้ประวัติในคู่มือตรงกันทุกครั้งที่ build
+const changelog = fs.readFileSync('../CHANGELOG.md', 'utf8');
+fs.writeFileSync(
+  path.join(srcDir, 'changelog.md'),
+  '# ประวัติการเปลี่ยนแปลง (Changelog)\n\n' +
+    'ประวัติทุกเวอร์ชันจาก CHANGELOG.md ของแพ็กเกจ เรียงจากใหม่ไปเก่า\n\n' +
+    changelog.replace(/^(#{1,5}) /gm, '$1# ') +
+    '\n[กลับหน้าแรก](index.html)\n'
+);
+
 // คัดลอกรูปภาพ
 const copyDir = (src, dest) => {
   if (!fs.existsSync(src)) return;
@@ -83,6 +93,7 @@ const htmlTemplate = (title, content) => `<!DOCTYPE html>
       <li><a href="push-notification.html">6. Push Notification</a></li>
       <li><a href="app-attention.html">7. App Attention</a></li>
       <li><a href="example.html">8. แอปตัวอย่างและปุ่มทดสอบ API</a></li>
+      <li><a href="changelog.html">9. ประวัติการเปลี่ยนแปลง (Changelog)</a></li>
     </ul>
   </nav>
   <main>

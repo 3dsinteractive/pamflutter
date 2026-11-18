@@ -63,6 +63,22 @@ class _HomePageState extends State<HomePage> {
 
 ---
 
+## เวลารอคำตอบจาก server
+
+`Pam.appAttention()` รอคำตอบ HTTP สูงสุด 30 วินาทีโดยค่าเริ่มต้น แยกจาก timeout กลางของ SDK ที่ 5 วินาที หากต้องการเปลี่ยนเฉพาะการเรียกนี้ ให้กำหนดค่ามากกว่าศูนย์:
+
+```dart
+await Pam.appAttention(
+  context,
+  pageName: 'home',
+  requestTimeout: const Duration(seconds: 45),
+);
+```
+
+เมื่อ timeout จะบันทึกข้อผิดพลาดใน Log ไม่แสดง Popup จากคำตอบที่มาช้า และเปิดให้เรียกใหม่ได้โดยไม่ retry อัตโนมัติ ค่า timeout ใช้กับการรอ HTTP ไม่ใช่เวลาที่ผู้ใช้เปิด Popup ค้างไว้ หากยัง timeout ให้ตรวจเครือข่ายและเวลาตอบกลับของ `/app-attention` ฝั่ง server
+
+---
+
 ## เปลี่ยนข้อความและสี Action Button
 
 หาก API ไม่ส่ง `url` สำหรับคลิก ส่ง `null` ข้อความว่าง หรือช่องว่างล้วน SDK จะซ่อน Action Button ทั้ง iOS และ Android แม้กำหนดข้อความปุ่มหรือ `onBannerClick` ไว้ เนื้อหาป๊อปอัปและปุ่มปิดยังแสดงตามปกติ

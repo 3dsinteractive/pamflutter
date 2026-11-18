@@ -803,6 +803,8 @@ class Pam {
   /// Displays one App Attention at a time; concurrent calls are skipped.
   /// Closing never queues another popup: call this method again to try again.
   /// Results are ignored if the calling page or user session is no longer current.
+  /// [requestTimeout] bounds the HTTP request (30 seconds by default), not how
+  /// long the user can keep the popup open. It must be greater than zero.
   ///
   /// Button colors accept `#RRGGBB` (case insensitive). Invalid colors keep
   /// the native default. Non-empty API strings take priority over code values.
@@ -810,11 +812,19 @@ class Pam {
   static Future<void> appAttention(
     BuildContext context, {
     String pageName = "",
+    Duration requestTimeout = const Duration(seconds: 30),
     String? actionButtonLabel,
     String? actionButtonColor,
     String? actionButtonTextColor,
     bool Function(Map<String, dynamic>? bannerData)? onBannerClick,
   }) async {
+    if (requestTimeout <= Duration.zero) {
+      throw ArgumentError.value(
+        requestTimeout,
+        'requestTimeout',
+        'Must be positive.',
+      );
+    }
     void attentionLog(String message, {PamLogLevel level = PamLogLevel.debug}) {
       Pam.log(
         ['page=$pageName $message'],
@@ -864,7 +874,10 @@ class Pam {
         owner._sessionVersion == version;
 
     try {
-      final api = CRMAPI(config?.pamServer ?? "");
+      final api = CRMAPI(
+        config?.pamServer ?? "",
+        requestTimeout: requestTimeout,
+      );
       final attention = await api.getAppAttention(pageName);
       if (!isCurrent()) {
         attentionLog('Response ignored reason=stale_page_or_session');

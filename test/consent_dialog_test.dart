@@ -264,6 +264,17 @@ void main() {
         await http.runWithClient(() async {
           await open(tester, locale: const Locale('en'));
           expect(control('language'), findsNothing);
+          final surface = tester.widget<Scaffold>(control('dialog'));
+          expect(surface.backgroundColor, Colors.white);
+          expect(
+            tester
+                .widgetList<HtmlWidget>(find.byType(HtmlWidget))
+                .every(
+                  (widget) =>
+                      widget.textStyle?.color == const Color(0xFF212121),
+                ),
+            isTrue,
+          );
           expect(
             control(contacting ? 'email' : 'necessary_cookies'),
             findsOneWidget,
@@ -282,6 +293,10 @@ void main() {
           await tester.tap(control('detail-terms_and_conditions'));
           await tester.pumpAndSettle();
           expect(htmlShown(tester), [full]);
+          expect(
+            tester.widget<HtmlWidget>(find.byType(HtmlWidget)).textStyle?.color,
+            const Color(0xFF212121),
+          );
           expect(control('save'), findsNothing);
           await tester.tap(control('detail-back'));
           await tester.pumpAndSettle();
@@ -624,6 +639,45 @@ void main() {
     },
   );
 
+  for (final contacting in [false, true]) {
+    testWidgets(
+      'first ${contacting ? "contacting" : "tracking"} consent preselects enabled choices and still requires confirmation',
+      (tester) async {
+        detail = message(contacting: contacting);
+        stored = {};
+        final optional = contacting
+            ? ['email', 'sms', 'line', 'push_notification']
+            : ['preferences_cookies', 'analytics_cookies'];
+        await http.runWithClient(() async {
+          await open(tester);
+          for (final name in optional) {
+            await scrollTo(tester, control(name));
+            expect(toggle(tester, name).value, isTrue);
+          }
+          expect(submissions, isEmpty);
+          await close(tester);
+          expect(submissions, isEmpty);
+          await open(tester);
+          final deselected = contacting ? 'sms' : 'analytics_cookies';
+          await scrollTo(tester, control(deselected));
+          await tester.tap(control(deselected));
+          await tester.tap(control('save'));
+          await tester.pumpAndSettle();
+          expect((await result).outcome, PamConsentOutcome.saved);
+          expect(submissions.single['_allow_$deselected'], isFalse);
+          expect(
+            submissions
+                .single['_allow_${contacting ? "email" : "preferences_cookies"}'],
+            isTrue,
+          );
+          if (!contacting) {
+            expect(submissions.single['_allow_marketing_cookies'], isFalse);
+          }
+        }, () => client);
+      },
+    );
+  }
+
   for (final code in [404, 500]) {
     testWidgets(
       'status HTTP $code starts a new selection even with a valid-looking body',
@@ -631,7 +685,7 @@ void main() {
         statusCode = code;
         await http.runWithClient(() async {
           await open(tester);
-          expect(toggle(tester, 'preferences_cookies').value, isFalse);
+          expect(toggle(tester, 'preferences_cookies').value, isTrue);
           expect(submissions, isEmpty);
           await close(tester);
           expect(submissions, isEmpty);
@@ -644,7 +698,7 @@ void main() {
     stored['version'] = 'invalid-version';
     await http.runWithClient(() async {
       await open(tester);
-      expect(toggle(tester, 'preferences_cookies').value, isFalse);
+      expect(toggle(tester, 'preferences_cookies').value, isTrue);
       expect(control('save'), findsOneWidget);
       await close(tester);
     }, () => client);
@@ -654,7 +708,7 @@ void main() {
     stored['consent_message_id'] = 'another-message';
     await http.runWithClient(() async {
       await open(tester);
-      expect(toggle(tester, 'preferences_cookies').value, isFalse);
+      expect(toggle(tester, 'preferences_cookies').value, isTrue);
       await close(tester);
     }, () => client);
   });
@@ -725,7 +779,7 @@ void main() {
         requests.where((r) => r.url.path.startsWith('/contacts/')),
         isEmpty,
       );
-      expect(toggle(tester, 'preferences_cookies').value, isFalse);
+      expect(toggle(tester, 'preferences_cookies').value, isTrue);
       await close(tester);
     }, () => client);
   });

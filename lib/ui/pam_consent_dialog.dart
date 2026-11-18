@@ -225,6 +225,13 @@ class _ConsentPageState extends State<_ConsentPage> {
           status.consentMessageId == message.id &&
           status.consentMessageType == type;
       _choices.clear();
+      if (!canReuse) {
+        // First presentation preselects enabled permissions only. Nothing is
+        // persisted until the user confirms; existing choices are loaded below.
+        for (final permission in message.permission) {
+          _choices[permission.name] = true;
+        }
+      }
       if (canReuse) {
         final tracking = status.trackingPermission;
         final contacting = status.contactingPermission;
@@ -498,7 +505,9 @@ class _ConsentPageState extends State<_ConsentPage> {
     final style = _message?.style;
     final primary = style?.dialogStyle?.primaryColor ?? const Color(0xFF14203D);
     final secondary = style?.dialogStyle?.secondaryColor ?? primary;
-    final text = style?.dialogStyle?.textColor ?? const Color(0xFF14203D);
+    // Remote bar/text colors are for the branded banner. Keep the reading
+    // surface neutral, including permission details and the language menu.
+    const text = Color(0xFF212121);
     final title = _detail != null
         ? _label(_detail!.name)
         : _text(
@@ -523,7 +532,7 @@ class _ConsentPageState extends State<_ConsentPage> {
             key: ValueKey(
               compact ? 'pam-consent-fullscreen' : 'pam-consent-dialog',
             ),
-            backgroundColor: style?.backgroundColor ?? Colors.white,
+            backgroundColor: Colors.white,
             body: SafeArea(
               child: Column(
                 children: [
@@ -592,8 +601,8 @@ class _ConsentPageState extends State<_ConsentPage> {
                                 child: DropdownButton<String>(
                                   key: const ValueKey('pam-consent-language'),
                                   value: _language,
-                                  dropdownColor:
-                                      style?.backgroundColor ?? Colors.white,
+                                  dropdownColor: Colors.white,
+                                  iconEnabledColor: text,
                                   style: Theme.of(
                                     context,
                                   ).textTheme.bodyMedium?.copyWith(color: text),
@@ -619,7 +628,7 @@ class _ConsentPageState extends State<_ConsentPage> {
                       ),
                     ),
                   ),
-                  const Divider(height: 1),
+                  const Divider(height: 1, color: Color(0xFFE5E7EB)),
                   Expanded(
                     child: _loading
                         ? Center(
@@ -686,7 +695,10 @@ class _ConsentPageState extends State<_ConsentPage> {
                                   _html(_text(_message!.displayText), text),
                                   for (final permission in _permissions) ...[
                                     _row(permission, primary, secondary, text),
-                                    const Divider(height: 1),
+                                    const Divider(
+                                      height: 1,
+                                      color: Color(0xFFE5E7EB),
+                                    ),
                                   ],
                                 ],
                               ],
