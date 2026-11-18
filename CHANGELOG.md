@@ -1,3 +1,16 @@
+# 3.2.1
+
+## Fixed
+
+- Display Android App Attention edge to edge for both Full and Large layouts, independently of the host app's dialog theme. Hide status and navigation bars while the popup is open and keep controls clear of display cutouts.
+- Apply `Bar Color → Background Color` to the fixed bottom section in `Pam.showConsent()`, and use the configured bar text color for its text.
+- Apply `Button Color → Background Color` and `Button Color → Text Color` to the consent accept button. Use the button background color for enabled consent switches, with a translucent track.
+- Remove the “Required · Always enabled” label from the consent UI in all languages while preserving locked required permissions.
+
+## Upgrade notes
+
+- Rebuild and reinstall the Android app to include the native App Attention changes; hot reload and hot restart do not update native code.
+
 # 3.2.0
 
 ## Added

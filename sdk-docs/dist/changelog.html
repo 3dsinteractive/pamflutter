@@ -60,6 +60,18 @@ code {
   <main>
     <h1>ประวัติการเปลี่ยนแปลง (Changelog)</h1>
 <p>ประวัติทุกเวอร์ชันจาก CHANGELOG.md ของแพ็กเกจ เรียงจากใหม่ไปเก่า</p>
+<h2>3.2.1</h2>
+<h3>Fixed</h3>
+<ul>
+<li>Display Android App Attention edge to edge for both Full and Large layouts, independently of the host app&#39;s dialog theme. Hide status and navigation bars while the popup is open and keep controls clear of display cutouts.</li>
+<li>Apply <code>Bar Color → Background Color</code> to the fixed bottom section in <code>Pam.showConsent()</code>, and use the configured bar text color for its text.</li>
+<li>Apply <code>Button Color → Background Color</code> and <code>Button Color → Text Color</code> to the consent accept button. Use the button background color for enabled consent switches, with a translucent track.</li>
+<li>Remove the “Required · Always enabled” label from the consent UI in all languages while preserving locked required permissions.</li>
+</ul>
+<h3>Upgrade notes</h3>
+<ul>
+<li>Rebuild and reinstall the Android app to include the native App Attention changes; hot reload and hot restart do not update native code.</li>
+</ul>
 <h2>3.2.0</h2>
 <h3>Added</h3>
 <ul>

@@ -16,6 +16,10 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.content.res.ColorStateList
 import android.view.WindowManager
+import android.os.Build
+import android.view.ViewGroup
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.concurrent.thread
@@ -25,7 +29,7 @@ class PopupDialog(
     arguments: Map<String, Any?>,
     private val onTrackingError: (Throwable) -> Unit,
     onClosed: (Map<String, Any?>?) -> Unit
-) : Dialog(context) {
+) : Dialog(context, R.style.PamAttentionDialogTheme) {
     private var clickData: Map<String, Any?>? = null
     private var completed = false
 
@@ -58,6 +62,12 @@ class PopupDialog(
             // Disable theme-provided dimming on this dialog's window only.
             clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             setDimAmount(0f)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                attributes = attributes.apply {
+                    layoutInDisplayCutoutMode =
+                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
         }
 
         // ตั้งค่า Title
@@ -116,12 +126,64 @@ class PopupDialog(
         // ตั้งค่า Close Button
         val closeButton: ImageButton = findViewById(R.id.closeButton)
         closeButton.setOnClickListener { dismiss() }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            // Keep controls clear of camera cutouts without insetting the backdrop/media.
+            val closeMargins = closeButton.layoutParams as ViewGroup.MarginLayoutParams
+            val closeTop = closeMargins.topMargin
+            val closeEnd = closeMargins.marginEnd
+            val buttonMargins = learnMoreButton.layoutParams as ViewGroup.MarginLayoutParams
+            val buttonBottom = buttonMargins.bottomMargin
+            window?.decorView?.setOnApplyWindowInsetsListener { _, insets ->
+                val cutout = insets.displayCutout
+                closeMargins.topMargin = closeTop + (cutout?.safeInsetTop ?: 0)
+                val endInset = if (closeButton.layoutDirection == View.LAYOUT_DIRECTION_RTL) {
+                    cutout?.safeInsetLeft ?: 0
+                } else {
+                    cutout?.safeInsetRight ?: 0
+                }
+                closeMargins.marginEnd = closeEnd + endInset
+                closeButton.layoutParams = closeMargins
+                buttonMargins.bottomMargin = buttonBottom + (cutout?.safeInsetBottom ?: 0)
+                learnMoreButton.layoutParams = buttonMargins
+                insets
+            }
+        }
         setOnDismissListener {
             videoView.stopPlayback()
             if (!completed) {
                 completed = true
                 onClosed(clickData)
             }
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onStart() {
+        super.onStart()
+        window?.apply {
+            // Apply after show(): a floating host theme must not constrain this window.
+            setLayout(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT
+            )
+            decorView.setPadding(0, 0, 0, 0)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                setDecorFitsSystemWindows(false)
+                insetsController?.apply {
+                    systemBarsBehavior =
+                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    hide(WindowInsets.Type.systemBars())
+                }
+            } else {
+                decorView.systemUiVisibility =
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                    View.SYSTEM_UI_FLAG_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            }
+            decorView.requestApplyInsets()
         }
     }
 

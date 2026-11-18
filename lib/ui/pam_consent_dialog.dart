@@ -14,7 +14,6 @@ const _japaneseUi = <String, String>{
   "Privacy settings": "プライバシー設定",
   "Back": "戻る",
   "Close": "閉じる",
-  "Required · Always enabled": "必須・常に有効",
   "Loading consent": "同意内容を読み込み中",
   "The account has changed. Close and reopen this screen.":
       "アカウントが変更されました。この画面を閉じて、もう一度開いてください。",
@@ -421,7 +420,7 @@ class _ConsentPageState extends State<_ConsentPage> {
 
   Widget _row(
     ConsentPermission permission,
-    Color primary,
+    Color toggleColor,
     Color secondary,
     Color text,
   ) {
@@ -447,17 +446,6 @@ class _ConsentPageState extends State<_ConsentPage> {
                         color: text,
                       ),
                     ),
-                    if (required)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          _say(
-                            'Required · Always enabled',
-                            'จำเป็น · เปิดใช้งานเสมอ',
-                          ),
-                          style: TextStyle(color: text, fontSize: 13),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -467,8 +455,8 @@ class _ConsentPageState extends State<_ConsentPage> {
                 child: Switch(
                   key: ValueKey('pam-consent-${permission.name.key}'),
                   value: _allowed(permission.name),
-                  activeThumbColor: primary,
-                  activeTrackColor: primary.withValues(alpha: 0.25),
+                  activeThumbColor: toggleColor,
+                  activeTrackColor: toggleColor.withValues(alpha: 0.25),
                   onChanged: required || _saving
                       ? null
                       : (value) => setState(() {
@@ -505,6 +493,11 @@ class _ConsentPageState extends State<_ConsentPage> {
     final style = _message?.style;
     final primary = style?.dialogStyle?.primaryColor ?? const Color(0xFF14203D);
     final secondary = style?.dialogStyle?.secondaryColor ?? primary;
+    final barBackground = style?.backgroundColor ?? Colors.white;
+    final barText = style?.textColor ?? const Color(0xFF14203D);
+    final buttonBackground =
+        style?.buttonBackgroundColor ?? const Color(0xFF14203D);
+    final buttonText = style?.buttonTextColor ?? Colors.white;
     // Remote bar/text colors are for the branded banner. Keep the reading
     // surface neutral, including permission details and the language menu.
     const text = Color(0xFF212121);
@@ -694,7 +687,12 @@ class _ConsentPageState extends State<_ConsentPage> {
                                     ),
                                   _html(_text(_message!.displayText), text),
                                   for (final permission in _permissions) ...[
-                                    _row(permission, primary, secondary, text),
+                                    _row(
+                                      permission,
+                                      buttonBackground,
+                                      secondary,
+                                      text,
+                                    ),
                                     const Divider(
                                       height: 1,
                                       color: Color(0xFFE5E7EB),
@@ -709,7 +707,9 @@ class _ConsentPageState extends State<_ConsentPage> {
                       !_loadFailed &&
                       !_sessionChanged &&
                       _detail == null)
-                    ConstrainedBox(
+                    Container(
+                      key: const ValueKey('pam-consent-bottom-bar'),
+                      color: barBackground,
                       constraints: BoxConstraints(maxHeight: height * 0.4),
                       child: SingleChildScrollView(
                         child: Padding(
@@ -728,7 +728,7 @@ class _ConsentPageState extends State<_ConsentPage> {
                                     key: const ValueKey(
                                       'pam-consent-save-error',
                                     ),
-                                    style: TextStyle(color: text),
+                                    style: TextStyle(color: barText),
                                     semanticsLabel: _say(
                                       'Save failed',
                                       'บันทึกไม่สำเร็จ',
@@ -740,16 +740,14 @@ class _ConsentPageState extends State<_ConsentPage> {
                                   'Only the selected permissions will be saved.',
                                   'บันทึกความยินยอมตามรายการที่เลือก',
                                 ),
-                                style: TextStyle(fontSize: 12, color: text),
+                                style: TextStyle(fontSize: 12, color: barText),
                               ),
                               const SizedBox(height: 8),
                               FilledButton(
                                 key: const ValueKey('pam-consent-save'),
                                 style: FilledButton.styleFrom(
-                                  backgroundColor: primary,
-                                  foregroundColor:
-                                      style?.dialogStyle?.buttonTextColor ??
-                                      Colors.white,
+                                  backgroundColor: buttonBackground,
+                                  foregroundColor: buttonText,
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 16,
                                     vertical: 14,

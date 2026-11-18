@@ -266,6 +266,33 @@ void main() {
           expect(control('language'), findsNothing);
           final surface = tester.widget<Scaffold>(control('dialog'));
           expect(surface.backgroundColor, Colors.white);
+          final colors = detail['style_configuration'] as Map<String, dynamic>;
+          Color configuredColor(String key) => Color(
+            int.parse('FF${(colors[key] as String).substring(1)}', radix: 16),
+          );
+          final bar = tester.widget<Container>(control('bottom-bar'));
+          expect(bar.color, configuredColor('bar_background_color'));
+          final button = tester.widget<FilledButton>(control('save'));
+          expect(
+            button.style!.backgroundColor!.resolve({}),
+            configuredColor('button_background_color'),
+          );
+          expect(
+            button.style!.foregroundColor!.resolve({}),
+            configuredColor('button_text_color'),
+          );
+          final consentToggle = toggle(
+            tester,
+            contacting ? 'email' : 'necessary_cookies',
+          );
+          expect(
+            consentToggle.activeThumbColor,
+            configuredColor('button_background_color'),
+          );
+          expect(
+            consentToggle.activeTrackColor,
+            configuredColor('button_background_color').withValues(alpha: 0.25),
+          );
           expect(
             tester
                 .widgetList<HtmlWidget>(find.byType(HtmlWidget))
