@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- ต้นแบบสำหรับแอปลูกค้า: มีตัวอย่าง User ID, Email, ประวัติซื้อ และ UserDefaults
+         เปิดแก้ค่าใน Xcode ตาม GUIDE_TH.txt -->
+
+    <!-- แอปใช้ข้อมูลเพื่อ tracking ตามนิยาม ATT หรือไม่: true = ใช้, false = ไม่ใช้ -->
+    <key>NSPrivacyTracking</key>
+    <false/>
+    <!-- รายชื่อ domains ที่แอปติดต่อเพื่อ tracking; array ว่าง = ไม่มีรายการ -->
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+
+    <!-- ประเภทข้อมูลที่แอปเก็บ เช่น ข้อมูลที่ส่งเข้า PAM; หนึ่ง dict ต่อหนึ่งประเภท -->
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array>
+        <!-- ตัวอย่าง: รหัสสมาชิก ใช้สำหรับการทำงานของบัญชีผู้ใช้ -->
+        <dict>
+            <!-- ประเภทข้อมูลที่เก็บ -->
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeUserID</string>
+            <!-- ข้อมูลเชื่อมกับผู้ใช้ บัญชี หรืออุปกรณ์ได้หรือไม่ -->
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <!-- ข้อมูลประเภทนี้ใช้เพื่อ tracking ตามนิยาม ATT หรือไม่ -->
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <!-- วัตถุประสงค์ในการใช้ข้อมูล เลือกได้หลายค่า -->
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+
+        <!-- ตัวอย่าง: Email ใช้ส่งข้อความการตลาดของเจ้าของแอป -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeEmailAddress</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeDeveloperAdvertising</string>
+            </array>
+        </dict>
+
+        <!-- ตัวอย่าง: ประวัติซื้อ ใช้วิเคราะห์ลูกค้า -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypePurchaseHistory</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+            </array>
+        </dict>
+    </array>
+
+    <!-- API ที่ Apple กำหนดให้ชี้แจงเหตุผลการใช้ -->
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array>
+        <!-- ตัวอย่าง: แอปอ่าน/เขียน UserDefaults ที่เข้าถึงได้เฉพาะแอปเอง -->
+        <dict>
+            <!-- หมวด API ที่ใช้ -->
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+            <!-- รหัสเหตุผลที่ Apple อนุมัติสำหรับการใช้ API หมวดนี้ -->
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>CA92.1</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>

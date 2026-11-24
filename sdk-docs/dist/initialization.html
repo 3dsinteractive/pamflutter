@@ -53,6 +53,8 @@ code {
       <li><a href="tracking.html">5. การส่ง Event Tracking</a></li>
       <li><a href="push-notification.html">6. Push Notification</a></li>
       <li><a href="app-attention.html">7. App Attention</a></li>
+      <li><a href="example.html">8. แอปตัวอย่างและปุ่มทดสอบ API</a></li>
+      <li><a href="changelog.html">9. ประวัติการเปลี่ยนแปลง (Changelog)</a></li>
     </ul>
   </nav>
   <main>
@@ -341,6 +343,9 @@ code {
   }
 }
 </code></pre><p><code>identityProvider</code> และ <code>onIdentityMismatch</code> เป็นส่วนที่แอปกำหนดให้สอดคล้องกับระบบจัดการผู้ใช้ของตน ในขั้นตอนล็อกอินและออกจากระบบตามปกติ ยังต้องเรียก <code>Pam.userLogin()</code> และ <code>Pam.userLogout()</code> ด้วย</p>
+<h2>ตัวอย่างที่รันได้พร้อม lifecycle</h2>
+<p>แอปใน <code>example/</code> เรียก <code>PamConfigProvider.getDevelopConfig()</code> และ <code>await Pam.initialize()</code> ก่อน <code>runApp()</code> โดยแก้ค่าได้จาก <code>example/lib/pam_config.dart</code> เท่านั้น ไม่มีฟอร์มแก้ config ใน UI ตัวอย่างมี REST auth จำลองเพื่อให้กรอก Customer ID เอง ทดสอบ login/logout, การกลับเข้าแอป และ <code>onIdentityMismatch</code> ได้จริงตามกติกาข้างต้น</p>
+<p>ดูขั้นตอนและปุ่มสำหรับจำลอง session หมดอายุ / เปลี่ยนบัญชีที่ <a href="example.html">คู่มือแอปตัวอย่าง</a></p>
 <p><a href="index.html">กลับหน้าแรก</a></p>
 
   </main>

@@ -12,7 +12,8 @@ extension HexColor on Color {
   }
 
   /// Prefixes a hash sign if [leadingHashSign] is set to `true` (default is `true`).
-  String toHex({bool leadingHashSign = true}) => '${leadingHashSign ? '#' : ''}'
+  String toHex({bool leadingHashSign = true}) =>
+      '${leadingHashSign ? '#' : ''}'
       '${(a * 255).toInt().toRadixString(16).padLeft(2, '0')}'
       '${(r * 255).toInt().toRadixString(16).padLeft(2, '0')}'
       '${(g * 255).toInt().toRadixString(16).padLeft(2, '0')}'
@@ -27,8 +28,13 @@ class ConsentDialogStyleConfiguration {
   Color? secondaryColor;
   Color? buttonTextColor;
   Color? textColor;
-  ConsentDialogStyleConfiguration(this.icon, this.primaryColor,
-      this.secondaryColor, this.buttonTextColor, this.textColor);
+  ConsentDialogStyleConfiguration(
+    this.icon,
+    this.primaryColor,
+    this.secondaryColor,
+    this.buttonTextColor,
+    this.textColor,
+  );
 }
 
 class ConsentStyleConfiguration {
@@ -40,74 +46,83 @@ class ConsentStyleConfiguration {
   ConsentDialogStyleConfiguration? dialogStyle;
 
   ConsentStyleConfiguration(
-      this.backgroundColor,
-      this.textColor,
-      this.barBackgroundOpacity,
-      this.buttonBackgroundColor,
-      this.buttonTextColor,
-      this.dialogStyle);
+    this.backgroundColor,
+    this.textColor,
+    this.barBackgroundOpacity,
+    this.buttonBackgroundColor,
+    this.buttonTextColor,
+    this.dialogStyle,
+  );
 
   static ConsentStyleConfiguration? parse(Map<String, dynamic>? json) {
     if (json == null) {
       return null;
     }
 
-    var backgroundColor = json["bar_background_color"]?.toString() ?? "#FFFFFF";
-    var textColor = json["bar_text_color"]?.toString() ?? "#000000";
-    var barBackgroundOpacity =
-        (double.tryParse(json["bar_text_color"]?.toString() ?? "100") ??
-                100.0) /
-            100.0;
-    var buttonBackgroundColor = json["bar_text_color"]?.toString() ?? "#000000";
-    var buttonTextColor = json["button_text_color"]?.toString() ?? "#000000";
+    Color color(Object? value, String fallback) {
+      final text = value?.toString().replaceFirst('#', '') ?? '';
+      if (!RegExp(r'^(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$').hasMatch(text)) {
+        return HexColor.fromHex(fallback);
+      }
+      return HexColor.fromHex(text);
+    }
 
-    var it = json["consent_detail"] as Map<String, dynamic>;
-
-    var icon = it["popup_main_icon"]?.toString() ?? "";
-    var primaryColor = it["primary_color"]?.toString() ?? "#cccccc";
-    var secondaryColor = it["secondary_color"]?.toString() ?? "#5c5c5c";
-    var dialogButtonTextColor =
-        it["button_text_color"]?.toString() ?? "#000000";
-    var dialogTextColor = it["text_color"]?.toString() ?? "#000000";
-
-    var dialogStyle = ConsentDialogStyleConfiguration(
-        icon,
-        HexColor.fromHex(primaryColor),
-        HexColor.fromHex(secondaryColor),
-        HexColor.fromHex(dialogButtonTextColor),
-        HexColor.fromHex(dialogTextColor));
-
+    final detail = json['consent_detail'] as Map<String, dynamic>? ?? {};
+    final opacity =
+        double.tryParse(
+          json['bar_background_opacity_percentage']?.toString() ?? '',
+        ) ??
+        100;
     return ConsentStyleConfiguration(
-        HexColor.fromHex(backgroundColor),
-        HexColor.fromHex(textColor),
-        barBackgroundOpacity,
-        HexColor.fromHex(buttonBackgroundColor),
-        HexColor.fromHex(buttonTextColor),
-        dialogStyle);
+      color(json['bar_background_color'], '#FFFFFF'),
+      color(json['bar_text_color'], '#14203D'),
+      opacity.clamp(0, 100) / 100,
+      color(json['button_background_color'], '#14203D'),
+      color(json['button_text_color'], '#FFFFFF'),
+      ConsentDialogStyleConfiguration(
+        detail['popup_main_icon']?.toString(),
+        color(detail['primary_color'], '#14203D'),
+        color(detail['secondary_color'], '#14203D'),
+        color(detail['button_text_color'], '#FFFFFF'),
+        color(detail['text_color'], '#000000'),
+      ),
+    );
   }
 }
 
-enum Lang { en, th }
+enum Lang { en, th, jp }
 
 class LocalizeText {
   String? en;
   String? th;
+  String? jp;
 
-  LocalizeText(this.en, this.th);
+  // Keep the original two-argument constructor source-compatible.
+  LocalizeText(this.en, this.th, [this.jp]);
+
+  factory LocalizeText.fromJson(Map<String, dynamic> json) => LocalizeText(
+    json['en']?.toString(),
+    json['th']?.toString(),
+    json['jp']?.toString(),
+  );
+
+  /// Exact language lookup; Flutter's Japanese code `ja` maps to PAM's `jp`.
+  String? forLanguage(String language) => switch (language) {
+    'en' => en,
+    'th' => th,
+    'jp' || 'ja' => jp,
+    _ => null,
+  };
+
+  List<String> get availableLanguages => [
+    for (final language in ['en', 'th', 'jp'])
+      if (forLanguage(language)?.trim().isNotEmpty == true) language,
+  ];
 
   String? get(Lang prefer) {
-    if (prefer == Lang.en) {
-      if (en != null) {
-        return en;
-      } else if (th != null) {
-        return th;
-      }
-    } else {
-      if (th != null) {
-        return th;
-      } else if (en != null) {
-        return en;
-      }
+    for (final language in {prefer.name, 'th', 'en', 'jp'}) {
+      final text = forLanguage(language);
+      if (text?.trim().isNotEmpty == true) return text;
     }
     return null;
   }
@@ -204,18 +219,27 @@ class ConsentPermission {
   bool require;
   bool allow;
 
-  ConsentPermission(this.name, this.shortDescription, this.fullDescription,
-      this.fullDescriptionEnabled, this.require, this.allow);
+  ConsentPermission(
+    this.name,
+    this.shortDescription,
+    this.fullDescription,
+    this.fullDescriptionEnabled,
+    this.require,
+    this.allow,
+  );
 
   static LocalizeText? getText(Map<String, dynamic>? json) {
     if (json == null) {
       return null;
     }
-    return LocalizeText(json["en"].toString(), json["th"].toString());
+    return LocalizeText.fromJson(json);
   }
 
   static ConsentPermission? parsePermission(
-      Map<String, dynamic>? json, ConsentPermissionName key, bool require) {
+    Map<String, dynamic>? json,
+    ConsentPermissionName key,
+    bool require,
+  ) {
     var item = json?[key.key] as Map<String, dynamic>?;
     if (item == null) {
       return null;
@@ -232,15 +256,24 @@ class ConsentPermission {
     var fullDescriptionEnabled =
         (item["is_full_description_enabled"] as bool?) ?? false;
 
-    return ConsentPermission(key, getText(shortDescription),
-        getText(fullDescription), fullDescriptionEnabled, require, false);
+    return ConsentPermission(
+      key,
+      getText(shortDescription),
+      getText(fullDescription),
+      fullDescriptionEnabled,
+      require,
+      false,
+    );
   }
 
   static List<ConsentPermission> parse(Map<String, dynamic>? json) {
     List<ConsentPermission> list = [];
 
-    var perm =
-        parsePermission(json, ConsentPermissionName.termsAndConditions, true);
+    var perm = parsePermission(
+      json,
+      ConsentPermissionName.termsAndConditions,
+      true,
+    );
     if (perm != null) {
       list.add(perm);
     }
@@ -255,8 +288,11 @@ class ConsentPermission {
       list.add(perm);
     }
 
-    perm =
-        parsePermission(json, ConsentPermissionName.preferencesCookies, false);
+    perm = parsePermission(
+      json,
+      ConsentPermissionName.preferencesCookies,
+      false,
+    );
     if (perm != null) {
       list.add(perm);
     }
@@ -271,8 +307,11 @@ class ConsentPermission {
       list.add(perm);
     }
 
-    perm =
-        parsePermission(json, ConsentPermissionName.socialMediaCookies, false);
+    perm = parsePermission(
+      json,
+      ConsentPermissionName.socialMediaCookies,
+      false,
+    );
     if (perm != null) {
       list.add(perm);
     }
@@ -292,8 +331,11 @@ class ConsentPermission {
       list.add(perm);
     }
 
-    perm =
-        parsePermission(json, ConsentPermissionName.facebookMessenger, false);
+    perm = parsePermission(
+      json,
+      ConsentPermissionName.facebookMessenger,
+      false,
+    );
     if (perm != null) {
       list.add(perm);
     }
@@ -328,20 +370,21 @@ class ConsentMessage {
   LocalizeText? moreInfoButtonText;
 
   ConsentMessage(
-      this.id,
-      this.type,
-      this.name,
-      this.description,
-      this.style,
-      this.version,
-      this.revision,
-      this.displayText,
-      this.acceptButtonText,
-      this.consentDetailTitle,
-      this.availableLanguages,
-      this.defaultLanguage,
-      this.permission,
-      this.moreInfoButtonText);
+    this.id,
+    this.type,
+    this.name,
+    this.description,
+    this.style,
+    this.version,
+    this.revision,
+    this.displayText,
+    this.acceptButtonText,
+    this.consentDetailTitle,
+    this.availableLanguages,
+    this.defaultLanguage,
+    this.permission,
+    this.moreInfoButtonText,
+  );
 
   void allowAll() {
     for (var element in permission) {
@@ -393,11 +436,16 @@ class ConsentMessage {
     return null;
   }
 
-  static LocalizeText? getText(Map<String, dynamic> json) {
-    return LocalizeText(json["en"]?.toString(), json["th"]?.toString());
+  static LocalizeText? getText(Map<String, dynamic>? json) {
+    if (json == null) return null;
+    return LocalizeText.fromJson(json);
   }
 
   static ConsentMessage fromJson(Map<String, dynamic> json) {
+    // Accept both the original payload and the API's {"data": ...} envelope.
+    if (json['data'] is Map<String, dynamic>) {
+      json = json['data'] as Map<String, dynamic>;
+    }
     var id = json["consent_message_id"].toString();
     var name = json["name"].toString();
     var description = json["description"].toString();
@@ -411,7 +459,9 @@ class ConsentMessage {
 
     var displayText = getText(setting?["display_text"]);
 
-    var moreInfoButtonText = getText(setting?["more_info"]["display_text"]);
+    var moreInfoButtonText = getText(
+      (setting?["more_info"] as Map<String, dynamic>?)?["display_text"],
+    );
 
     var acceptButtonText = getText(setting?["accept_button_text"]);
     var consentDetailTitle = getText(setting?["consent_detail_title"]);
@@ -429,20 +479,21 @@ class ConsentMessage {
     var permissions = ConsentPermission.parse(setting);
 
     return ConsentMessage(
-        id,
-        type,
-        name,
-        description,
-        style,
-        version,
-        revision,
-        displayText,
-        acceptButtonText,
-        consentDetailTitle,
-        availableLanguages,
-        defaultLanguage,
-        permissions,
-        moreInfoButtonText);
+      id,
+      type,
+      name,
+      description,
+      style,
+      version,
+      revision,
+      displayText,
+      acceptButtonText,
+      consentDetailTitle,
+      availableLanguages,
+      defaultLanguage,
+      permissions,
+      moreInfoButtonText,
+    );
   }
 
   static ConsentMessage? parse(String jsonStr) {

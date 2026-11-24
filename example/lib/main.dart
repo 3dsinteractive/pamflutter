@@ -1,129 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:pam_flutter/pam.dart';
-import './pam_config.dart';
 
-PamUserState identityProvider() {
-  // if no Status
-  return PamUserState.unknown();
+import 'demo_auth_controller.dart';
+import 'pam_config.dart';
+import 'sdk_demo_page.dart';
 
-  // // if not login yet
-  // return const PamUserState.anonymous();
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-  // // if logged in
-  // return PamUserState.loggedIn(
-  //   identity: PamIdentity(
-  //     value: "member-id-123",
-  //     type: PamIdentityType.customer,
-  //   ),
-  // );
-}
-
-Future<void> onIdentityMismatch(PamIdentityMismatch mismatch) async {
-  final identity = mismatch.newIdentity;
-  if (identity == null) {
-    Pam.userLogout();
-  } else {
-    Pam.userLogin(identity.value);
-  }
-}
-
-void consent() async {
-  Pam.loadConsentStatus("xxx").then(
-    (userConsent) {
-      debugPrint("User Consent: $userConsent");
-      if (userConsent.needConsentReview) {
-        // Show Consent UI
-      }
-    },
+  final auth = DemoAuthController();
+  final config = PamConfigProvider.getDevelopConfig(
+    auth.identityProvider,
+    auth.onIdentityMismatch,
   );
+  await Pam.initialize(config);
 
-  Pam.allowAllTrackingConsent("xxx");
-}
-
-void main() {
-  var pamConfig =
-      PamConfigProvider.getDevelopConfig(identityProvider, onIdentityMismatch);
-  Pam.initialize(pamConfig);
-
-  runApp(const MyApp());
+  runApp(MyApp(auth: auth));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final DemoAuthController auth;
+  const MyApp({super.key, required this.auth});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      Pam.appAttention(
-        context,
-        pageName: 'home-video',
-        onBannerClick: (bannerData) {
-          debugPrint(bannerData.toString());
-          return false;
-        },
-      );
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            TextButton(
-              style: ButtonStyle(
-                foregroundColor: WidgetStateProperty.all<Color>(Colors.blue),
-              ),
-              onPressed: () {
-                Pam.allowAllTrackingConsent(
-                  Pam.shared.config?.trackingConsentMessageID ?? "",
-                );
-              },
-              child: Text('Allow Consent'),
-            ),
-            TextButton(
-              style: ButtonStyle(
-                foregroundColor: WidgetStateProperty.all<Color>(Colors.blue),
-              ),
-              onPressed: () {
-                Pam.appAttention(context, pageName: "home");
-              },
-              child: Text('Attention'),
-            )
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => MaterialApp(
+    title: 'PAM SDK Examples',
+    theme: ThemeData(
+      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF14203D)),
+      useMaterial3: true,
+    ),
+    home: SdkDemoPage(auth: auth),
+  );
 }

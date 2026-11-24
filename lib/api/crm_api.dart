@@ -5,14 +5,19 @@ import '../http/http_client.dart';
 
 class CRMAPI {
   String baseURL;
+  final Duration requestTimeout;
 
-  CRMAPI(this.baseURL);
+  CRMAPI(this.baseURL, {this.requestTimeout = const Duration(seconds: 30)});
 
   Future<String?> getAppAttention(String pageName) async {
     final log = PamLogRequest(
       PamLogCategory.attention,
       'POST /app-attention',
-      details: {'server': Uri.tryParse(baseURL)?.host, 'page': pageName},
+      details: {
+        'server': Uri.tryParse(baseURL)?.host,
+        'page': pageName,
+        'timeout_ms': requestTimeout.inMilliseconds,
+      },
     );
     try {
       final contactID = await Pam.shared.getContactID();
@@ -24,6 +29,7 @@ class CRMAPI {
       var response = await HttpClient.post(
         uri,
         body: {"page_name": pageName, "_contact_id": contactID},
+        timeout: requestTimeout,
       );
 
       log.complete(response.statusCode, body: response.body);

@@ -2,7 +2,7 @@
 
 PAM Flutter SDK ช่วยเชื่อมต่อแอป Flutter กับ PAM เพื่อบันทึกกิจกรรมของผู้ใช้ จัดการความยินยอม และรองรับการสื่อสารกับผู้ใช้ผ่านแอป คู่มือนี้อธิบายแนวคิดและขั้นตอนการใช้งาน SDK ทีละส่วน
 
-เวอร์ชัน `3.1.0` ต้องการ Flutter 3.41 ขึ้นไป, Dart 3.11 ขึ้นไป, Android API 24 ขึ้นไป และ iOS 13 ขึ้นไป หลังอัปเดต SDK ให้ rebuild แอปเพื่อรวมโค้ด native ใหม่
+เวอร์ชัน `3.2.1` ต้องการ Flutter 3.41 ขึ้นไป, Dart 3.11 ขึ้นไป, Android API 24 ขึ้นไป และ iOS 13 ขึ้นไป หลังอัปเดต SDK ให้ rebuild แอปเพื่อรวมโค้ด native ใหม่
 
 ---
 
@@ -38,3 +38,6 @@ import 'package:pam_flutter/pam.dart';
 5. [การส่ง Event Tracking](tracking.html)
 6. [Push Notification](push-notification.html)
 7. [App Attention](app-attention.html)
+
+8. [แอปตัวอย่างพร้อมปุ่มทดสอบ API](example.html)
+9. [ประวัติการเปลี่ยนแปลง (Changelog)](changelog.html)

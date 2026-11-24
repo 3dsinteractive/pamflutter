@@ -31,7 +31,9 @@ class ConsentAPI {
       log.fail(e, stackTrace);
     }
 
-    if (response != null) {
+    if (response != null &&
+        response.statusCode >= 200 &&
+        response.statusCode < 300) {
       return ConsentMessage.parse(response.body);
     }
 
@@ -63,7 +65,9 @@ class ConsentAPI {
       log.fail(e, stackTrace);
     }
 
-    if (response != null) {
+    if (response != null &&
+        response.statusCode >= 200 &&
+        response.statusCode < 300) {
       return CustomerConsentStatus.parse(response.body);
     }
 

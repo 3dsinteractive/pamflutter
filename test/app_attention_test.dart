@@ -139,6 +139,56 @@ void main() {
     },
   );
 
+  testWidgets(
+    'default timeout allows an attention response slower than five seconds',
+    (tester) async {
+      await mount(tester);
+      await http.runWithClient(
+        () async {
+          final call = Pam.appAttention(context, pageName: 'home');
+          await flush(tester);
+          await tester.pump(const Duration(seconds: 6));
+          await flush(tester);
+          expect(platform.requests, hasLength(1));
+          platform.pending.single.complete(null);
+          await call;
+        },
+        () => MockClient((_) async {
+          await Future<void>.delayed(const Duration(seconds: 6));
+          return http.Response('{"title":"slow offer"}', 200);
+        }),
+      );
+    },
+  );
+
+  testWidgets(
+    'custom request timeout ignores a late response and releases the popup lock',
+    (tester) async {
+      await mount(tester);
+      final response = Completer<http.Response>();
+      await http.runWithClient(() async {
+        final call = Pam.appAttention(
+          context,
+          requestTimeout: const Duration(seconds: 2),
+        );
+        await flush(tester);
+        await tester.pump(const Duration(seconds: 2));
+        await call;
+        expect(platform.requests, isEmpty);
+        response.complete(http.Response('{"title":"too late"}', 200));
+        await flush(tester);
+        expect(platform.requests, isEmpty);
+      }, () => MockClient((_) => response.future));
+      await withResponse(() async {
+        final retry = Pam.appAttention(context);
+        await flush(tester);
+        expect(platform.requests, hasLength(1));
+        platform.pending.single.complete(null);
+        await retry;
+      });
+    },
+  );
+
   for (final response in ['', '{}', 'null', '[]', '{invalid']) {
     testWidgets('releases lock after empty/invalid response: $response', (
       tester,

@@ -53,6 +53,8 @@ code {
       <li><a href="tracking.html">5. การส่ง Event Tracking</a></li>
       <li><a href="push-notification.html">6. Push Notification</a></li>
       <li><a href="app-attention.html">7. App Attention</a></li>
+      <li><a href="example.html">8. แอปตัวอย่างและปุ่มทดสอบ API</a></li>
+      <li><a href="changelog.html">9. ประวัติการเปลี่ยนแปลง (Changelog)</a></li>
     </ul>
   </nav>
   <main>
@@ -73,7 +75,194 @@ code {
 <pre><code class="hljs language-dart"><span class="hljs-keyword">final</span> userConsent = <span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">loadConsentStatus</span>(<span class="hljs-string">&#x27;CONSENT-MESSAGE-ID&#x27;</span>);
 </code></pre><p>หาก <code>userConsent.needConsentReview</code> เป็น <code>true</code> แอปต้องแสดงข้อความเพื่อให้ผู้ใช้ทบทวนและตัดสินใจให้ความยินยอม</p>
 <hr>
-<h2>ขอและบันทึกความยินยอม</h2>
+<p>ทดลองกดปุ่มของ Consent API ทั้งแบบใหม่และเดิมได้ใน <a href="example.html">แอปตัวอย่างพร้อมปุ่มทดสอบ API</a></p>
+<h2>หน้าจอ Consent สำเร็จรูป</h2>
+<p>ใช้ <code>Pam.showConsent()</code> เพื่อเปิดหน้าจอกลางของ SDK โดยไม่ต้องสร้าง UI หรือโหลดข้อมูลเอง รองรับทั้ง Tracking และ Contacting Consent โดยเลือกประเภทจาก <code>consent_message_type</code> ที่ server ส่งมา</p>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:flutter/material.dart&#x27;</span>;
+<span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:pam_flutter/pam.dart&#x27;</span>;
+
+<span class="hljs-comment">// เรียกหลังเริ่มต้น SDK และเมื่อหน้าจอของแอปพร้อมใช้งานแล้ว</span>
+<span class="hljs-title class_">FilledButton</span>(
+  onPressed: () <span class="hljs-keyword">async</span> {
+    <span class="hljs-keyword">final</span> result = <span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">showConsent</span>(
+      context,
+      messageId: <span class="hljs-string">&#x27;CONSENT-MESSAGE-ID&#x27;</span>,
+    );
+
+    <span class="hljs-keyword">if</span> (!context.mounted) <span class="hljs-keyword">return</span>;
+    <span class="hljs-keyword">if</span> (result.outcome == <span class="hljs-title class_">PamConsentOutcome</span>.saved) {
+      <span class="hljs-title class_">ScaffoldMessenger</span>.<span class="hljs-title function_">of</span>(context).<span class="hljs-title function_">showSnackBar</span>(
+        <span class="hljs-title class_">SnackBar</span>(content: <span class="hljs-title class_">Text</span>(<span class="hljs-string">&#x27;บันทึกแล้ว: <span class="hljs-subst">${result.submission!.consentID}</span>&#x27;</span>)),
+      );
+    }
+  },
+  child: <span class="hljs-keyword">const</span> <span class="hljs-title class_">Text</span>(<span class="hljs-string">&#x27;ตั้งค่าความเป็นส่วนตัว&#x27;</span>),
+)
+</code></pre><p>ใช้ภายในแอปที่มี <code>MaterialApp</code> และ <code>Navigator</code> และเปิดใช้ Material Icons ใน <code>pubspec.yaml</code> ของแอป:</p>
+<pre><code class="hljs language-yaml"><span class="hljs-attr">flutter:</span>
+  <span class="hljs-attr">uses-material-design:</span> <span class="hljs-literal">true</span>
+</code></pre><p>ส่ง <code>BuildContext</code> ของหน้าจอในแอป หากต้องการเปิดเมื่อเข้าหน้า ให้เรียกหลัง frame แรก ไม่เรียกตรง ๆ ระหว่าง <code>build()</code> SDK อนุญาตให้เปิด Consent ได้ครั้งละหนึ่งหน้าจอ หากเรียกซ้ำขณะหน้าจอเดิมยังเปิดอยู่จะเกิด <code>StateError</code></p>
+<h3>การโหลดข้อมูลและค่าเริ่มต้น</h3>
+<p>หน้าจอจะแสดงสถานะกำลังโหลด แล้วดำเนินการดังนี้:</p>
+<ol>
+<li>ตรวจหา <code>contact_id</code> ปัจจุบัน หากไม่มีจะข้ามการโหลด status และถือว่ายังไม่เคยยอมรับ</li>
+<li>หากมี contact จะโหลดสถานะเดิมด้วยระบบเดียวกับ <code>Pam.loadConsentStatus()</code> หากได้ 404, HTTP error อื่น, ข้อมูลไม่ถูกต้อง หรือ request ล้มเหลว จะเริ่มตัวเลือกใหม่</li>
+<li>โหลดข้อความ ภาษา สี และรายการที่เปิดใช้งานด้วยระบบเดียวกับ <code>Pam.loadConsentMessage()</code> รองรับทั้ง response เดิมและแบบ <code>{ &quot;data&quot;: { ... } }</code></li>
+<li>ใช้สถานะเดิมเมื่อรหัสข้อความ ประเภท และ contact ตรงกัน หากไม่ตรงกันจะเริ่มตัวเลือกใหม่ ครั้งแรกจะเลือกทุกรายการที่เปิดใช้งานไว้ล่วงหน้า ผู้ใช้เปลี่ยนตัวเลือกได้และต้องกดยืนยันก่อนบันทึก ส่วนการแสดง Consent เดิมจะรักษาค่าที่เคยบันทึกไว้</li>
+</ol>
+<p>ข้อผิดพลาดตอนโหลด status ไม่ได้ปิดสิทธิ์ tracking เดิมหรือส่ง Consent อัตโนมัติ ส่วนข้อผิดพลาดตอนโหลดข้อความจะแสดงปุ่ม “ลองใหม่” และไม่อนุญาตให้บันทึกจนกว่าจะโหลดรายละเอียดสำเร็จ</p>
+<h3>รายการบังคับและตัวเลือกเสริม</h3>
+<ul>
+<li><strong>Terms &amp; Conditions</strong> และ <strong>Privacy Overview</strong> แสดงเป็นเปิดอยู่พร้อมข้อความ “จำเป็น · เปิดใช้งานเสมอ” และกดปิดไม่ได้ทั้งสองประเภท</li>
+<li><strong>Necessary Cookies</strong> เป็นรายการบังคับเฉพาะ Tracking Consent และกดปิดไม่ได้เช่นกัน</li>
+<li>รายการบังคับจะแสดงเสมอตามกติกาของ SDK แม้ไม่มีในรายละเอียดที่เปิดใช้งาน โดยใช้ชื่อมาตรฐานเมื่อไม่มีคำอธิบายจากหลังบ้าน เพื่อให้เห็นว่ากำลังยืนยันรายการใด</li>
+<li>ตัวเลือกเสริมแสดงตาม <code>is_enabled</code> และ <code>consent_message_type</code> จากหลังบ้าน ใช้ switch เพื่อเปิดหรือปิดได้ Tracking แสดงกลุ่ม Cookies ส่วน Contacting แสดง Email, SMS, LINE, Facebook Messenger และ Push Notification แม้ response จะมี key ของอีกประเภทอยู่ด้วยแต่ปิดไว้ ก็จะไม่แสดงข้ามประเภท</li>
+<li>ตัวเลือกเสริมที่ซ่อนอยู่จะเก็บค่าเดิมไว้เมื่อโหลด status ได้ หากไม่มีสถานะเดิม รายการที่ซ่อนอยู่จะเป็น <code>false</code> ส่วนรายการที่เปิดให้เลือกจะแสดงเป็นเปิดไว้ล่วงหน้า</li>
+</ul>
+<p>หน้ารายการแสดงข้อความย่อจาก <code>brief_description</code> หาก <code>is_full_description_enabled: true</code> และมีข้อความฉบับเต็ม จะมีปุ่ม “อ่านเพิ่มเติม” เมื่อกดจะเปลี่ยนไปแสดง <code>full_description</code> แทนข้อความย่อ รองรับ HTML เช่น หัวข้อ ย่อหน้า ตัวหนา รายการ และลิงก์ และกลับมายังตัวเลือกเดิมได้ หาก flag เป็น <code>false</code> จะไม่เปิดให้อ่านฉบับเต็ม แม้ response จะมี <code>full_description</code> อยู่ก็ตาม ลิงก์ <code>http</code>, <code>https</code>, <code>mailto</code> และ <code>tel</code> เปิดผ่านแอปภายนอก</p>
+<h3>ภาษาและขนาดหน้าจอ</h3>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">final</span> result = <span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">showConsent</span>(
+  context,
+  messageId: <span class="hljs-string">&#x27;CONSENT-MESSAGE-ID&#x27;</span>,
+  locale: <span class="hljs-keyword">const</span> <span class="hljs-title class_">Locale</span>(<span class="hljs-string">&#x27;th&#x27;</span>),
+);
+</code></pre><p>รองรับภาษาไทย (<code>th</code>), อังกฤษ (<code>en</code>) และญี่ปุ่น (<code>jp</code> ใน response ของ PAM) ทั้งข้อความ Consent และข้อความของ UI โดย server จะส่ง key ของภาษาเฉพาะที่ตั้งค่าไว้ ไม่จำเป็นต้องมีครบสามภาษา SDK ไม่สร้างข้อความ <code>&quot;null&quot;</code> ให้กับภาษาที่ไม่ได้ส่งมา</p>
+<p>ภาษาที่เลือกได้อิง <code>available_languages</code> และต้องมีคำแปลที่ไม่ว่างอย่างน้อยหนึ่งข้อความจริงด้วย หากรายการภาษาไม่ได้ส่งมาหรือไม่มีรายการที่ใช้ได้ จะตรวจจากคำแปลที่มีอยู่จริง หากไม่มีข้อความทุกภาษา จะใช้ภาษาไทยสำหรับข้อความมาตรฐานของ UI</p>
+<ul>
+<li><strong>ไม่ส่ง <code>locale</code>:</strong> เลือกภาษาที่รองรับตามลำดับ <code>th</code> → <code>en</code> → <code>jp</code> โดยไม่อิงภาษาของแอป ลำดับใน <code>available_languages</code> หรือ <code>default_language</code> หากข้อความบางรายการไม่มีคำแปลในภาษาที่เลือก จะลองตามลำดับนี้เช่นกัน</li>
+<li><strong>ส่ง <code>locale</code> หรือเลือกภาษาบน UI:</strong> ลองภาษาที่เลือกก่อน หากไม่มีข้อความ จะใช้ลำดับ <code>th</code> → <code>en</code> → <code>jp</code> เสมอ โดยไม่อิง <code>default_language</code> หรือลำดับใน JSON ทั้งกรณีภาษาไม่รองรับ ไม่ได้ส่ง key มา เป็น <code>null</code> เป็นข้อความว่าง หรือมีแต่ช่องว่าง</li>
+</ul>
+<p>ตัวอย่าง เลือก <code>jp</code> แต่ข้อความนั้นมีเฉพาะ <code>th</code> และ <code>en</code> จะแสดงภาษาไทย หากภาษาไทยไม่มีด้วยจึงแสดงภาษาอังกฤษ กติกานี้ใช้กับชื่อหน้าจอ ข้อความย่อ ฉบับเต็ม และข้อความปุ่ม หากไม่มีข้อความนั้นครบทุกภาษา จะใช้ข้อความมาตรฐานของ UI เมื่อมี หรือไม่แสดงข้อความที่ขาด แทนการแสดง <code>null</code></p>
+<p>เช่น ไม่ส่ง <code>locale</code> และ Consent รองรับครบสามภาษา จะเริ่มด้วยภาษาไทย หากรองรับเฉพาะอังกฤษและญี่ปุ่น จะเริ่มด้วยภาษาอังกฤษ ผู้ใช้ยังเปลี่ยนภาษาเองจากเมนูบนหน้าจอได้</p>
+<p>Flutter ใช้รหัสภาษาญี่ปุ่น <code>ja</code> ขณะที่ PAM ใช้ key <code>jp</code> SDK แปลงให้โดยอัตโนมัติ:</p>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">showConsent</span>(
+  context,
+  messageId: <span class="hljs-string">&#x27;CONSENT-MESSAGE-ID&#x27;</span>,
+  locale: <span class="hljs-keyword">const</span> <span class="hljs-title class_">Locale</span>(<span class="hljs-string">&#x27;ja&#x27;</span>), <span class="hljs-comment">// อ่านข้อความจาก key jp</span>
+);
+</code></pre><p>หากสร้าง UI เอง <code>LocalizeText</code> มี <code>en</code>, <code>th</code>, <code>jp</code> ซึ่งเป็น <code>null</code> ได้เมื่อไม่มีคำแปล และเพิ่ม <code>Lang.jp</code> สำหรับ <code>get()</code> โดยยังใช้ constructor สอง argument แบบเดิมได้</p>
+<p>หากมีมากกว่าหนึ่งภาษาจะมีตัวเลือกภาษาในหน้าจอ การสลับภาษาจะเปลี่ยนข้อความทันที รวมถึงรายละเอียด HTML โดยไม่โหลดข้อมูลใหม่และไม่ล้างค่าที่เลือกไว้</p>
+<p>หน้าจอที่กว้างน้อยกว่า 600 logical pixels ใช้รูปแบบเต็มหน้าจอ ส่วนพื้นที่กว้างกว่านั้นใช้กล่องกลางจอกว้างไม่เกิน 600 logical pixels เนื้อหาเลื่อนได้และรองรับการขยายตัวอักษร หากพื้นที่แนวตั้งน้อย ส่วนหัวและส่วนปุ่มสามารถเลื่อนได้ด้วย การหมุนหน้าจอหรือเปลี่ยนขนาดไม่ล้างตัวเลือก</p>
+<p>หน้ารายละเอียด Consent ใช้พื้นขาวและข้อความสีเข้มตามปกติ รวมถึงหน้าอ่านเพิ่มเติมและเมนูภาษา โดยไม่นำสีพื้นแถบหรือสีข้อความจากหลังบ้านมาย้อมเนื้อหา สีหลัก สีรอง และสีข้อความบนปุ่มยังใช้ <code>style_configuration.consent_detail</code> สำหรับปุ่ม สวิตช์ ลิงก์ และไอคอน โดยมีสีสำรองเมื่อค่าจากหลังบ้านไม่ถูกต้อง <code>popup_main_icon: &quot;pdpa&quot;</code> หรือ <code>&quot;gdpr&quot;</code> ใช้เลือกไอคอนตกแต่งเท่านั้น ไม่เปลี่ยนเงื่อนไขการยอมรับ</p>
+<h3>การทบทวน การบันทึก และผลลัพธ์</h3>
+<p>เมื่อสถานะเดิมระบุ <code>need_consent_review: true</code> หรือเป็นคนละเวอร์ชันกับข้อความที่โหลด หน้าจอจะแจ้งให้ทบทวนและนำตัวเลือกเดิมมาเป็นค่าเริ่มต้น การบันทึกเกิดหลังผู้ใช้กดปุ่มยืนยันเท่านั้น โดยส่ง <strong>เลขเวอร์ชันของข้อความที่แสดง</strong> ไม่ส่ง <code>latest</code> เพื่อให้ตรงกับรายละเอียดที่ผู้ใช้อ่าน</p>
+<p>หาก server ตอบ <code>NEED_CONSENT_REVIEW</code> ขณะบันทึก SDK จะโหลดข้อมูลใหม่และรอให้ผู้ใช้ทบทวนและยืนยันอีกครั้ง หากบันทึกล้มเหลวด้วยเหตุอื่น หน้าจอจะเก็บตัวเลือกไว้และให้ลองบันทึกใหม่ ระหว่างส่งจะปิดการแก้ตัวเลือก ปุ่มปิด และการกดย้อนกลับเพื่อไม่ให้ส่งซ้ำ</p>
+<p><code>PamConsentResult</code> มีผลลัพธ์สองแบบ:</p>
+<table>
+<thead>
+<tr>
+<th><code>outcome</code></th>
+<th>ความหมาย</th>
+<th>ข้อมูลเพิ่มเติม</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>PamConsentOutcome.saved</code></td>
+<td>Server ยืนยันการบันทึกแล้ว</td>
+<td><code>selection</code> และ <code>submission</code> พร้อม consent ID</td>
+</tr>
+<tr>
+<td><code>PamConsentOutcome.dismissed</code></td>
+<td>ผู้ใช้ปิดหรือกดย้อนกลับก่อนบันทึก</td>
+<td>ไม่มีการส่ง Consent และทั้งสอง field เป็น <code>null</code></td>
+</tr>
+</tbody></table>
+<p>หากเปลี่ยนผู้ใช้ เปลี่ยน SDK instance หรือเริ่มต้น config ใหม่ระหว่างเปิดหน้าจอ SDK จะป้องกันการส่งตัวเลือกเดิมให้ผู้ใช้ใหม่และให้ปิดแล้วเปิดหน้าจออีกครั้ง</p>
+<p>หากต้องการออกแบบ UI เอง ยังใช้ <code>Pam.saveConsent()</code> ตามหัวข้อถัดไปได้ API เดิมทั้งหมดคงอยู่</p>
+<hr>
+<h2>บันทึกความยินยอมเฉพาะรายการ</h2>
+<p>ใช้ <code>Pam.saveConsent(consent)</code> หลังผู้ใช้ยืนยันตัวเลือก โดยสร้าง <code>TrackingConsent</code> หรือ <code>ContactingConsent</code> ให้ตรงกับประเภทข้อความใน PAM Admin Console ทั้งสองประเภทใช้เมธอดบันทึกเดียวกัน ไม่ต้องจำ key ของ form fields และไม่จำเป็นต้องโหลด Consent Message ก่อน</p>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">import</span> <span class="hljs-string">&#x27;package:pam_flutter/pam.dart&#x27;</span>;
+</code></pre><p>สำหรับการสร้าง UI เอง แอปเป็นผู้แสดงรายละเอียดและรับการยืนยันจากผู้ใช้ก่อนเรียก <code>Pam.saveConsent()</code> หากต้องการใช้หน้าจอสำเร็จรูป ให้ใช้ <code>Pam.showConsent()</code> ตามหัวข้อก่อนหน้า</p>
+<h3>Tracking Consent: เลือกประเภทการติดตาม</h3>
+<pre><code class="hljs language-dart"><span class="hljs-title class_">Future</span>&lt;<span class="hljs-title class_">SubmitConsentResult</span>&gt; <span class="hljs-title function_">saveTrackingChoices</span>() <span class="hljs-keyword">async</span> {
+  <span class="hljs-comment">// ค่าต้องมาจากตัวเลือกที่ผู้ใช้ยืนยันบนหน้าจอ</span>
+  <span class="hljs-keyword">const</span> consent = <span class="hljs-title class_">TrackingConsent</span>(
+    messageId: <span class="hljs-string">&#x27;TRACKING-CONSENT-ID&#x27;</span>,
+    termsAndConditions: <span class="hljs-keyword">true</span>,
+    privacyOverview: <span class="hljs-keyword">true</span>,
+    necessaryCookies: <span class="hljs-keyword">true</span>,
+    preferencesCookies: <span class="hljs-keyword">true</span>,
+    analyticsCookies: <span class="hljs-keyword">true</span>,
+    marketingCookies: <span class="hljs-keyword">false</span>,
+    socialMediaCookies: <span class="hljs-keyword">false</span>,
+  );
+
+  <span class="hljs-keyword">return</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">saveConsent</span>(consent);
+}
+</code></pre><h3>Contacting Consent: เลือกช่องทางการติดต่อ</h3>
+<pre><code class="hljs language-dart"><span class="hljs-title class_">Future</span>&lt;<span class="hljs-title class_">SubmitConsentResult</span>&gt; <span class="hljs-title function_">saveContactingChoices</span>() <span class="hljs-keyword">async</span> {
+  <span class="hljs-keyword">const</span> consent = <span class="hljs-title class_">ContactingConsent</span>(
+    messageId: <span class="hljs-string">&#x27;CONTACTING-CONSENT-ID&#x27;</span>,
+    termsAndConditions: <span class="hljs-keyword">true</span>,
+    privacyOverview: <span class="hljs-keyword">true</span>,
+    email: <span class="hljs-keyword">true</span>,
+    sms: <span class="hljs-keyword">false</span>,
+    line: <span class="hljs-keyword">true</span>,
+    facebookMessenger: <span class="hljs-keyword">false</span>,
+    pushNotification: <span class="hljs-keyword">false</span>,
+  );
+
+  <span class="hljs-keyword">return</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">saveConsent</span>(consent);
+}
+</code></pre><p><code>termsAndConditions</code> และ <code>privacyOverview</code> ต้องระบุเองทั้งสองประเภท ส่วน Tracking ต้องระบุ <code>necessaryCookies</code> ด้วย <code>saveConsent()</code> ตรวจว่ารายการบังคับเหล่านี้เป็น <code>true</code> ก่อนส่ง หากไม่ครบจะเกิด <code>ArgumentError</code> โดยไม่ส่ง request และ SDK จะไม่ยอมรับแทนผู้ใช้อัตโนมัติ</p>
+<p>ตัวเลือกเสริมที่ไม่ระบุใน constructor เป็น <code>false</code> เช่น ยอมรับเฉพาะ Email เขียนได้ดังนี้:</p>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">const</span> consent = <span class="hljs-title class_">ContactingConsent</span>(
+  messageId: <span class="hljs-string">&#x27;CONTACTING-CONSENT-ID&#x27;</span>,
+  termsAndConditions: <span class="hljs-keyword">true</span>,
+  privacyOverview: <span class="hljs-keyword">true</span>,
+  email: <span class="hljs-keyword">true</span>,
+);
+
+<span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">saveConsent</span>(consent);
+</code></pre><p>SDK ส่งค่าครบทุก permission ของประเภทนั้น รวมรายการที่เป็น <code>false</code> ใช้ constructor สำหรับการยืนยันตัวเลือกทั้งชุด หากต้องการแก้บางรายการโดยรักษาค่าเดิม ให้ใช้ <code>fromStatus()</code> และ <code>copyWith()</code></p>
+<h3>แสดงสถานะเดิมและแก้ไขบางรายการ</h3>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">final</span> status = <span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">loadConsentStatus</span>(<span class="hljs-string">&#x27;CONTACTING-CONSENT-ID&#x27;</span>);
+<span class="hljs-keyword">final</span> current = <span class="hljs-title class_">ContactingConsent</span>.<span class="hljs-title function_">fromStatus</span>(status);
+
+<span class="hljs-comment">// แสดง UI โดยใช้ current.email, current.sms, current.line ฯลฯ</span>
+<span class="hljs-comment">// เมื่อผู้ใช้เปิด SMS เพิ่มแล้วกดบันทึก:</span>
+<span class="hljs-keyword">final</span> updated = current.<span class="hljs-title function_">copyWith</span>(sms: <span class="hljs-keyword">true</span>);
+<span class="hljs-keyword">final</span> result = <span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">saveConsent</span>(updated);
+</code></pre><p><code>copyWith()</code> สร้างออบเจ็กต์ใหม่ ไม่แก้ต้นฉบับ และเก็บค่าที่ไม่ระบุไว้ตามเดิม รวมถึง <code>messageId</code> และ <code>version</code> หากผู้ใช้ยกเลิก SMS ใช้ <code>copyWith(sms: false)</code> ได้ ค่า <code>false</code> ที่ระบุจะไม่ถูกแทนด้วยค่าเดิม</p>
+<p>Tracking Consent ใช้รูปแบบเดียวกัน:</p>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">final</span> status = <span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">loadConsentStatus</span>(<span class="hljs-string">&#x27;TRACKING-CONSENT-ID&#x27;</span>);
+<span class="hljs-keyword">final</span> current = <span class="hljs-title class_">TrackingConsent</span>.<span class="hljs-title function_">fromStatus</span>(status);
+
+<span class="hljs-comment">// หลังผู้ใช้ยืนยันการปิด Marketing Cookies:</span>
+<span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">saveConsent</span>(current.<span class="hljs-title function_">copyWith</span>(marketingCookies: <span class="hljs-keyword">false</span>));
+</code></pre><p><code>fromStatus()</code> ตรวจสอบข้อมูลก่อนนำมาใช้:</p>
+<ul>
+<li>หากมี error, ไม่มีรหัส consent record/ข้อความ/ผู้ใช้ หรือไม่มี permission ของประเภทนั้น จะเกิด <code>StateError</code> ให้โหลดใหม่หรือเข้าสู่ขั้นตอนขอความยินยอมครั้งแรก</li>
+<li>หากประเภทไม่ตรงกัน เช่น สร้าง <code>TrackingConsent</code> จากสถานะ Contacting จะเกิด <code>ArgumentError</code></li>
+<li>หาก <code>needConsentReview</code> เป็น <code>true</code> จะเกิด <code>ConsentReviewRequiredException</code> ให้แสดงรายละเอียดเพื่อให้ผู้ใช้ยืนยันตัวเลือกใหม่ แล้วสร้าง Consent จากตัวเลือกที่ยืนยัน ไม่ควรข้ามโดยเปลี่ยน flag เอง</li>
+<li>ตัวเลือกจากสถานะเดิมผูกกับ contact นั้น หากเปลี่ยนผู้ใช้ก่อนบันทึกจะเกิด <code>StateError</code> ให้โหลดสถานะของผู้ใช้ปัจจุบันอีกครั้ง</li>
+</ul>
+<h3>เวอร์ชันและฐานข้อมูล</h3>
+<p>constructor และ <code>fromStatus()</code> ใช้ <code>ConsentVersion.latest</code> เป็นค่าเริ่มต้น ส่ง <code>_version: &quot;latest&quot;</code> โดยไม่ใช้เลขเวอร์ชันเก่าจากสถานะเดิมอัตโนมัติ หากจำเป็นต้องระบุเวอร์ชันเอง ให้ใช้จำนวนเต็มบวก:</p>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">final</span> consent = <span class="hljs-title class_">ContactingConsent</span>(
+  messageId: <span class="hljs-string">&#x27;CONTACTING-CONSENT-ID&#x27;</span>,
+  version: <span class="hljs-keyword">const</span> <span class="hljs-title class_">ConsentVersion</span>.<span class="hljs-title function_">number</span>(<span class="hljs-number">3</span>),
+  termsAndConditions: <span class="hljs-keyword">true</span>,
+  privacyOverview: <span class="hljs-keyword">true</span>,
+  email: <span class="hljs-keyword">true</span>,
+);
+
+<span class="hljs-keyword">final</span> latest = consent.<span class="hljs-title function_">copyWith</span>(version: <span class="hljs-title class_">ConsentVersion</span>.latest);
+</code></pre><p>สามารถนำเลข <code>version</code> จาก <code>Pam.loadConsentMessage()</code> มาใช้เมื่อจำเป็นต้องบันทึกให้ตรงกับข้อความที่แสดง ผู้ใช้ต้องอ่านและยืนยันรายละเอียดของเวอร์ชันที่จะบันทึก การใช้ <code>latest</code> ไม่ได้โหลดข้อความใหม่มาแสดงหรือยืนยันแทนผู้ใช้ และเวอร์ชันบน server อาจเปลี่ยนระหว่างโหลดสถานะกับบันทึกได้</p>
+<p>SDK เลือก <code>_database</code> และผู้ใช้ตามระบบ routing เดิม จึงไม่ต้องระบุเอง แอปต้องใช้ message ID และตัวเลือกให้ตรงกับการตั้งค่า PAM เพราะเมธอดนี้ไม่โหลดการตั้งค่าจาก server มาตรวจล่วงหน้า</p>
+<p>หลัง server ยืนยันสำเร็จ หากเป็น Tracking Consent ที่ตรงกับ <code>trackingConsentMessageID</code> ใน config SDK จะอัปเดตสิทธิ์ส่ง event ภายในเครื่องตามค่า <code>preferencesCookies</code> จริง ส่วน Contacting Consent จะไม่เปลี่ยนสิทธิ์ tracking</p>
+<h3>ผลลัพธ์และข้อผิดพลาด</h3>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">try</span> {
+  <span class="hljs-keyword">final</span> result = <span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">saveConsent</span>(consent);
+  <span class="hljs-title function_">print</span>(<span class="hljs-string">&#x27;Consent ID: <span class="hljs-subst">${result.consentID}</span>&#x27;</span>);
+} <span class="hljs-keyword">on</span> <span class="hljs-title class_">ConsentSaveException</span> <span class="hljs-keyword">catch</span> (error) {
+  <span class="hljs-comment">// แสดงข้อความบันทึกไม่สำเร็จ และให้ผู้ใช้ลองใหม่</span>
+  <span class="hljs-title function_">print</span>(<span class="hljs-string">&#x27;บันทึกไม่สำเร็จ: <span class="hljs-subst">${error.code}</span> <span class="hljs-subst">${error.message}</span>&#x27;</span>);
+}
+</code></pre><p>เมื่อสำเร็จจะได้ <code>SubmitConsentResult</code> พร้อม <code>consentID</code> และผลรายข้อความใน <code>result</code> หาก server ปฏิเสธหรือส่งข้อมูลไม่สำเร็จจะเกิด <code>ConsentSaveException</code> และไม่อัปเดตสิทธิ์ tracking ภายในเครื่อง หาก response ไม่มี consent ID จะใช้รหัส <code>MISSING_CONSENT_ID</code> ส่วนข้อผิดพลาดของตัวเลือกหรือสถานะให้จัดการตามชนิดที่อธิบายข้างต้น</p>
+<hr>
+<h2>ขอและบันทึกความยินยอมทุกรายการ (API เดิม)</h2>
 <p>แอปเป็นผู้แสดงหน้าจอขอความยินยอม เมื่อผู้ใช้ยอมรับแล้วจึงเรียก <code>Pam.allowConsent()</code> เพื่อส่งผลไปยัง PAM เมธอดนี้ไม่ได้แสดงหน้าจอให้ผู้ใช้ และจะยอมรับทุก permission ในข้อความที่ระบุ จึงเหมาะกับหน้าจอที่ให้ผู้ใช้ยอมรับรายการทั้งหมดอย่างชัดเจน</p>
 <pre><code class="hljs language-dart"><span class="hljs-title class_">Future</span>&lt;<span class="hljs-keyword">void</span>&gt; <span class="hljs-title function_">requestUserConsent</span>() <span class="hljs-keyword">async</span> {
   <span class="hljs-comment">// แทนด้วยรหัส Tracking Consent หรือ Contacting Consent ที่ต้องการ</span>
@@ -93,6 +282,7 @@ code {
   }
 }
 </code></pre><p><code>popupConsentAndWaitForResponse()</code> เป็นฟังก์ชันที่แอปต้องสร้างเอง ไม่ใช่เมธอดของ SDK หากผู้ใช้ไม่ยอมรับหรือปิดหน้าจอ ให้คืน <code>false</code> โดยไม่เรียก <code>Pam.allowConsent()</code></p>
+<p>เมธอดเดิม ได้แก่ <code>Pam.allowConsent(String)</code>, <code>Pam.allowAllTrackingConsent()</code>, <code>Pam.allowAllContactingConsent()</code>, <code>Pam.submitConsent(ConsentMessage)</code> และ <code>Pam.submitConsents()</code> ยังคงใช้งานได้โดยไม่ต้องเปลี่ยนโค้ดเดิม</p>
 <p><a href="index.html">กลับหน้าแรก</a></p>
 
   </main>

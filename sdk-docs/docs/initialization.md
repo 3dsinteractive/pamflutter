@@ -320,4 +320,10 @@ class MyApp extends StatelessWidget {
 
 `identityProvider` และ `onIdentityMismatch` เป็นส่วนที่แอปกำหนดให้สอดคล้องกับระบบจัดการผู้ใช้ของตน ในขั้นตอนล็อกอินและออกจากระบบตามปกติ ยังต้องเรียก `Pam.userLogin()` และ `Pam.userLogout()` ด้วย
 
+## ตัวอย่างที่รันได้พร้อม lifecycle
+
+แอปใน `example/` เรียก `PamConfigProvider.getDevelopConfig()` และ `await Pam.initialize()` ก่อน `runApp()` โดยแก้ค่าได้จาก `example/lib/pam_config.dart` เท่านั้น ไม่มีฟอร์มแก้ config ใน UI ตัวอย่างมี REST auth จำลองเพื่อให้กรอก Customer ID เอง ทดสอบ login/logout, การกลับเข้าแอป และ `onIdentityMismatch` ได้จริงตามกติกาข้างต้น
+
+ดูขั้นตอนและปุ่มสำหรับจำลอง session หมดอายุ / เปลี่ยนบัญชีที่ [คู่มือแอปตัวอย่าง](example.html)
+
 [กลับหน้าแรก](index.html)

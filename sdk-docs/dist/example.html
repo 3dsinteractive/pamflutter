@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>example</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/github-dark.min.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; margin: 0; display: flex; color: #333; }
+    nav { width: 240px; background: #f8f9fa; border-right: 1px solid #e9ecef; height: 100vh; position: sticky; top: 0; padding: 24px 16px; box-sizing: border-box; }
+    nav ul { list-style: none; padding: 0; margin: 0; }
+    nav li { margin-bottom: 12px; }
+    nav a { color: #0066cc; text-decoration: none; font-weight: 500; }
+    nav a:hover { text-decoration: underline; }
+    main { max-width: 850px; padding: 40px 48px; flex: 1; }
+    pre { background: #0d1117; padding: 16px; border-radius: 8px; overflow-x: auto; }
+    code { font-family: SFMono-Regular, Consolas, Menlo, monospace; font-size: 14px; }
+    img { max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 6px; margin: 16px 0; }
+    table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+    th, td { border: 1px solid #dee2e6; padding: 8px 12px; text-align: left; }
+    th { background: #f1f3f5; }
+
+    /* Github CSS */
+    pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5px}.hljs{background:#23241f;color:#f8f8f2}.hljs-subst,.hljs-tag{color:#f8f8f2}.hljs-emphasis,.hljs-strong{color:#a8a8a2}.hljs-bullet,.hljs-link,.hljs-literal,.hljs-number,.hljs-quote,.hljs-regexp{color:#ae81ff}.hljs-code,.hljs-section,.hljs-selector-class,.hljs-title{color:#a6e22e}.hljs-strong{font-weight:700}.hljs-emphasis{font-style:italic}.hljs-attr,.hljs-keyword,.hljs-name,.hljs-selector-tag{color:#f92672}.hljs-attribute,.hljs-symbol{color:#66d9ef}.hljs-class .hljs-title,.hljs-params,.hljs-title.class_{color:#f8f8f2}.hljs-addition,.hljs-built_in,.hljs-selector-attr,.hljs-selector-id,.hljs-selector-pseudo,.hljs-string,.hljs-template-variable,.hljs-type,.hljs-variable{color:#e6db74}.hljs-comment,.hljs-deletion,.hljs-meta{color:#75715e}
+
+    /*main css*/
+    pre {
+  background: #1a1b26; /* สำหรับ Tokyo Night (หรือปรับตามพื้นหลังของธีม) */
+  padding: 18px 20px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow-x: auto;
+}
+
+code {
+  font-family: 'JetBrains Mono', 'Fira Code', SFMono-Regular, Consolas, monospace;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+  </style>
+</head>
+<body>
+  <nav>
+    <h3>คู่มือ SDK</h3>
+    <ul>
+      <li><a href="index.html">หน้าแรก</a></li>
+      <li><a href="database.html">1. ระบบฐานข้อมูลใน PAM</a></li>
+      <li><a href="initialization.html">2. เตรียม Config และเริ่มต้นใช้งาน</a></li>
+      <li><a href="consent.html">3. การจัดการความยินยอม</a></li>
+      <li><a href="authentication.html">4. การเข้าสู่ระบบและออกจากระบบ</a></li>
+      <li><a href="tracking.html">5. การส่ง Event Tracking</a></li>
+      <li><a href="push-notification.html">6. Push Notification</a></li>
+      <li><a href="app-attention.html">7. App Attention</a></li>
+      <li><a href="example.html">8. แอปตัวอย่างและปุ่มทดสอบ API</a></li>
+      <li><a href="changelog.html">9. ประวัติการเปลี่ยนแปลง (Changelog)</a></li>
+    </ul>
+  </nav>
+  <main>
+    <h1>Example App</h1>
+<p>ตัวอย่าง Flutter เป็นแอปดูสินค้าที่เริ่มใช้งานได้ก่อน Login และพาเดินตามขั้นตอนที่พบในแอปจริง หน้าจอแสดงสถานะด้วยข้อความ ไม่แสดง JSON คำสั่งของแต่ละปุ่มและรายละเอียด response ดูได้จาก SDK Log</p>
+<h2>ตั้งค่าและเปิดแอป</h2>
+<p>แก้ <code>example/lib/pam_config.dart</code> ให้ตรงกับ server, database และ Tracking Consent Message ID ของคุณ หากใช้ Contacting Consent ให้ใส่ ID เพิ่ม แล้วรัน:</p>
+<pre><code class="hljs language-bash"><span class="hljs-built_in">cd</span> example
+flutter pub get
+flutter run
+</code></pre><p><code>main</code> ใช้ <code>getDevelopConfig</code> และรอ <code>Pam.initialize</code> ก่อนเปิดแอป ค่า develop เปิด Log ไว้ ต้อง restart หลังเปลี่ยน config ส่วน REST auth เป็น server จำลองในแอป PAM ใช้ server จริงตาม config</p>
+<h2>เส้นทางการลองใช้งาน</h2>
+<table>
+<thead>
+<tr>
+<th>ขั้นตอน</th>
+<th>สิ่งที่ผู้ใช้ลอง</th>
+<th>การทำงาน</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1. ลองใช้ก่อน Login</td>
+<td>ดูสินค้าและเก็บรายการที่ชอบ</td>
+<td><code>Pam.track(&quot;view_product&quot;)</code> และ <code>Pam.track(&quot;favorite_product&quot;)</code> พร้อม <code>is_favorite</code> ตามสถานะที่เลือก</td>
+</tr>
+<tr>
+<td>2. เลือก Consent ก่อน Login</td>
+<td>อ่านและเลือกสิทธิ์ด้วยตัวเอง</td>
+<td><code>Pam.showConsent</code> ใช้ตัวตน guest ปิดโดยไม่บันทึกได้</td>
+</tr>
+<tr>
+<td>3. Track ก่อน Login</td>
+<td>ส่งเหตุการณ์ดูสินค้า</td>
+<td><code>Pam.track(&#39;view_product&#39;, payload: ...)</code> พร้อม <code>demo_stage: guest</code></td>
+</tr>
+<tr>
+<td>4. Login เมื่อพร้อม</td>
+<td>กรอก Customer ID จำลอง</td>
+<td>REST login → เก็บ session → <code>Pam.userLogin</code></td>
+</tr>
+<tr>
+<td>5. ตรวจและปรับ Consent</td>
+<td>โหลดสถานะสมาชิกและแก้ตัวเลือก</td>
+<td><code>Pam.loadConsentStatus</code> และ <code>Pam.showConsent</code></td>
+</tr>
+<tr>
+<td>6. Track หลัง Login</td>
+<td>ดูสินค้าหรือจำลองซื้อสินค้า</td>
+<td><code>view_product</code> หรือ <code>Pam.trackBatch</code> ที่รวม <code>purchase_order</code> และ <code>purchase_order_item</code> ของสินค้า 2 รายการ โดยใช้ <code>order_id</code> เดียวกัน</td>
+</tr>
+<tr>
+<td>7. App Attention</td>
+<td>กรอก PageName แล้วตรวจสอบ Popup ได้ทั้งก่อนและหลัง Login</td>
+<td><code>Pam.appAttention(context, pageName: pageName)</code> ต้องมี Campaign เข้าเงื่อนไข</td>
+</tr>
+<tr>
+<td>8. Logout และเริ่มใหม่</td>
+<td>เริ่มรอบทดสอบใหม่เป็น guest</td>
+<td>REST logout → <code>Pam.userLogout</code> → <code>Pam.reset</code> → ล้าง state บนหน้าจอ</td>
+</tr>
+</tbody></table>
+<p>Login ไม่บังคับให้ทำขั้นก่อนหน้าครบ ปุ่ม Event ก่อน Login ใช้ได้เฉพาะ guest ส่วนปุ่มหลัง Login ใช้ได้เฉพาะสมาชิก การส่ง Event ขึ้นอยู่กับ Consent และ config ของ SDK ถ้า SDK คืน <code>null</code> หน้าจอจะแจ้งว่ายังไม่ได้ส่ง และให้ตรวจ Log</p>
+<p>Consent ใช้ UI ของ SDK เพื่อโหลดข้อความจริง ไม่ยอมรับแทนผู้ใช้ การปิดหน้าต่างไม่เปลี่ยน Consent เมื่อเปลี่ยนตัวตนจะล้างสถานะที่แสดงไว้และให้โหลดใหม่ตามบัญชีปัจจุบัน หากกำหนด Contacting ID จะมีส่วนจัดการ Consent สำหรับการติดต่อหลัง Login ด้วย</p>
+<p>Reset ล้างข้อมูล PAM ในเครื่อง รวมถึง contact, identity, token และสถานะ tracking พร้อมล้างสินค้าและสถานะบนหน้าจอ ไม่ลบข้อมูลบน server และไม่นำ session สมาชิกเดิมกลับมา sync จึงเริ่มลองใหม่ได้ในฐานะ guest</p>
+<h2>ดูคำสั่งจาก Log และโค้ด</h2>
+<p>เปิด Debug Console / Android Studio / Xcode แล้วมองหา <code>Example button:</code> ซึ่งระบุคำสั่งที่ปุ่มเรียก ตามด้วย Log ของ SDK เช่น consent, identity, tracking และ storage โค้ดใน <code>example/lib/sdk_demo_page.dart</code> แสดงการเรียก API และข้อมูลสินค้าตัวอย่างโดยตรง</p>
+<h2>Session และ lifecycle</h2>
+<p>เปิดแอปหรือกลับเข้าแอปจะโหลด <code>GET /auth/session</code> อัปเดต cache แล้ว sync PAM โดย provider ไม่เรียก HTTP เอง ระหว่างโหลดเป็น <code>unknown</code> เมื่อไม่ Login เป็น <code>anonymous</code> และเมื่อ Login เป็น <code>identified</code></p>
+<p>Session ตอบ <code>401</code> หมายถึง guest แต่ server/network error ไม่ใช่ logout ถ้า REST สำเร็จแต่ PAM ไม่สำเร็จ แอปเก็บ session ที่สำเร็จไว้และมีปุ่มเชื่อมต่อ PAM ใหม่ ส่วน <code>onIdentityMismatch</code> ใช้ session ล่าสุดเพื่อ sync และไม่ replay Event ที่ถูกทิ้ง</p>
+<p>Auth จำลองเก็บ session ในหน่วยความจำ เมื่อเริ่ม process ใหม่จะเริ่มเป็น guest แอป production ต้องใช้ auth API และการเก็บ session ของตนเอง</p>
+<h2>ซอร์สและการทดสอบ</h2>
+<ul>
+<li><code>main.dart</code>: เริ่ม SDK จาก config</li>
+<li><code>pam_config.dart</code>: config ที่แก้ก่อน restart</li>
+<li><code>demo_auth_api.dart</code>: REST client และ auth server จำลอง</li>
+<li><code>demo_auth_controller.dart</code>: session, identity provider, callback และ logout/reset</li>
+<li><code>sdk_demo_page.dart</code>: flow 8 ขั้นและ lifecycle observer</li>
+</ul>
+<p>รัน <code>flutter analyze</code> และ <code>flutter test</code> จาก <code>example/</code> การทดสอบไม่ส่งข้อมูลไปยัง PAM จริง</p>
+<p>อ่านเพิ่มเติม: <a href="consent.html">Consent</a>, <a href="authentication.html">Login / Logout</a>, <a href="tracking.html">Event Tracking</a></p>
+<p><a href="index.html">กลับหน้าแรก</a></p>
+
+  </main>
+</body>
+</html>

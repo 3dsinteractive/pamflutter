@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>changelog</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/github-dark.min.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; margin: 0; display: flex; color: #333; }
+    nav { width: 240px; background: #f8f9fa; border-right: 1px solid #e9ecef; height: 100vh; position: sticky; top: 0; padding: 24px 16px; box-sizing: border-box; }
+    nav ul { list-style: none; padding: 0; margin: 0; }
+    nav li { margin-bottom: 12px; }
+    nav a { color: #0066cc; text-decoration: none; font-weight: 500; }
+    nav a:hover { text-decoration: underline; }
+    main { max-width: 850px; padding: 40px 48px; flex: 1; }
+    pre { background: #0d1117; padding: 16px; border-radius: 8px; overflow-x: auto; }
+    code { font-family: SFMono-Regular, Consolas, Menlo, monospace; font-size: 14px; }
+    img { max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 6px; margin: 16px 0; }
+    table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+    th, td { border: 1px solid #dee2e6; padding: 8px 12px; text-align: left; }
+    th { background: #f1f3f5; }
+
+    /* Github CSS */
+    pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5px}.hljs{background:#23241f;color:#f8f8f2}.hljs-subst,.hljs-tag{color:#f8f8f2}.hljs-emphasis,.hljs-strong{color:#a8a8a2}.hljs-bullet,.hljs-link,.hljs-literal,.hljs-number,.hljs-quote,.hljs-regexp{color:#ae81ff}.hljs-code,.hljs-section,.hljs-selector-class,.hljs-title{color:#a6e22e}.hljs-strong{font-weight:700}.hljs-emphasis{font-style:italic}.hljs-attr,.hljs-keyword,.hljs-name,.hljs-selector-tag{color:#f92672}.hljs-attribute,.hljs-symbol{color:#66d9ef}.hljs-class .hljs-title,.hljs-params,.hljs-title.class_{color:#f8f8f2}.hljs-addition,.hljs-built_in,.hljs-selector-attr,.hljs-selector-id,.hljs-selector-pseudo,.hljs-string,.hljs-template-variable,.hljs-type,.hljs-variable{color:#e6db74}.hljs-comment,.hljs-deletion,.hljs-meta{color:#75715e}
+
+    /*main css*/
+    pre {
+  background: #1a1b26; /* สำหรับ Tokyo Night (หรือปรับตามพื้นหลังของธีม) */
+  padding: 18px 20px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow-x: auto;
+}
+
+code {
+  font-family: 'JetBrains Mono', 'Fira Code', SFMono-Regular, Consolas, monospace;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+  </style>
+</head>
+<body>
+  <nav>
+    <h3>คู่มือ SDK</h3>
+    <ul>
+      <li><a href="index.html">หน้าแรก</a></li>
+      <li><a href="database.html">1. ระบบฐานข้อมูลใน PAM</a></li>
+      <li><a href="initialization.html">2. เตรียม Config และเริ่มต้นใช้งาน</a></li>
+      <li><a href="consent.html">3. การจัดการความยินยอม</a></li>
+      <li><a href="authentication.html">4. การเข้าสู่ระบบและออกจากระบบ</a></li>
+      <li><a href="tracking.html">5. การส่ง Event Tracking</a></li>
+      <li><a href="push-notification.html">6. Push Notification</a></li>
+      <li><a href="app-attention.html">7. App Attention</a></li>
+      <li><a href="example.html">8. แอปตัวอย่างและปุ่มทดสอบ API</a></li>
+      <li><a href="changelog.html">9. ประวัติการเปลี่ยนแปลง (Changelog)</a></li>
+    </ul>
+  </nav>
+  <main>
+    <h1>ประวัติการเปลี่ยนแปลง (Changelog)</h1>
+<p>ประวัติทุกเวอร์ชันจาก CHANGELOG.md ของแพ็กเกจ เรียงจากใหม่ไปเก่า</p>
+<h2>3.2.1</h2>
+<h3>Fixed</h3>
+<ul>
+<li>Display Android App Attention edge to edge for both Full and Large layouts, independently of the host app&#39;s dialog theme. Hide status and navigation bars while the popup is open and keep controls clear of display cutouts.</li>
+<li>Apply <code>Bar Color → Background Color</code> to the fixed bottom section in <code>Pam.showConsent()</code>, and use the configured bar text color for its text.</li>
+<li>Apply <code>Button Color → Background Color</code> and <code>Button Color → Text Color</code> to the consent accept button. Use the button background color for enabled consent switches, with a translucent track.</li>
+<li>Remove the “Required · Always enabled” label from the consent UI in all languages while preserving locked required permissions.</li>
+</ul>
+<h3>Upgrade notes</h3>
+<ul>
+<li>Rebuild and reinstall the Android app to include the native App Attention changes; hot reload and hot restart do not update native code.</li>
+</ul>
+<h2>3.2.0</h2>
+<h3>Added</h3>
+<ul>
+<li><code>Pam.trackBatch()</code> with <code>PamTrackEvent</code> and <code>PamBatchResponse</code> to send multiple events for the current user in one request. Reuse one contact and database across the batch; automatically enable <code>_use_first_contact_id_for_all_events</code> when no contact ID is available. Apply consent filtering and existing identity and tracking-pause checks. Results may be incomplete and cannot be matched to input events by index; no automatic retry is performed.</li>
+<li><code>Pam.showConsent()</code> with an adaptive consent screen for tracking and contacting permissions, HTML descriptions, language selection, required permissions, and saved or dismissed outcomes through <code>PamConsentResult</code>. Preserve choices after save failures, reload details when consent review is required, and prevent duplicate screens or submissions. Dismissal does not save consent.</li>
+<li><code>Pam.saveConsent()</code> with typed <code>TrackingConsent</code>, <code>ContactingConsent</code>, and <code>ConsentVersion</code> selections. Support <code>fromStatus()</code> and <code>copyWith()</code> to reuse valid stored choices, validate required permissions, and reject selections belonging to a different contact or requiring review. Update local tracking permission only after a successful save of the configured tracking consent message with a returned consent record ID.</li>
+<li>Japanese consent content using PAM&#39;s <code>jp</code> key and Flutter&#39;s <code>ja</code> locale, alongside Thai and English. Fall back to available content in Thai, English, then Japanese order.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Reject batch payloads that override the current contact, database, or identity. Preserve the stored contact when server results contain conflicting IDs or databases, and prevent late batch responses from changing a newer user session&#39;s contact or tracking-pause state.</li>
+<li>Accept both direct and <code>data</code>-wrapped consent messages, handle missing localized text and optional settings, and fall back safely for invalid consent colors. Read background opacity and button background color from their corresponding settings.</li>
+<li>Parse <code>latest_version</code> separately from <code>last_consent_version</code>, and support contacting permission responses using <code>push_notification</code> with <code>web_push</code> as a fallback.</li>
+<li>Only parse consent details and status from successful HTTP responses. Serialize consent saves with startup consent synchronization and queued tracking, and reject stale consent screens after the active session changes.</li>
+</ul>
+<h3>Examples and documentation</h3>
+<ul>
+<li>Expand the example app with API controls, simulated REST authentication, login/logout and resume synchronization, identity mismatch handling, consent flows, and automated tests. The simulated authentication service is for demonstration only.</li>
+<li>Update consent, initialization, authentication, batch purchase tracking, and example documentation.</li>
+</ul>
+<h3>Compatibility and upgrade notes</h3>
+<ul>
+<li>Add <code>flutter_widget_from_html_core</code> for consent HTML rendering and enable Material icons. <code>Pam.showConsent()</code> requires a Material app with a Navigator; existing consent and single-event tracking APIs remain available.</li>
+<li>Raise the plugin&#39;s Android compile SDK to 36. Update the example app to Gradle 9.1.0, Android Gradle Plugin 9.0.1, Kotlin 2.3.20, and Java target 17.</li>
+</ul>
+<h2>3.1.2</h2>
+<h3>Fixed</h3>
+<ul>
+<li>Disable theme-provided background dimming on the Android App Attention dialog so it does not stack with the existing 70% black overlay. Match the iOS backdrop opacity without changing the host app&#39;s theme or Activity window.</li>
+<li>Rebuild the Android app after upgrading to include this native change; hot reload alone is insufficient.</li>
+</ul>
+<h2>3.1.1</h2>
+<h3>Fixed</h3>
+<ul>
+<li>Do not call <code>onIdentityMismatch</code> or drop tracking events when <code>oldIdentity</code> is <code>null</code>. Continue checking existing user identities for account switches and logout mismatches, independently of <code>contactID</code>.</li>
+</ul>
+<h2>3.1.0</h2>
+<h3>Added</h3>
+<ul>
+<li>Optional <code>PamLogCategory</code> and <code>PamLogLevel</code> enums for <code>Pam.log</code>; existing <code>Pam.log([...])</code> calls continue to use General / INFO. Android logs use tag <code>PAM</code>; iOS uses OSLog subsystem <code>ai.pams.flutter</code> and feature categories. Every line includes a searchable prefix, including stack traces and long Unicode messages, with Flutter console fallback if native logging is unavailable.</li>
+<li>Categorized SDK diagnostics with request IDs, HTTP status and duration, event destinations and error codes, Attention skip reasons and button setting sources, identity session changes, reset outcomes, and native tracking-pixel failures. Payloads and response bodies use DEBUG; failed requests and event outcomes use ERROR. Remove duplicate response output and decorative separators.</li>
+<li>Optional <code>actionButtonLabel</code>, <code>actionButtonColor</code>, and <code>actionButtonTextColor</code> on <code>Pam.appAttention</code> for Android and iOS. Colors accept <code>#RRGGBB</code>. Non-empty API fields take priority over code values; missing, null, empty, or whitespace-only API fields fall back to code, then native defaults.</li>
+<li><code>Pam.reset()</code> clears PAM user data in secure storage, legacy preferences, and memory after queued work and consent synchronization finish. Preserve configuration, logging settings, and callbacks; do not send logout, delete server data, or require reinitialization. Attempt all storage keys and still clear memory if storage cleanup fails.</li>
+<li>Support public-only and login-only database configurations. Skip tracking with <code>TRACKING_DISABLED</code> when no database alias exists for the current session. Public-only login/logout use the public database without database-transfer media cleanup.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Hide the App Attention action button on Android and iOS when the API&#39;s <code>url</code> is missing, null, empty, or whitespace-only; keep the popup content and close button available.</li>
+<li>Allow only one pending or visible App Attention across the app. Skip concurrent calls for all page names without queuing. Release the lock after dismissal, empty responses, and errors; require an explicit new call to display another popup.</li>
+<li>Return <code>Future&lt;void&gt;</code> from <code>Pam.appAttention</code>, contain storage and request failures, and discard responses/clicks after the calling page or user session changes. Move SDK examples out of <code>build()</code>.</li>
+<li>Complete native Attention results exactly once after dismissal. Handle Android Back, activity detachment, and missing activities; use the active iOS scene&#39;s topmost presenter and report presentation failures instead of leaving pending calls unresolved.</li>
+<li>Serialize enabling tracking consent with consent submission, and await consent preference writes so reset and queued tracking cannot overtake them.</li>
+<li>Remove legacy preference values even when secure-storage deletion fails.</li>
+</ul>
+<h3>Compatibility and upgrade notes</h3>
+<ul>
+<li>Require Dart 3.11+, Flutter 3.41+, Android API 24+, and iOS 13+.</li>
+<li>Update dependencies, including <code>flutter_secure_storage</code> 11.x and <code>flutter_lints</code> 6.x. Remove <code>android_id</code>; obtain the Android identifier through the SDK&#39;s native method channel.</li>
+<li>Rebuild Android and iOS apps after upgrading to include native popup and logging changes; hot reload alone is insufficient. <code>enableLog: false</code> continues to disable SDK logs at every level.</li>
+</ul>
+<h2>3.0.4</h2>
+<ul>
+<li>Fixed bugs</li>
+</ul>
+<h2>3.0.3</h2>
+<ul>
+<li>Add quick allow-all consent helpers for tracking and contacting consent messages.</li>
+<li>Keep manual consent submission unchanged for selective permission use cases.</li>
+<li>Parse <code>consent_message_id</code> from <code>allow_consent</code> responses and expose it on <code>AllowConsentResult</code>.</li>
+<li>Only unlock local tracking after <code>allowAllTrackingConsent</code> succeeds.</li>
+</ul>
+<h2>3.0.2</h2>
+<ul>
+<li>Remove <code>package_info_plus</code> and <code>device_info_plus</code> as SDK dependencies so host apps can choose their own versions.</li>
+<li>Read the host app name, version, build number, and OS version directly on Android and iOS. Preserve the existing tracking payload fields and formatting.</li>
+<li>Remove the <code>uuid</code> dependency. Generate new session IDs as UUID v4 using Dart&#39;s <code>Random.secure()</code>. The SDK continues to reuse the ID within a session.</li>
+</ul>
+<h2>3.0.1</h2>
+<pre><code class="hljs">Support the mobile tracking response contract with error_code/error and _database fields.
+Pause normal tracking for one hour when PAM reports authorization, contact, or consent readiness errors.
+Allow login, register, logout, save_push, test, and allow_consent events to pass while tracking is paused.
+Unpause normal tracking after successful recovery events such as allow_consent or login.
+</code></pre><h2>3.0.0</h2>
+<pre><code class="hljs">Breaking: configure a fixed primary or secondary identity matcher in PamConfig.
+Breaking: remove LoginOptions and per-call alternate-key selection from userLogin().
+Breaking: PamUserState.identified() now accepts only the identity value.
+Breaking: rename mismatch identities to oldIdentity and newIdentity.
+Build primary and secondary CDP identity payloads from the immutable configuration.
+Cancel active HTTP clients on timeout so later identity operations cannot overtake them.
+Prevent local storage errors from skipping remote logout media cleanup.
+Do not re-register a saved push token on the anonymous contact after logout.
+Fix setAllowTracking(false) leaving tracking enabled in memory.
+Stop automatically registering tokens received by the optional platform callback.
+Remove the firebase_messaging dependency; push helpers now accept the PAM data map directly.
+Add a complete 2.x to 3.0 migration guide.
+Run consent synchronization in the background so initialize() does not wait for the server.
+Stop automatically sending a persisted push token during initialize().
+Add an optional identity provider that cross-checks app and SDK identity before tracking.
+Drop mismatched events and report each identity mismatch state once through a global handler.
+</code></pre><h2>2.4.15</h2>
+<pre><code class="hljs">Preserve the existing public API while making tracking and identity transitions safer.
+Route each event with an immutable database and contact destination.
+Serialize login, logout, account switching, and tracking operations in an in-memory queue.
+Delete push notification media from the previous contact before login or logout.
+Prevent push tokens from being rebound when identity transition requests fail.
+Add a five-second HTTP timeout and allow queued events to continue after timeout or error.
+</code></pre><h2>2.4.14</h2>
+<pre><code class="hljs">Store string preferences in secure storage instead of plain text SharedPreferences.
+Migrate legacy plain text string preferences so existing users keep their saved IDs and tokens after upgrading.
+</code></pre><h2>2.4.13</h2>
+<pre><code class="hljs">add click url tracking for push notifications `message.trackPushUrlClick()`
+</code></pre><h2>2.4.12</h2>
+<pre><code class="hljs">Media will not be deleted when the app attempts to re-login.
+</code></pre><h2>2.4.11</h2>
+<pre><code class="hljs">use device_info_plus version &#x27;&gt;=10.0.1 &lt;12.0.0&#x27;
+</code></pre><h2>2.4.10</h2>
+<pre><code class="hljs">change getDatabaseAlias() to async
+</code></pre><h2>2.4.9</h2>
+<pre><code class="hljs">PAM will print stacktrace when exception happen
+</code></pre><h2>2.4.6</h2>
+<pre><code class="hljs">Fixed Android Pixel tracking function
+</code></pre><h2>2.4.5</h2>
+<pre><code class="hljs">Fixed Empty web attention
+</code></pre><h2>2.4.4</h2>
+<pre><code class="hljs">Fixed deprecated code.
+</code></pre><h2>2.4.2</h2>
+<pre><code class="hljs">Fixed, Web attention will work properly.
+</code></pre><h2>2.4.1</h2>
+<pre><code class="hljs">Added a feature that will send a tracking event to track that the user viewed the App Attention popup.
+</code></pre><h2>2.4.0</h2>
+<pre><code class="hljs">Added App Attention that allows creating a Banner from CMS to display on any page of the app.
+</code></pre><h2>2.3.5</h2>
+<p>Fixed the time display to be correct.</p>
+<h2>2.3.4</h2>
+<p>Fixed: getContactID</p>
+<h3>2.3.2</h3>
+<p>Convert timezone for push notification</p>
+<h3>2.3.1</h3>
+<p>Fixed: pam_flutter will never crash when server response incorrect format</p>
+<h3>2.3.0</h3>
+<p>Add utility function to handle push notifications</p>
+<h3>2.2.0</h3>
+<p>Added the ability to log in with a secondary key.</p>
+<h3>2.1.0</h3>
+<p>Fixed many bugs, added new methods with an emphasis on making them easier to use.</p>
+<h3>2.0.5</h3>
+<p>Update the dependencies</p>
+<h3>2.0.4</h3>
+<p>Fixed push notification history reading only for current platform (iOS/Android)</p>
+<h3>2.0.1</h3>
+<p>fixed bugs</p>
+<h3>2.0.0</h3>
+<p>Version2</p>
+<p><a href="index.html">กลับหน้าแรก</a></p>
+
+  </main>
+</body>
+</html>

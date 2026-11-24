@@ -53,6 +53,8 @@ code {
       <li><a href="tracking.html">5. การส่ง Event Tracking</a></li>
       <li><a href="push-notification.html">6. Push Notification</a></li>
       <li><a href="app-attention.html">7. App Attention</a></li>
+      <li><a href="example.html">8. แอปตัวอย่างและปุ่มทดสอบ API</a></li>
+      <li><a href="changelog.html">9. ประวัติการเปลี่ยนแปลง (Changelog)</a></li>
     </ul>
   </nav>
   <main>
@@ -100,6 +102,15 @@ code {
 </code></pre><p>สามารถเรียก <code>Pam.appAttention()</code> เพื่อตรวจสอบข้อความที่ต้องแสดงได้ หากไม่มีป๊อปอัปที่เข้าเงื่อนไข ระบบจะไม่แสดงอะไร และแอปทำงานต่อได้ตามปกติ</p>
 <p>เรียกเมื่อหน้าแสดงครั้งแรกตามตัวอย่าง ไม่ควรเรียกใน <code>build()</code> เพราะอาจเกิดการเรียกใหม่เมื่อหน้าจออัปเดต</p>
 <p>ทั้งแอปแสดง App Attention ได้ทีละหนึ่งอัน ระหว่างโหลดหรือแสดงป๊อปอัป การเรียกซ้ำทุก <code>pageName</code> จะถูกข้ามโดยไม่เก็บคิว เมื่อปิดแล้วต้องเรียก <code>Pam.appAttention()</code> ใหม่จึงจะมีโอกาสแสดงอีกครั้ง ไม่มีการเปิดอันถัดไปอัตโนมัติ หากไม่มีข้อความหรือเกิดข้อผิดพลาดก็สามารถเรียกใหม่ได้ เมธอดคืน <code>Future&lt;void&gt;</code> ให้รอจบงานได้ และจะข้ามผลลัพธ์เก่าหากหน้าไม่อยู่ด้านหน้าหรือ session เปลี่ยนไป</p>
+<hr>
+<h2>เวลารอคำตอบจาก server</h2>
+<p><code>Pam.appAttention()</code> รอคำตอบ HTTP สูงสุด 30 วินาทีโดยค่าเริ่มต้น แยกจาก timeout กลางของ SDK ที่ 5 วินาที หากต้องการเปลี่ยนเฉพาะการเรียกนี้ ให้กำหนดค่ามากกว่าศูนย์:</p>
+<pre><code class="hljs language-dart"><span class="hljs-keyword">await</span> <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">appAttention</span>(
+  context,
+  pageName: <span class="hljs-string">&#x27;home&#x27;</span>,
+  requestTimeout: <span class="hljs-keyword">const</span> <span class="hljs-title class_">Duration</span>(seconds: <span class="hljs-number">45</span>),
+);
+</code></pre><p>เมื่อ timeout จะบันทึกข้อผิดพลาดใน Log ไม่แสดง Popup จากคำตอบที่มาช้า และเปิดให้เรียกใหม่ได้โดยไม่ retry อัตโนมัติ ค่า timeout ใช้กับการรอ HTTP ไม่ใช่เวลาที่ผู้ใช้เปิด Popup ค้างไว้ หากยัง timeout ให้ตรวจเครือข่ายและเวลาตอบกลับของ <code>/app-attention</code> ฝั่ง server</p>
 <hr>
 <h2>เปลี่ยนข้อความและสี Action Button</h2>
 <p>หาก API ไม่ส่ง <code>url</code> สำหรับคลิก ส่ง <code>null</code> ข้อความว่าง หรือช่องว่างล้วน SDK จะซ่อน Action Button ทั้ง iOS และ Android แม้กำหนดข้อความปุ่มหรือ <code>onBannerClick</code> ไว้ เนื้อหาป๊อปอัปและปุ่มปิดยังแสดงตามปกติ</p>

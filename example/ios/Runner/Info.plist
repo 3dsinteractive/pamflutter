@@ -45,5 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>ใช้สิทธิ์การติดตามเพื่อสาธิต App Tracking Transparency ในแอปตัวอย่าง PAM</string>
 </dict>
 </plist>

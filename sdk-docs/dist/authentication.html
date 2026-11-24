@@ -53,6 +53,8 @@ code {
       <li><a href="tracking.html">5. การส่ง Event Tracking</a></li>
       <li><a href="push-notification.html">6. Push Notification</a></li>
       <li><a href="app-attention.html">7. App Attention</a></li>
+      <li><a href="example.html">8. แอปตัวอย่างและปุ่มทดสอบ API</a></li>
+      <li><a href="changelog.html">9. ประวัติการเปลี่ยนแปลง (Changelog)</a></li>
     </ul>
   </nav>
   <main>
@@ -127,6 +129,9 @@ code {
 <span class="hljs-comment">// หลังแอปเข้าสู่ระบบบัญชีใหม่สำเร็จ ให้แจ้งตัวตนใหม่</span>
 <span class="hljs-title class_">Pam</span>.<span class="hljs-title function_">userLogin</span>(<span class="hljs-string">&#x27;CUST-002&#x27;</span>);
 </code></pre><p>เมื่อเริ่มทำงานกับบัญชีใหม่ SDK จะใช้ <code>loginDBAlias</code> พร้อมตัวตนของผู้ใช้คนใหม่สำหรับกิจกรรมถัดไป</p>
+<h2>ลอง flow กับ REST API จำลอง</h2>
+<p>แอป <code>example/</code> มีช่อง Customer ID และปุ่ม login/logout ที่รอ REST auth จำลองสำเร็จก่อนอัปเดต session และแจ้ง PAM พร้อม <code>identityProvider</code> ที่อ่าน cache, callback แก้ mismatch และ observer สำหรับโหลด session ใหม่เมื่อกลับเข้าแอป Config มาจาก <code>getDevelopConfig()</code> ในโค้ดตั้งแต่ startup</p>
+<p>ดูวิธีจำลอง session หมดอายุ เปลี่ยนบัญชี หรือแอปลืมแจ้ง PAM ใน <a href="example.html">คู่มือแอปตัวอย่าง</a></p>
 <p><a href="index.html">กลับหน้าแรก</a></p>
 
   </main>

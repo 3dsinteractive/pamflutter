@@ -1,3 +1,55 @@
+# 3.2.2
+
+- Updates the minimum supported SDK version to Flutter 3.44/Dart 3.12.
+- Migrates to built-in Kotlin.
+- Change dependency on `flutter_secure_storage` to `>=9.2.4 <12.0.0` to avoid conflicts with host apps that use newer versions.
+
+# 3.2.1
+
+## Fixed
+
+- Display Android App Attention edge to edge for both Full and Large layouts, independently of the host app's dialog theme. Hide status and navigation bars while the popup is open and keep controls clear of display cutouts.
+- Apply `Bar Color → Background Color` to the fixed bottom section in `Pam.showConsent()`, and use the configured bar text color for its text.
+- Apply `Button Color → Background Color` and `Button Color → Text Color` to the consent accept button. Use the button background color for enabled consent switches, with a translucent track.
+- Remove the “Required · Always enabled” label from the consent UI in all languages while preserving locked required permissions.
+
+## Upgrade notes
+
+- Rebuild and reinstall the Android app to include the native App Attention changes; hot reload and hot restart do not update native code.
+
+# 3.2.0
+
+## Added
+
+- `Pam.trackBatch()` with `PamTrackEvent` and `PamBatchResponse` to send multiple events for the current user in one request. Reuse one contact and database across the batch; automatically enable `_use_first_contact_id_for_all_events` when no contact ID is available. Apply consent filtering and existing identity and tracking-pause checks. Results may be incomplete and cannot be matched to input events by index; no automatic retry is performed.
+- `Pam.showConsent()` with an adaptive consent screen for tracking and contacting permissions, HTML descriptions, language selection, required permissions, and saved or dismissed outcomes through `PamConsentResult`. Preserve choices after save failures, reload details when consent review is required, and prevent duplicate screens or submissions. Dismissal does not save consent.
+- `Pam.saveConsent()` with typed `TrackingConsent`, `ContactingConsent`, and `ConsentVersion` selections. Support `fromStatus()` and `copyWith()` to reuse valid stored choices, validate required permissions, and reject selections belonging to a different contact or requiring review. Update local tracking permission only after a successful save of the configured tracking consent message with a returned consent record ID.
+- Japanese consent content using PAM's `jp` key and Flutter's `ja` locale, alongside Thai and English. Fall back to available content in Thai, English, then Japanese order.
+
+## Fixed
+
+- Reject batch payloads that override the current contact, database, or identity. Preserve the stored contact when server results contain conflicting IDs or databases, and prevent late batch responses from changing a newer user session's contact or tracking-pause state.
+- Accept both direct and `data`-wrapped consent messages, handle missing localized text and optional settings, and fall back safely for invalid consent colors. Read background opacity and button background color from their corresponding settings.
+- Parse `latest_version` separately from `last_consent_version`, and support contacting permission responses using `push_notification` with `web_push` as a fallback.
+- Only parse consent details and status from successful HTTP responses. Serialize consent saves with startup consent synchronization and queued tracking, and reject stale consent screens after the active session changes.
+
+## Examples and documentation
+
+- Expand the example app with API controls, simulated REST authentication, login/logout and resume synchronization, identity mismatch handling, consent flows, and automated tests. The simulated authentication service is for demonstration only.
+- Update consent, initialization, authentication, batch purchase tracking, and example documentation.
+
+## Compatibility and upgrade notes
+
+- Add `flutter_widget_from_html_core` for consent HTML rendering and enable Material icons. `Pam.showConsent()` requires a Material app with a Navigator; existing consent and single-event tracking APIs remain available.
+- Raise the plugin's Android compile SDK to 36. Update the example app to Gradle 9.1.0, Android Gradle Plugin 9.0.1, Kotlin 2.3.20, and Java target 17.
+
+# 3.1.2
+
+## Fixed
+
+- Disable theme-provided background dimming on the Android App Attention dialog so it does not stack with the existing 70% black overlay. Match the iOS backdrop opacity without changing the host app's theme or Activity window.
+- Rebuild the Android app after upgrading to include this native change; hot reload alone is insufficient.
+
 # 3.1.1
 
 ## Fixed
