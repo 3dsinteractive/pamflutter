@@ -1,3 +1,9 @@
+# 3.2.2
+
+- Updates the minimum supported SDK version to Flutter 3.44/Dart 3.12.
+- Migrates to built-in Kotlin.
+- Change dependency on `flutter_secure_storage` to `>=9.2.4 <12.0.0` to avoid conflicts with host apps that use newer versions.
+
 # 3.2.1
 
 ## Fixed
