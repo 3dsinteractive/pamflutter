@@ -1,3 +1,18 @@
+# 3.2.4
+
+## Compatibility
+
+- Restore support for Flutter 3.41+ / Dart 3.11+, including Flutter 3.41.9, while retaining all 3.2.3 App Attention and push fixes.
+- Support Android hosts using either the Kotlin Gradle plugin or AGP 9 built-in Kotlin. Keep Java and Kotlin compilation targets aligned at JVM 17 and retain the flexible secure-storage dependency range.
+- Align the example Android build with the Flutter 3.41 template: AGP 8.11.1, Gradle 8.14 and Kotlin 2.2.20. Use a Java 21 Gradle daemon instead of Java 25.
+
+## Validation
+
+- Pass all 169 SDK tests and 22 example tests on both Flutter 3.41.9 and 3.50.1.
+- Build the example Android debug APK with Flutter 3.41.9 / AGP 8.11.1.
+- Build the Android plugin and pass all 7 native tests with both AGP 8.11.1 (Kotlin Gradle plugin) and AGP 9.5.1 (built-in Kotlin).
+- iOS native builds were not verified because Xcode is unavailable on the test machine.
+
 # 3.2.3
 
 ## Fixed

@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'pam_flutter'
-  s.version          = '3.2.3'
+  s.version          = '3.2.4'
   s.summary          = 'PAM Flutter plugin.'
   s.description      = <<-DESC
      The PAM Flutter plugin allows you to integrate the PAM SDK with your Flutter application, providing seamless access to PAM features and functionalities.

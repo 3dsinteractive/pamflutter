@@ -1,6 +1,6 @@
 # PAM Flutter SDK
 
-A Flutter plugin for integrating PAM Real CDP into Flutter mobile applications. This guide covers SDK v3.2.1.
+A Flutter plugin for integrating PAM Real CDP into Flutter mobile applications. This guide covers SDK v3.2.4.
 
 ## Table of Contents
 
@@ -29,12 +29,17 @@ A Flutter plugin for integrating PAM Real CDP into Flutter mobile applications. 
 - Android API 24 or later
 - iOS 13.0 or later
 
+Flutter 3.41.9 is supported. Android hosts can use either the Kotlin Gradle
+plugin with AGP 8 or built-in Kotlin with AGP 9. The SDK compiles Java and
+Kotlin to JVM 17. The example uses the Flutter 3.41 Android toolchain and a
+Java 21 Gradle daemon.
+
 ### Adding pam_flutter to Your Project
 
 Open a terminal and run the following command to add `pam_flutter` to your Flutter project:
 
 ```sh
-flutter pub add pam_flutter:^3.2.1
+flutter pub add pam_flutter:^3.2.4
 ```
 
 ## Migrating from 2.x
