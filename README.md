@@ -565,6 +565,23 @@ popup. Empty responses and errors also release the lock. The method returns
 `Future<void>` and ignores stale responses/clicks after the calling page or user
 session changes. Call it when entering a page, rather than from `build()`.
 
+While the popup is open, background taps and scrolling are blocked across the
+Flutter screen. Interaction resumes when the popup closes or fails to open.
+The page remains interactive while the server request is loading.
+
+Both `full` and `large` adapt to the current window, including rotation, tablets,
+and foldable screens. `full` keeps a black full-screen backdrop and fills portrait
+windows when doing so crops no more than 20% of the media area. Otherwise it fits
+all of the media between the controls. `large` always fits the entire media in
+its reserved central area. Text and controls are laid out before loading, using
+up to two title lines and three visible description lines. Longer titles are
+truncated; longer descriptions can scroll within their reserved area.
+Media is decoded/prepared off the UI thread and revealed in its final position;
+video waits for its first frame. A loading indicator occupies the reserved area.
+If both URLs are present, video takes priority and image is used if video fails.
+No media-dimension API fields are required. Rebuild the host app after updating
+because these layout and playback changes are native to Android and iOS.
+
 - `context`: The BuildContext of the current widget tree.
 - `pageName`: A string that specifies the current page name, allowing dynamic banners tailored to specific app pages.
 - `actionButtonLabel`: Optional label for the action button.

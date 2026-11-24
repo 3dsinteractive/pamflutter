@@ -1,3 +1,22 @@
+# 3.2.3
+
+## Fixed
+
+- Block taps and scrolling on the Flutter screen behind App Attention until the native popup closes. Restore interaction after dismissal, action clicks, or presentation errors, including when called from a nested navigator.
+- Adapt Full and Large App Attention images and videos to portrait, square, tablet and landscape windows. Full mode fills portrait windows when cropping removes no more than 20% of the media area; otherwise it fits the entire media on a black backdrop. Large mode always fits the entire media within the available space.
+- Keep controls and reserved media space stable while loading. Decode images before displaying them and reveal videos when their first frame is ready, without animated resizing or crossfades. Cancel pending media work on dismissal and use the image as a fallback when video fails.
+- Accept push notifications with missing or null `flex` without throwing. Return empty `flex` and thumbnail values while preserving the original payload and tracking fields; continue to support text-only messages and messages with images.
+
+## Build and tests
+
+- Align Android Java and Kotlin compilation targets at Java 17 and configure the existing JUnit Platform test runner with Kotlin JUnit 5 dependencies.
+- Add regression tests for background interaction, media geometry across window sizes, and push messages with missing, null or empty `flex`.
+
+## Upgrade notes
+
+- Rebuild the host app on both Android and iOS to include the native App Attention changes; hot reload and hot restart do not apply native code changes.
+- No API changes or media-dimension fields are required.
+
 # 3.2.2
 
 - Updates the minimum supported SDK version to Flutter 3.44/Dart 3.12.

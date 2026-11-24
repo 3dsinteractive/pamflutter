@@ -2,16 +2,11 @@ package ai.pams.pam_flutter
 
 import android.app.Dialog
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.widget.Button
-import android.widget.FrameLayout
 import android.widget.ImageButton
-import android.widget.ImageView
+import android.text.method.ScrollingMovementMethod
 import android.widget.TextView
-import android.widget.VideoView
 import android.view.View
-import com.bumptech.glide.Glide
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.content.res.ColorStateList
@@ -35,7 +30,6 @@ class PopupDialog(
 
     init {
         // ดึงค่าจาก arguments
-        val type = arguments["type"] as? String
         val size = arguments["size"] as? String
         val title = arguments["title"] as? String
         val description = arguments["description"] as? String
@@ -77,32 +71,13 @@ class PopupDialog(
         // ตั้งค่า Description
         val descriptionView: TextView = findViewById(R.id.description)
         descriptionView.text = description
+        descriptionView.movementMethod = ScrollingMovementMethod()
+        descriptionView.isVerticalScrollBarEnabled = true
 
 
-        val imageView: ImageView = findViewById(R.id.imageView)
-        val videoView: VideoView = findViewById(R.id.videoView)
-
-        imageView.visibility = View.INVISIBLE
-        videoView.visibility = View.INVISIBLE
-
-        // กรณีแสดง Image
-        image?.let {
-            imageView.scaleType = ImageView.ScaleType.CENTER_CROP
-           
-            // โหลดภาพด้วย Glide
-            Glide.with(context).load(it).into(imageView)
-            imageView.visibility = View.VISIBLE
-        }
-
-        // กรณีแสดง Video
-        video?.let {
-           if(video != ""){
-                videoView.setVideoURI(Uri.parse(it))
-                videoView.setOnPreparedListener { mp -> mp.isLooping = true } // ตั้งค่าให้เล่นซ้ำ
-                videoView.start()
-                videoView.visibility = View.VISIBLE
-           }
-        }
+        val mediaView: AttentionMediaView = findViewById(R.id.mediaView)
+        val root: View = findViewById(R.id.popupRoot)
+        mediaView.load(image, video, full = size != "large")
 
         // ตั้งค่า Learn More Button
         val learnMoreButton: Button = findViewById(R.id.learnMore)
@@ -145,11 +120,33 @@ class PopupDialog(
                 closeButton.layoutParams = closeMargins
                 buttonMargins.bottomMargin = buttonBottom + (cutout?.safeInsetBottom ?: 0)
                 learnMoreButton.layoutParams = buttonMargins
+                root.setPadding(cutout?.safeInsetLeft ?: 0, 0, cutout?.safeInsetRight ?: 0, 0)
                 insets
             }
         }
+        // All these frames depend on window/text/control layout, never on media
+        // metadata. Rotation or folding only recomputes the media's inner frame.
+        root.viewTreeObserver.addOnGlobalLayoutListener {
+            if (size == "large") {
+                mediaView.setContentArea(
+                    0, 0, mediaView.width, mediaView.height,
+                    (root.width * 0.8f).toInt(), (root.height * 0.6f).toInt()
+                )
+            } else {
+                val padding = (16 * context.resources.displayMetrics.density).toInt()
+                val footerTop = minOf(
+                    titleView.top, descriptionView.top,
+                    if (learnMoreButton.visibility == View.VISIBLE) learnMoreButton.top else root.height
+                )
+                mediaView.setContentArea(
+                    padding, closeButton.bottom + padding,
+                    mediaView.width - padding, footerTop - padding,
+                    mediaView.width, mediaView.height
+                )
+            }
+        }
         setOnDismissListener {
-            videoView.stopPlayback()
+            mediaView.release()
             if (!completed) {
                 completed = true
                 onClosed(clickData)

@@ -250,7 +250,7 @@ class Pam {
         return null;
       }
 
-      final String flex = payload['flex'];
+      final String flex = payload['flex'] ?? "";
       RegExp regExp = RegExp(r'src="(.*?)"');
       String? match = regExp.firstMatch(flex)?.group(1);
       String banner = match?.toString() ?? "";
@@ -879,7 +879,7 @@ class Pam {
         requestTimeout: requestTimeout,
       );
       final attention = await api.getAppAttention(pageName);
-      if (!isCurrent()) {
+      if (!context.mounted || !isCurrent()) {
         attentionLog('Response ignored reason=stale_page_or_session');
         return;
       }
@@ -915,7 +915,20 @@ class Pam {
       attentionLog(
         'Opening popup size=${json['size']} button_sources=$buttonSources',
       );
-      final result = await PamFlutterPlatform.instance.appAttentionPopup(json);
+      // Native content sits above Flutter. Keep a transparent barrier in the
+      // root overlay too, so background widgets cannot receive input.
+      final barrier = OverlayEntry(
+        builder: (_) =>
+            const Positioned.fill(child: ModalBarrier(dismissible: false)),
+      );
+      Overlay.of(context, rootOverlay: true).insert(barrier);
+      final Map<String, dynamic>? result;
+      try {
+        result = await PamFlutterPlatform.instance.appAttentionPopup(json);
+      } finally {
+        barrier.remove();
+        barrier.dispose();
+      }
       // Native completes only once the popup is gone. A click handler may
       // explicitly request a new popup without the old call unlocking it later.
       releaseLock();

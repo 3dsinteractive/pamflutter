@@ -70,14 +70,14 @@ void main() {
     PamFlutterPlatform.instance = previousPlatform;
   });
 
-  Future<void> mount(WidgetTester tester) async {
+  Future<void> mount(WidgetTester tester, {Widget? body}) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Builder(
           builder: (value) {
             context = value;
             navigator = Navigator.of(value);
-            return const Scaffold();
+            return Scaffold(body: body);
           },
         ),
       ),
@@ -99,6 +99,147 @@ void main() {
       () => MockClient((_) async => http.Response(response, 200)),
     );
   }
+
+  for (final completion in ['dismiss', 'action', 'error']) {
+    testWidgets(
+      'blocks background taps and scrolling until popup completes with $completion',
+      (tester) async {
+        var taps = 0;
+        var clicks = 0;
+        final scrollController = ScrollController();
+        addTearDown(scrollController.dispose);
+        await mount(
+          tester,
+          body: Column(
+            children: [
+              TextButton(
+                onPressed: () => taps++,
+                child: const Text('Background button'),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollController,
+                  itemCount: 100,
+                  itemExtent: 50,
+                  itemBuilder: (_, index) => Text('Item $index'),
+                ),
+              ),
+            ],
+          ),
+        );
+        final buttonPosition = tester.getCenter(find.text('Background button'));
+        final listPosition = tester.getCenter(find.byType(ListView));
+        final response = Completer<http.Response>();
+        await http.runWithClient(() async {
+          final call = Pam.appAttention(
+            context,
+            onBannerClick: (_) {
+              clicks++;
+              return true;
+            },
+          );
+          await flush(tester);
+          // Fetching an offer should leave the page interactive.
+          await tester.tapAt(buttonPosition);
+          expect(taps, 1);
+
+          response.complete(http.Response('{"title":"offer"}', 200));
+          await flush(tester);
+          expect(platform.requests, hasLength(1));
+          await tester.tapAt(buttonPosition);
+          await tester.dragFrom(listPosition, const Offset(0, -200));
+          await tester.pumpAndSettle();
+          expect(taps, 1);
+          expect(scrollController.offset, 0);
+          expect(platform.pending.single.isCompleted, isFalse);
+
+          if (completion == 'error') {
+            platform.pending.single.completeError(
+              PlatformException(code: 'POPUP_FAILED'),
+            );
+          } else {
+            platform.pending.single.complete(
+              completion == 'action'
+                  ? {'url': 'https://example.invalid'}
+                  : null,
+            );
+          }
+          await call;
+          await flush(tester);
+          await tester.tapAt(buttonPosition);
+          await tester.dragFrom(listPosition, const Offset(0, -200));
+          await tester.pumpAndSettle();
+          expect(taps, 2);
+          expect(scrollController.offset, greaterThan(0));
+          expect(clicks, completion == 'action' ? 1 : 0);
+        }, () => MockClient((_) => response.future));
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
+
+  testWidgets('blocks outside a nested navigator too', (tester) async {
+    var taps = 0;
+    late BuildContext nestedContext;
+    await mount(
+      tester,
+      body: Row(
+        children: [
+          TextButton(
+            onPressed: () => taps++,
+            child: const Text('Outside navigator'),
+          ),
+          Expanded(
+            child: Navigator(
+              onGenerateRoute: (_) => MaterialPageRoute<void>(
+                builder: (value) {
+                  nestedContext = value;
+                  return const Scaffold();
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    final position = tester.getCenter(find.text('Outside navigator'));
+    await withResponse(() async {
+      final call = Pam.appAttention(nestedContext);
+      await flush(tester);
+      expect(platform.requests, hasLength(1));
+      await tester.tapAt(position);
+      expect(taps, 0);
+      platform.pending.single.complete(null);
+      await call;
+      await flush(tester);
+      await tester.tapAt(position);
+      expect(taps, 1);
+    });
+  });
+
+  testWidgets('cleans up when the app unmounts while the popup is open', (
+    tester,
+  ) async {
+    await mount(tester);
+    await withResponse(() async {
+      final call = Pam.appAttention(context);
+      await flush(tester);
+      expect(platform.requests, hasLength(1));
+      await tester.pumpWidget(const SizedBox());
+      platform.pending.single.complete(null);
+      await call;
+      await flush(tester);
+      expect(tester.takeException(), isNull);
+
+      await mount(tester);
+      final next = Pam.appAttention(context);
+      await flush(tester);
+      expect(platform.requests, hasLength(2));
+      platform.pending.last.complete(null);
+      await next;
+      await flush(tester);
+    });
+  });
 
   testWidgets(
     'skips all concurrent page names while loading and showing; no queue',
